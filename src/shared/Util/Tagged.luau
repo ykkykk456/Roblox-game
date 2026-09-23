@@ -23,7 +23,13 @@ function Tagged.each(tag: string, onAdded: (Instance) -> (() -> ())?): () -> ()
 			warn(`[Tagged] {tag} ที่ {instance:GetFullName()}: {cleanup}`)
 			return
 		end
-		cleanups[instance] = if type(cleanup) == "function" then cleanup else function() end
+		local cleanupFn = if type(cleanup) == "function" then cleanup else function() end
+		-- tag อาจถูกถอดระหว่างที่ onAdded ยังทำงาน (yield) → ล้างทันทีแทนการเก็บไว้
+		if not CollectionService:HasTag(instance, tag) then
+			pcall(cleanupFn)
+			return
+		end
+		cleanups[instance] = cleanupFn
 	end
 
 	local function remove(instance: Instance)

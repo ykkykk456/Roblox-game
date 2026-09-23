@@ -2,6 +2,9 @@
 -- โหลดทุก ModuleScript ใน Data/ → Network/ → Services/ แล้วเรียก Init() ทุกตัวก่อน จากนั้นค่อย Start()
 -- ไฟล์ใหม่ไม่ต้องลงทะเบียนที่นี่: แค่วางไฟล์ .luau ในโฟลเดอร์และคืนตาราง { Init = fn?, Start = fn? }
 
+-- สร้าง Remote ทั้งหมดก่อนเสมอ ไม่เช่นนั้น Client ที่ require Remotes จะรอค้างตลอดไปถ้าไม่มีโมดูลฝั่ง Server ใช้มัน
+require(game:GetService("ReplicatedStorage").Shared.Remotes)
+
 local LOAD_ORDER = { "Data", "Network", "Services" }
 
 local modules = {}

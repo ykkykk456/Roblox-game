@@ -44,12 +44,22 @@ local function deepCopy(value: any): any
 	return copy
 end
 
-local function reconcile(data: any, template: any)
+-- เติม field ที่ขาด และแทน field ที่ชนิดผิด/เป็น NaN/inf ด้วยค่าจาก DEFAULT (ข้อมูลจาก DataStore ห้ามเชื่อโดยไม่ตรวจ)
+local function reconcile(data: any, template: any, path: string)
 	for key, value in template do
-		if data[key] == nil then
+		local current = data[key]
+		local invalid = current ~= nil
+			and (
+				type(current) ~= type(value)
+				or (type(current) == "number" and (current ~= current or current == math.huge or current == -math.huge))
+			)
+		if invalid then
+			warn(`[PlayerData] {path}.{key} ชนิดหรือค่าไม่ถูกต้อง ({current}) — ใช้ค่าเริ่มต้นแทน`)
+		end
+		if current == nil or invalid then
 			data[key] = deepCopy(value)
-		elseif type(value) == "table" and type(data[key]) == "table" then
-			reconcile(data[key], value)
+		elseif type(value) == "table" then
+			reconcile(current, value, `{path}.{key}`)
 		end
 	end
 end
@@ -122,7 +132,7 @@ local function load(player: Player)
 		return
 	end
 	local data = migrate(stored)
-	reconcile(data, DEFAULT)
+	reconcile(data, DEFAULT, `u_{player.UserId}`)
 	profiles[player] = { data = data, loaded = true }
 end
 
