@@ -2,19 +2,16 @@
   "name": "Roblox plan",
   "tree": {
     "$className": "DataModel",
-
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
       }
     },
-
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"
       }
     },
-
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "Client": {
@@ -22,7 +19,6 @@
         }
       }
     },
-
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
@@ -46,6 +42,29 @@
             512,
             20,
             512
+          ]
+        }
+      },
+      "Grass": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Locked": true,
+          "Material": "Grass",
+          "Color": [
+            0.34902,
+            0.60784,
+            0.23922
+          ],
+          "Position": [
+            0,
+            0.5,
+            0
+          ],
+          "Size": [
+            362,
+            1,
+            362
           ]
         }
       }
