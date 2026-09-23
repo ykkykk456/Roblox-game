@@ -115,6 +115,7 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 | `src/server/Network/Guard.luau` | rate limit + ตรวจชนิด/จำนวน argument + กัน NaN/inf/string ยาว | `Guard.connect(remote, { rate, per, args }, handler)` · handler ตรวจช่วงค่า/สิทธิ์ต่อด้วย `Guard.inRange` / `Guard.isInteger` |
 | `src/server/Data/PlayerData.luau` | โหลด/บันทึกข้อมูลผู้เล่นอย่างปลอดภัย (retry, ไม่บันทึกทับเมื่อโหลดล้ม, migration, autosave, BindToClose) | `PlayerData.get(player)` · `PlayerData.update(player, function(data) ... end)` · field ใหม่เพิ่มใน `DEFAULT` |
 | `src/shared/Config/Economy.luau` | ตัวเลขเศรษฐกิจทั้งหมด | Economy_Designer แก้ที่นี่ที่เดียว |
+| `src/shared/Config/Tags.luau` + `src/shared/Util/Tagged.luau` | เชื่อมชิ้นส่วนที่สร้างมือใน Studio กับโค้ด | ประกาศ tag ใน `Tags` · `Tagged.each(Tags.X, function(part) ... end)` |
 
 ลำดับโหลดฝั่ง Server: `Data/` → `Network/` → `Services/` (ข้อมูลพร้อมก่อน Remote และตรรกะเกม)
 
@@ -130,5 +131,7 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 
 ## 7. แมพและวัตถุใน Workspace
 
-Workspace ใน `default.project.json` มีแค่ Baseplate ชิ้นที่สร้างมือใน Studio จึง **ไม่อยู่ใน Git** — วิธีจัดการแมพ (สร้างด้วยโค้ด / สร้างมือ + CollectionService tag / ไฟล์ `.rbxm`) ดู `.claude/skills/roblox-map/SKILL.md`
-`[Proposed]` ค่าเริ่มต้น: สร้างมือใน Studio แล้วโค้ดอ้างอิงผ่าน tag — รอ CEO ยืนยัน
+**ตัดสินแล้ว (CEO): สร้างมือผสมโค้ด** — รายละเอียดใน `.claude/skills/roblox-map/SKILL.md`
+- รูปทรงซับซ้อน/ตกแต่ง → สร้างมือใน Studio (ไม่อยู่ใน Git → Publish to Roblox เป็นประจำ)
+- ของที่ซ้ำหรือวางตามกฎ → สร้างด้วยโค้ดใน `src/server/Services/`
+- เชื่อมของที่สร้างมือกับโค้ดผ่าน CollectionService tag (`src/shared/Config/Tags.luau`) + Attribute และ `src/shared/Util/Tagged.luau` · ห้ามอ้างชื่อหรือตำแหน่งชิ้นส่วน

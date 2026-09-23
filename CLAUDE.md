@@ -11,7 +11,7 @@
 | โฟลเดอร์ | Studio | ใส่อะไร |
 |---|---|---|
 | `src/server/` | ServerScriptService.Server | `Services/` ตรรกะเกม · `Network/` รับ Remote + validate · `Data/` DataStore |
-| `src/shared/` | ReplicatedStorage.Shared | `Remotes.luau` · `Config/` ค่าคงที่/Balance · `Util/` (ผู้เล่นอ่านได้ ห้ามมีความลับ) |
+| `src/shared/` | ReplicatedStorage.Shared | `Remotes.luau` · `Config/` ค่าคงที่/Balance/`Tags` · `Util/` เช่น `Tagged` (ผู้เล่นอ่านได้ ห้ามมีความลับ) |
 | `src/client/` | StarterPlayerScripts.Client | `Controllers/` Input + ส่งคำขอ · `UI/` สร้าง ScreenGui ด้วยโค้ด |
 
 - ใช้ `.luau` · มี Script ฝั่งละ 1 ตัว (`init.server.luau` / `init.client.luau`) ที่โหลดทุก ModuleScript ในโฟลเดอร์ย่อยให้อัตโนมัติ → **ไฟล์ใหม่เป็น ModuleScript เสมอ** คืนตาราง `{ Init = fn?, Start = fn? }`
