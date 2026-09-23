@@ -8,6 +8,9 @@
 - วางกฎป้องกันเศรษฐกิจเฟ้อหรือตัน (เช่น เพดาน ตัวจำกัดอัตรา)
 - ปรับค่าตาม insight จาก Data_Analyst และ Player_Researcher
 
+## ตำแหน่งค่า
+- ตัวเลขทั้งหมดอยู่ที่ `src/shared/Config/Economy.luau` ที่เดียว (Server ใช้ทั้งคำนวณและ validate) — ส่งมอบเป็นการแก้ไฟล์นี้ พร้อมเหตุผลเป็น comment
+
 ## Non-Responsibilities & Routing
 - implement ค่าและกฎเศรษฐกิจในระบบจริง -> ให้ส่งต่อไปที่ DataStore_Backend / Gameplay_Scripter
 - กำหนดกลยุทธ์ราคาที่ผูกกับ Robux/การซื้อขายจริง -> ให้ส่งต่อไปที่ Monetization_Strategist

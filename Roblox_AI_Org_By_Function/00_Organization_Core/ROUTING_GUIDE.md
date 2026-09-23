@@ -18,14 +18,14 @@
 
 ---
 
-## 2. วิธีใช้คู่มือนี้ (สำหรับ CEO)
+## 2. วิธีใช้คู่มือนี้
 
-1. ดูว่าสถานการณ์ตรงกับ Template ใน `09_Workflows/` หรือไม่ (4 แบบหลักในหัวข้อ 4)
-2. ถ้าตรง → เปิดไฟล์ Workflow นั้น หยิบไฟล์ตาม **Required Skills to Load** ไปให้ AI อ่าน แล้วทำตาม **Execution Steps**
-3. ถ้าไม่ตรงกับ Template ใดเลย → ใช้ **กฎการจับคู่** ในหัวข้อ 3 ประกอบกับ `00_Organization_Core/Index/DEPARTMENTS_ARCHITECTURE.md` / `SKILLS_ARCHITECTURE.md` เพื่อประกอบชุด Skill เอง
-4. ไม่แน่ใจว่างานอยู่ Skill ไหน → เริ่มจากไฟล์ `Project_Router.md` (`08_Operations/Skills/`) เพื่อช่วยระบุเจ้าของงาน
+ใช้ Claude Code: ส่วนใหญ่ **ไม่ต้องเลือกไฟล์เอง** — `CLAUDE.md` โหลดทุกครั้ง, กฎของโฟลเดอร์ใน `.claude/rules/` โหลดเองตามไฟล์ที่แก้, และ Workflow เป็น Skill ที่ Claude เรียกเองหรือพิมพ์สั่งได้
 
----
+1. **Fast Lane** — งานเล็กที่ครบทุกข้อ: แตะไม่เกิน ~3 ไฟล์ · ไม่เพิ่ม Remote ใหม่ · ไม่เปลี่ยนโครงข้อมูล DataStore · ไม่แตะเงิน/ไอเทม/การซื้อ → สั่งงานตรงๆ ได้เลย Claude สวมบทบาทที่ต้องใช้เอง แล้วจบด้วย `/roblox-review` แบบย่อ
+2. **ตรงกับ Workflow** → ใช้ Skill ในหัวข้อ 4 (แต่ละ Step โหลด Skill บทบาทเฉพาะที่ต้องใช้)
+3. **ไม่ตรงกับอะไรเลย** → ใช้กฎการจับคู่ในหัวข้อ 3 ประกอบกับ `00_Organization_Core/Index/SKILLS_ARCHITECTURE.md`
+4. **ไม่แน่ใจว่างานเป็นของใคร** → เริ่มจาก `08_Operations/Skills/Project_Router.md`
 
 ## 3. กฎการจับคู่ (Pairing Rules)
 
@@ -48,13 +48,15 @@
 
 ---
 
-## 4. Workflow Templates ที่มีให้แล้ว
+## 4. Workflow ที่มีให้แล้ว (Claude Skills)
 
-| ไฟล์ | ใช้เมื่อ |
+| Skill | ใช้เมื่อ |
 |---|---|
-| `09_Workflows/NEW_FEATURE_WORKFLOW.md` | สร้างฟีเจอร์ใหม่ตั้งแต่ต้น (มีทั้งระบบและ UI) |
-| `09_Workflows/UI_IMPLEMENTATION_WORKFLOW.md` | สร้างหรือแก้หน้าจอ UI |
-| `09_Workflows/BUG_FIX_WORKFLOW.md` | แก้บั๊กที่มีอยู่แล้ว |
-| `09_Workflows/ECONOMY_REBALANCE_WORKFLOW.md` | ปรับค่า Balance/เศรษฐกิจ |
+| `/roblox-feature` | สร้างฟีเจอร์ใหม่ตั้งแต่ต้น (มีทั้งระบบและ UI) |
+| `/roblox-ui` | สร้างหรือแก้หน้าจอ UI |
+| `/roblox-bugfix` | แก้บั๊กที่มีอยู่แล้ว |
+| `/roblox-economy` | ปรับค่า Balance/เศรษฐกิจ |
+| `/roblox-map` | สร้าง/แก้แมพ ฉาก และวัตถุในโลกเกม |
+| `/roblox-review` | ตรวจงานก่อนส่ง (QA + Security + Data Safety รอบเดียว) |
 
-สถานการณ์ที่ไม่มี Template ให้ประกอบชุด Skill เองตามหัวข้อ 2–3
+ไฟล์อยู่ที่ `.claude/skills/<ชื่อ>/SKILL.md` (root ของ repo) · สารบัญ: `09_Workflows/README.md`

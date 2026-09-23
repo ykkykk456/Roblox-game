@@ -103,3 +103,32 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 **กฎ**
 - ทุกการเปลี่ยนแปลงโค้ดต้องผ่าน Git เพื่อให้ตรวจสอบย้อนกลับได้
 - ก่อนส่งงาน Skill ใน `05_CTO` ต้องตรวจว่าไฟล์ทุกไฟล์อยู่ใต้ `src/server`, `src/shared` หรือ `src/client` และนามสกุลตรงตามหัวข้อ 1
+
+---
+
+## 5. โค้ดแม่แบบที่มีในโปรเจกต์ (ใช้ต่อ ห้ามเขียนซ้ำ)
+
+| ไฟล์ | หน้าที่ | วิธีใช้ |
+|---|---|---|
+| `src/server/init.server.luau` / `src/client/init.client.luau` | โหลดทุก ModuleScript ในโฟลเดอร์ย่อยอัตโนมัติ แล้วเรียก `Init()` ทุกตัว ตามด้วย `Start()` | วางไฟล์ใหม่ในโฟลเดอร์ แล้วคืน `{ Init = fn?, Start = fn? }` ไม่ต้องลงทะเบียน |
+| `src/shared/Remotes.luau` | ทะเบียน Remote ที่เดียว | เพิ่มชื่อในตาราง `NAMES` · เรียกใช้ `Remotes.get("ชื่อ")` |
+| `src/server/Network/Guard.luau` | rate limit + ตรวจชนิด/จำนวน argument + กัน NaN/inf/string ยาว | `Guard.connect(remote, { rate, per, args }, handler)` · handler ตรวจช่วงค่า/สิทธิ์ต่อด้วย `Guard.inRange` / `Guard.isInteger` |
+| `src/server/Data/PlayerData.luau` | โหลด/บันทึกข้อมูลผู้เล่นอย่างปลอดภัย (retry, ไม่บันทึกทับเมื่อโหลดล้ม, migration, autosave, BindToClose) | `PlayerData.get(player)` · `PlayerData.update(player, function(data) ... end)` · field ใหม่เพิ่มใน `DEFAULT` |
+| `src/shared/Config/Economy.luau` | ตัวเลขเศรษฐกิจทั้งหมด | Economy_Designer แก้ที่นี่ที่เดียว |
+
+ลำดับโหลดฝั่ง Server: `Data/` → `Network/` → `Services/` (ข้อมูลพร้อมก่อน Remote และตรรกะเกม)
+
+## 6. เครื่องมือตรวจโค้ด
+
+ติดตั้งด้วย `aftman install` (เวอร์ชันกำหนดใน `aftman.toml`)
+
+| คำสั่ง | ตรวจอะไร | ตั้งค่า |
+|---|---|---|
+| `stylua src` (`--check` เพื่อตรวจอย่างเดียว) | รูปแบบโค้ด (Tab, ความยาวบรรทัด 120) | `stylua.toml` |
+| `selene src` | lint เช่น ตัวแปรไม่ได้ใช้ ใช้ API ผิด | `selene.toml` (`std = "roblox"`) |
+| `rojo build -o build.rbxlx` | Rojo อ่านโปรเจกต์และไฟล์ทั้งหมดได้ | `default.project.json` |
+
+## 7. แมพและวัตถุใน Workspace
+
+Workspace ใน `default.project.json` มีแค่ Baseplate ชิ้นที่สร้างมือใน Studio จึง **ไม่อยู่ใน Git** — วิธีจัดการแมพ (สร้างด้วยโค้ด / สร้างมือ + CollectionService tag / ไฟล์ `.rbxm`) ดู `.claude/skills/roblox-map/SKILL.md`
+`[Proposed]` ค่าเริ่มต้น: สร้างมือใน Studio แล้วโค้ดอ้างอิงผ่าน tag — รอ CEO ยืนยัน

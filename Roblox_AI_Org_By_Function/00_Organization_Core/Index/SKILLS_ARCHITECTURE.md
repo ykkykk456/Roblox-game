@@ -45,12 +45,19 @@ Path ในตารางนับจาก `Roblox_AI_Org_By_Function/`
 
 ---
 
-## 3. หมายเหตุสถาปัตยกรรม (Roblox-specific)
+## 3. บทบาทที่อยู่ใน Claude Skill โดยตรง
+
+| บทบาท | อยู่ที่ | หมายเหตุ |
+|---|---|---|
+| World_Builder (แมพ/ฉาก/Level) | `.claude/skills/roblox-map/SKILL.md` | สังกัด `05_CTO` ทำงานร่วม Systems_Designer (กลไกแมพ) และ Visual_Director (หน้าตา) |
+| QA_Tester + Security_Analyst (รอบรวม) | `.claude/skills/roblox-review/SKILL.md` | เช็กลิสต์รวมสำหรับทุกงาน · เปิด persona เต็มเมื่อต้องตรวจเชิงลึก |
+
+## 4. หมายเหตุสถาปัตยกรรม (Roblox-specific)
 
 - `05_CTO` แยก `DataStore_Backend`, `Networking_Specialist` และ `Client_UI_Scripter` ออกจากกัน เพื่อรักษาความปลอดภัยแบบ Server Authority (`PRINCIPLES.md` ข้อ 1)
 
 ---
 
-## 4. ข้อยุติที่เคยเป็น Open Item
+## 5. ข้อยุติที่เคยเป็น Open Item
 
 - `Asset_Integrator` (`06_Art_Audio`): **ปิดแล้ว** — ดูแลทะเบียน Asset ID, สิทธิ์ และ Moderation เท่านั้น ไม่เขียนสคริปต์ งานนำ asset ไปใช้ในเกมเป็นของ `Gameplay_Scripter` / `Client_UI_Scripter` (`05_CTO`)

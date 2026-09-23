@@ -34,6 +34,10 @@
 
 ```
 <repo root>/
+├── CLAUDE.md                     # Level 1 สำหรับ Claude: กฎย่อ + โครงสร้าง + วิธีเลือก Workflow (โหลดทุกครั้ง)
+├── .claude/
+│   ├── rules/                    # กฎตามโฟลเดอร์ โหลดเองเมื่อแก้ src/server | src/shared | src/client
+│   └── skills/                   # Workflow เป็น Skill: /roblox-feature, -ui, -bugfix, -economy, -map, -review
 ├── default.project.json          # แผนที่ Rojo: โฟลเดอร์ src/ → Instance ใน Studio
 ├── aftman.toml                   # เวอร์ชันเครื่องมือ (Rojo)
 ├── src/                          # โค้ดเกมทั้งหมด (Level 4) — ดู ROBLOX_GUIDELINES.md
@@ -45,14 +49,15 @@
     │   │                         #          ROUTING_GUIDE, TASK_TEMPLATE
     │   └── Index/                # สารบัญ: DEPARTMENTS_ARCHITECTURE, SKILLS_ARCHITECTURE
     ├── 01_CEO/ … 08_Operations/  # แต่ละแผนก: DEPARTMENT_INFO.md (Level 2) + Skills/*.md (Level 3)
-    └── 09_Workflows/             # สูตรงานสำเร็จรูป 4 แบบ
+    └── 09_Workflows/             # สารบัญ Workflow (ตัวจริงอยู่ที่ .claude/skills/)
 ```
 
 | โฟลเดอร์ | หน้าที่ |
 |---|---|
 | `00_Organization_Core/` | เอกสารรากฐานและคู่มือกลางขององค์กร |
 | `01_CEO/` – `08_Operations/` | 8 แผนก ชื่อโฟลเดอร์ = รหัสแผนกที่ใช้อ้างในเอกสาร (เช่น `05_CTO`) |
-| `09_Workflows/` | Workflow Template สำหรับสถานการณ์ที่พบบ่อย |
+| `09_Workflows/` | สารบัญ Workflow → ชี้ไป `.claude/skills/` |
+| `CLAUDE.md`, `.claude/` (ที่ root ของ repo) | ตัวเชื่อมให้ Claude Code โหลด Context ตามระดับอัตโนมัติ |
 | `src/` (ที่ root ของ repo) | โค้ด Luau ที่ Rojo sync เข้า Roblox Studio |
 
 - ห้ามเพิ่มโฟลเดอร์หรือไฟล์ใหม่ใน `Roblox_AI_Org_By_Function/` โดยไม่ได้รับอนุมัติจาก Gemini/CEO
@@ -72,15 +77,15 @@
 
 | Level | ชื่อ | เนื้อหา | ตำแหน่ง | เมื่อไหร่ที่โหลด |
 |---|---|---|---|---|
-| 1 | Organization Core | กฎและสถาปัตยกรรมกลางขององค์กร | `00_Organization_Core/` | ทุกครั้งที่เริ่มงาน (ระดับเดียวที่โหลดเสมอ) |
+| 1 | Organization Core | กฎย่อและโครงสร้างที่ต้องรู้ทุกงาน | `CLAUDE.md` (ฉบับเต็มใน `00_Organization_Core/` ถือเป็น Level 5) | ทุกครั้ง (อัตโนมัติ) |
 | 2 | Department Context | ขอบเขตและกติกาของหน่วยงานที่เกี่ยวข้อง | `<แผนก>/DEPARTMENT_INFO.md` | เฉพาะหน่วยงานที่งานนั้นเกี่ยวข้อง |
-| 3 | Skill / Procedure | ขั้นตอนหรือเช็กลิสต์เฉพาะทางของงานประเภทหนึ่ง | `<แผนก>/Skills/<Skill>.md` | เฉพาะเมื่อต้องทำงานประเภทนั้นจริง |
+| 3 | Skill / Procedure | Workflow, กฎตามโฟลเดอร์ และบทบาทเฉพาะทาง | `.claude/skills/`, `.claude/rules/`, `<แผนก>/Skills/<Skill>.md` | Workflow: เมื่องานตรง · rules: เมื่อแก้ไฟล์ในโฟลเดอร์นั้น · บทบาท: เฉพาะ Step ที่ใช้ |
 | 4 | Project Context | สถานะ การตัดสินใจ และสเปกของโปรเจกต์ปัจจุบัน | `src/` และ `default.project.json` (root ของ repo) | เฉพาะไฟล์ที่งานนั้นแตะต้อง |
 | 5 | Reference & Detail | รายละเอียดเชิงลึก เช่น เอกสารอ้างอิง ข้อมูลดิบ ผลงานเดิม | ระบุเป็นรายกรณี | On-demand เท่านั้น ทีละไฟล์ที่ระบุชัดเจน |
 
 ### 4.3 กฎการโหลด
 
-1. **Level 1 โหลดเสมอ** ส่วน Level 2–5 โหลดเมื่อจำเป็นต่อภารกิจเท่านั้น
+1. **Level 1 (`CLAUDE.md`) โหลดเสมอ** ส่วน Level 2–5 โหลดเมื่อจำเป็นต่อภารกิจเท่านั้น · Level 2 (`DEPARTMENT_INFO.md`) ใช้เมื่อต้องตัดสินเรื่องขอบเขตแผนกเท่านั้น ไม่ต้องโหลดตอนเขียนโค้ด
 2. โหลดเฉพาะไฟล์ที่ระบุในหัวข้อ Context ของ Handoff
 3. ต้องการข้อมูลที่ไม่ได้โหลด → ร้องขอ **ไฟล์นั้นโดยเฉพาะ** ไม่ใช่โหลดทั้งโฟลเดอร์
 4. ทุก Handoff ต้องระบุไฟล์และ Level ที่โหลด เพื่อตรวจสอบย้อนกลับได้
@@ -98,8 +103,11 @@
 
 ### 5.1 เมื่อไหร่ต้องใช้
 
-- ทุกครั้งที่งานเปลี่ยนมือระหว่างหน่วยงานหรือบทบาท
-- ทุกครั้งที่งานเปลี่ยนขั้นตอนใน Development Workflow (หัวข้อ 6)
+- **Handoff เต็ม (8 หัวข้อ):** งานส่งต่อข้ามเซสชัน/ข้าม AI, ส่งให้ Gemini/CEO ตัดสิน, หรือ Escalation
+- **Handoff ย่อ:** ส่งต่อระหว่าง Step ใน Workflow เดียวกันในเซสชันเดียว และงาน Fast Lane — เขียน 3 บรรทัด:
+  - `Context:` ไฟล์ที่เกี่ยวข้อง/สิ่งที่ทำแล้ว
+  - `Output:` สิ่งที่ Step ถัดไปต้องส่งมอบ
+  - `Risks:` ความเสี่ยง/คำถามค้าง (ไม่มีให้เขียน None)
 
 ### 5.2 หัวข้อที่ต้องมี
 
@@ -157,7 +165,7 @@
 ### 5.4 กฎการใช้
 
 - Handoff หนึ่งฉบับ ต่อหนึ่งเป้าหมาย และหนึ่งผู้รับ
-- ห้ามส่งต่องานโดยขาดหัวข้อบังคับ
+- Handoff เต็มห้ามขาดหัวข้อบังคับ
 - ผู้รับพบว่า Handoff ไม่ครบหรือขัดแย้ง → **STOP and REPORT** (ดู `ROLES.md`)
 - สถานะในหัวข้อ Evidence ต้องเป็นไปตามนิยามใน `PRINCIPLES.md`
 
@@ -203,7 +211,8 @@ Idea → Research → Design → Implementation → Validation → Data
 | 0 | Master Architecture (ไฟล์นี้, `ROLES.md`, `PRINCIPLES.md`) | เสร็จ |
 | 1 | 8 แผนก (`DEPARTMENT_INFO.md`) | เสร็จ |
 | 3–4 | 17 Skills (`<แผนก>/Skills/`) | เสร็จ — ใช้งานได้ |
-| 5–6 | `ROUTING_GUIDE.md` และ `09_Workflows/` | เสร็จ |
+| 5–6 | `ROUTING_GUIDE.md` และ Workflow | เสร็จ |
+| 9 | เชื่อมกับ Claude Code (`CLAUDE.md`, `.claude/rules`, `.claude/skills`), Fast Lane, Handoff ย่อ, โค้ดแม่แบบใน `src/` | เสร็จ |
 | 7–8 | `TASK_TEMPLATE.md` และ `ROBLOX_GUIDELINES.md` (Rojo) | เสร็จ |
 
 - **การเขียนโค้ด Luau อยู่ในขอบเขตแล้ว** — Skill ใน `05_CTO` เขียนโค้ดลง `src/` ได้ตามสเปก โดยยึด `ROBLOX_GUIDELINES.md`

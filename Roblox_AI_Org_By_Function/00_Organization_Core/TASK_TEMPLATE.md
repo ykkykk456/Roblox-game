@@ -14,7 +14,7 @@
 - [ ] Done
 
 ## Required Workflow & Skills
-- Workflow ที่ใช้: [เช่น 09_Workflows/UI_IMPLEMENTATION_WORKFLOW.md หรือ "ไม่ใช้ Template สำเร็จรูป"]
+- Workflow ที่ใช้: [Fast Lane / /roblox-feature / /roblox-ui / /roblox-bugfix / /roblox-economy / /roblox-map]
 - ไฟล์ Skill ที่ต้องหยิบให้ AI อ่าน:
   - [<แผนก>/Skills/<Skill_Name>.md]
   - [<แผนก>/Skills/<Skill_Name>.md]
@@ -45,7 +45,7 @@
 
 - **Task ID & Title:** ระบุรหัสที่ไม่ซ้ำกันเพื่อใช้อ้างอิงข้ามเอกสาร
 - **Status:** อัปเดตทุกครั้งที่งานเปลี่ยนขั้น ให้ตรงกับสถานะจริง
-- **Required Workflow & Skills:** ดูวิธีเลือกไฟล์ได้จาก `ROUTING_GUIDE.md` และ `09_Workflows/`
+- **Required Workflow & Skills:** ดูวิธีเลือกได้จาก `ROUTING_GUIDE.md` · งาน Fast Lane ไม่ต้องระบุไฟล์ Skill
 - **Evidence Status:** ทุกแถวต้องติดสถานะตาม `PRINCIPLES.md` (Verified / Inferred / Assumed / Proposed / Unverified) ห้ามเว้นว่าง
 - **Acceptance Criteria:** ต้องตรวจสอบได้จริง ไม่ใช่ความเห็นเชิงอัตวิสัย
 - **Handoff Notes:** เขียนตามแนวทาง Department Handoff Format ใน `ARCHITECTURE.md` ฉบับย่อสำหรับใบสั่งงานเดียว
