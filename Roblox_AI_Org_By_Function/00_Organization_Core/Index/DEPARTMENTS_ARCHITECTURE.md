@@ -1,11 +1,11 @@
 # DEPARTMENTS ARCHITECTURE — สถาปัตยกรรมแผนก
 
 **โครงการ:** Roblox AI Development Organization
-**สถานะ:** Phase 1 — Top Level Departments
+**สถานะ:** Active
 **Progressive Context:** `DEPARTMENT_INFO.md` ของแต่ละแผนกคือ **Level 2 (Department Context)** — โหลดเฉพาะแผนกที่งานเกี่ยวข้อง
 
 > เป้าหมาย: ทุกงานมี **เจ้าของเดียว** และไม่ทำงานทับซ้อนกัน
-> Skills เฉพาะทางไม่อยู่ในระดับนี้ (กำหนดใน Phase 3)
+> Skills เฉพาะทางอยู่ใน `<แผนก>/Skills/` — ดูสารบัญที่ `SKILLS_ARCHITECTURE.md`
 
 ---
 

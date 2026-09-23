@@ -15,7 +15,7 @@
 - กำหนดตัวเลข Balance เศรษฐกิจ -> ให้ส่งต่อไปที่ Economy_Designer (รับค่ามาใช้ ไม่ตัดสินเอง)
 
 ## Roblox Context & Constraints
-- ใช้ Script (ไม่ใช่ LocalScript) วางใน ServerScriptService สำหรับตรรกะที่มีผลต่อเกม
+- เขียนเป็น ModuleScript ที่ `src/server/Services/<Feature>Service.luau` (→ ServerScriptService) แล้วให้ `src/server/init.server.luau` require — ห้ามวางตรรกะที่มีผลต่อเกมใน `src/client/` หรือ `src/shared/` (ดู `ROBLOX_GUIDELINES.md`)
 - ห้ามเชื่อค่าที่มาจาก Client โดยตรง ต้องรับผ่าน Remote ที่ Networking_Specialist ตรวจสอบแล้วเท่านั้น
 - ใช้ RunService.Heartbeat/Stepped อย่างระมัดระวังเรื่องประสิทธิภาพ โดยเฉพาะบนอุปกรณ์มือถือ
 - ตรรกะที่แก้ไขทรัพยากร/สกุลเงินของผู้เล่นต้องเรียกผ่านโมดูลของ DataStore_Backend เท่านั้น ห้ามเขียนแก้ข้อมูลถาวรเอง

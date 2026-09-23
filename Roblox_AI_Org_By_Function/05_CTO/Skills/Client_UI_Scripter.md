@@ -15,7 +15,7 @@
 - สร้าง/ปรับ asset ภาพ -> ให้ส่งต่อไปที่ Visual_Director / Asset_Integrator
 
 ## Roblox Context & Constraints
-- ใช้ LocalScript วางใน StarterPlayerScripts หรือ StarterGui เท่านั้น ห้ามใช้ Script (Server) กับโค้ด UI
+- เขียนเป็น ModuleScript ที่ `src/client/Controllers/` และ `src/client/UI/` (→ StarterPlayerScripts) แล้วให้ `src/client/init.client.luau` require — ห้ามวางโค้ด UI ใน `src/server/` (ดู `ROBLOX_GUIDELINES.md`)
 - ต้องจัดการ Safe Area ผ่าน GuiService (GetGuiInset) เพื่อไม่ให้ UI ถูกบังบนมือถือ
 - ใช้ UIListLayout/UIGridLayout เพื่อรองรับหลายขนาดหน้าจอแทนการ fix ตำแหน่งตายตัว
 - **ห้ามเก็บสถานะที่มีผลต่อเกม (เช่น จำนวนเงิน ไอเทม) ไว้ที่ Client เป็นความจริง** ต้องแสดงผลจากค่าที่ Server ส่งมาเท่านั้น

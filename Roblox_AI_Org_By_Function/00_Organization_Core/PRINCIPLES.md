@@ -1,7 +1,7 @@
 # PRINCIPLES — กฎเหล็กขององค์กร
 
 **โครงการ:** Roblox AI Development Organization
-**สถานะ:** Phase 0 — Master Architecture
+**สถานะ:** Active
 
 > กฎเหล็กใช้กับ **ทุกบทบาท ทุกงาน ทุก Phase**
 > การแก้ไขหรือยกเว้นกฎใดๆ ต้องเป็นการตัดสินใจของ CEO เท่านั้น (ดู `ROLES.md`)

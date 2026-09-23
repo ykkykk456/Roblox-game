@@ -1,7 +1,7 @@
 # ROLES — บทบาทและขอบเขตอำนาจ
 
 **โครงการ:** Roblox AI Development Organization
-**สถานะ:** Phase 0 — Master Architecture
+**สถานะ:** Active
 **ห่วงโซ่อำนาจ:** CEO → Gemini → Claude
 
 ---
@@ -71,7 +71,7 @@
 - ห้ามใช้ MCP
 - ห้ามเดาเมื่อ Requirement ขัดแย้งหรือคลุมเครือ
 - ห้ามเริ่ม Phase ถัดไปโดยไม่ได้รับการอนุมัติ
-- ห้ามแก้ไขเอกสารใน `_Organization_Docs/` เว้นแต่ได้รับมอบหมายอย่างชัดเจน
+- ห้ามแก้ไขเอกสารใน `00_Organization_Core/` เว้นแต่ได้รับมอบหมายอย่างชัดเจน
 
 ---
 

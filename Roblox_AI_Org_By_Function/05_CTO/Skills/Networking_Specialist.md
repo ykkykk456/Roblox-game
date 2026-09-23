@@ -16,7 +16,7 @@
 
 ## Roblox Context & Constraints
 - ใช้ RemoteEvent (FireServer/OnServerEvent) เป็นหลัก และใช้ RemoteFunction เท่าที่จำเป็น เนื่องจากมีความเสี่ยงเรื่อง blocking ฝั่ง Client หากฝั่ง Server ตอบช้า
-- วาง Remote ไว้ใน ReplicatedStorage แต่ Logic การตรวจสอบต้องอยู่ฝั่ง Server เท่านั้น
+- ประกาศชื่อ Remote ทั้งหมดที่ `src/shared/Remotes.luau` (→ ReplicatedStorage) แต่ Logic การตรวจสอบต้องอยู่ที่ `src/server/Network/<Feature>Handler.luau` เท่านั้น
 - ทุก Remote ต้อง validate ชนิดข้อมูล ช่วงค่า และสิทธิ์ของผู้เรียกก่อนประมวลผลเสมอ ไม่มีข้อยกเว้น
 - ต้องออกแบบ rate limit ต่อผู้เล่นต่อ Remote เพื่อลดความเสี่ยงจาก Exploit/Spam
 

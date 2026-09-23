@@ -2,13 +2,13 @@
 ปรับค่า Balance หรือเศรษฐกิจในเกมที่มีอยู่แล้ว (เช่น ปรับราคาไอเทม อัตรารางวัล เพดานสกุลเงิน)
 
 ## Required Skills to Load
-- `Departments/04_CFO/Skills/Economy_Designer.md`
-- `Departments/03_Market_Data/Skills/Data_Analyst.md`
-- `Departments/05_CTO/Skills/DataStore_Backend.md`
-- `Departments/05_CTO/Skills/Networking_Specialist.md`
-- `Departments/07_QA_Security/Skills/QA_Tester.md`
+- `04_CFO/Skills/Economy_Designer.md`
+- `03_Market_Data/Skills/Data_Analyst.md`
+- `05_CTO/Skills/DataStore_Backend.md`
+- `05_CTO/Skills/Networking_Specialist.md`
+- `07_QA_Security/Skills/QA_Tester.md`
 
-> ถ้าการปรับค่ากระทบกลยุทธ์ราคาที่ผูกกับ Robux (Developer Products/Game Passes) ให้เพิ่ม `Departments/04_CFO/Skills/Monetization_Strategist.md`
+> ถ้าการปรับค่ากระทบกลยุทธ์ราคาที่ผูกกับ Robux (Developer Products/Game Passes) ให้เพิ่ม `04_CFO/Skills/Monetization_Strategist.md`
 
 ## Execution Steps
 - *Step 1:* ให้ **Data_Analyst** สรุปข้อมูลปัจจุบัน (retention, การใช้จ่าย, พฤติกรรมที่เกี่ยวข้อง) พร้อมสถานะ Evidence ให้ Economy_Designer ใช้ประกอบการตัดสินใจ

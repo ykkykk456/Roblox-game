@@ -1,11 +1,11 @@
 # ROUTING GUIDE — คู่มือเลือกไฟล์ Skill ให้ AI
 
 **โครงการ:** Roblox AI Development Organization
-**สถานะ:** Phase 5 & 6 — Routing & Workflow
+**สถานะ:** Active
 **ผู้ใช้เอกสารนี้:** CEO / Game Owner เมื่อต้องเลือกไฟล์ Skill ป้อนให้ AI ทำงาน
 
 > เอกสารนี้คือภาคปฏิบัติของหลัก **Progressive Context** ที่วางไว้ใน `ARCHITECTURE.md`
-> ดูรายชื่อ Skill ทั้งหมดได้ที่ `Departments/SKILLS_ARCHITECTURE.md` และดู Template สถานการณ์สำเร็จรูปได้ที่โฟลเดอร์ `Workflows/`
+> ดูรายชื่อ Skill ทั้งหมดได้ที่ `00_Organization_Core/Index/SKILLS_ARCHITECTURE.md` และดู Template สถานการณ์สำเร็จรูปได้ที่โฟลเดอร์ `09_Workflows/`
 
 ---
 
@@ -20,9 +20,9 @@
 
 ## 2. วิธีใช้คู่มือนี้ (สำหรับ CEO)
 
-1. ดูว่าสถานการณ์ตรงกับ Template ใน `Workflows/` หรือไม่ (4 แบบหลักในหัวข้อ 4)
+1. ดูว่าสถานการณ์ตรงกับ Template ใน `09_Workflows/` หรือไม่ (4 แบบหลักในหัวข้อ 4)
 2. ถ้าตรง → เปิดไฟล์ Workflow นั้น หยิบไฟล์ตาม **Required Skills to Load** ไปให้ AI อ่าน แล้วทำตาม **Execution Steps**
-3. ถ้าไม่ตรงกับ Template ใดเลย → ใช้ **กฎการจับคู่** ในหัวข้อ 3 ประกอบกับ `DEPARTMENTS_ARCHITECTURE.md`/`SKILLS_ARCHITECTURE.md` เพื่อประกอบชุด Skill เอง
+3. ถ้าไม่ตรงกับ Template ใดเลย → ใช้ **กฎการจับคู่** ในหัวข้อ 3 ประกอบกับ `00_Organization_Core/Index/DEPARTMENTS_ARCHITECTURE.md` / `SKILLS_ARCHITECTURE.md` เพื่อประกอบชุด Skill เอง
 4. ไม่แน่ใจว่างานอยู่ Skill ไหน → เริ่มจากไฟล์ `Project_Router.md` (`08_Operations/Skills/`) เพื่อช่วยระบุเจ้าของงาน
 
 ---
@@ -52,9 +52,9 @@
 
 | ไฟล์ | ใช้เมื่อ |
 |---|---|
-| `Workflows/NEW_FEATURE_WORKFLOW.md` | สร้างฟีเจอร์ใหม่ตั้งแต่ต้น (มีทั้งระบบและ UI) |
-| `Workflows/UI_IMPLEMENTATION_WORKFLOW.md` | สร้างหรือแก้หน้าจอ UI |
-| `Workflows/BUG_FIX_WORKFLOW.md` | แก้บั๊กที่มีอยู่แล้ว |
-| `Workflows/ECONOMY_REBALANCE_WORKFLOW.md` | ปรับค่า Balance/เศรษฐกิจ |
+| `09_Workflows/NEW_FEATURE_WORKFLOW.md` | สร้างฟีเจอร์ใหม่ตั้งแต่ต้น (มีทั้งระบบและ UI) |
+| `09_Workflows/UI_IMPLEMENTATION_WORKFLOW.md` | สร้างหรือแก้หน้าจอ UI |
+| `09_Workflows/BUG_FIX_WORKFLOW.md` | แก้บั๊กที่มีอยู่แล้ว |
+| `09_Workflows/ECONOMY_REBALANCE_WORKFLOW.md` | ปรับค่า Balance/เศรษฐกิจ |
 
 สถานการณ์ที่ไม่มี Template ให้ประกอบชุด Skill เองตามหัวข้อ 2–3

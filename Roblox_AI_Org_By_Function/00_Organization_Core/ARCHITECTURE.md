@@ -1,7 +1,7 @@
 # ARCHITECTURE — สถาปัตยกรรมองค์กร
 
 **โครงการ:** Roblox AI Development Organization
-**สถานะ:** Phase 0 — Master Architecture
+**สถานะ:** Active — ใช้งานจริง (Phase 0–8 เสร็จแล้ว)
 **ขอบเขต:** พัฒนาเกม Roblox เท่านั้น
 
 > เอกสารนี้คู่กับ `ROLES.md` และ `PRINCIPLES.md` เป็นกฎสูงสุดขององค์กร
@@ -28,25 +28,35 @@
 
 ---
 
-## 3. โครงสร้างโฟลเดอร์ (Root)
+## 3. โครงสร้างโฟลเดอร์
+
+> **กฎการอ้าง path:** path ของเอกสารองค์กรนับจาก `Roblox_AI_Org_By_Function/` · path ของโค้ดเกมนับจาก root ของ repo (เช่น `src/server/...`)
 
 ```
-/Roblox_AI_Org/
-├── _Organization_Docs/
-│   ├── ARCHITECTURE.md    # โครงสร้างและกลไกการทำงาน (ไฟล์นี้)
-│   ├── ROLES.md           # บทบาทและขอบเขตอำนาจ
-│   └── PRINCIPLES.md      # กฎเหล็กขององค์กร
-├── Departments/           # ว่างใน Phase 0
-└── Roblox_Project/        # ว่างใน Phase 0
+<repo root>/
+├── default.project.json          # แผนที่ Rojo: โฟลเดอร์ src/ → Instance ใน Studio
+├── aftman.toml                   # เวอร์ชันเครื่องมือ (Rojo)
+├── src/                          # โค้ดเกมทั้งหมด (Level 4) — ดู ROBLOX_GUIDELINES.md
+│   ├── server/                   # → ServerScriptService.Server
+│   ├── shared/                   # → ReplicatedStorage.Shared
+│   └── client/                   # → StarterPlayer.StarterPlayerScripts.Client
+└── Roblox_AI_Org_By_Function/    # เอกสารองค์กร (ไฟล์นี้อยู่ที่นี่)
+    ├── 00_Organization_Core/     # Level 1: ARCHITECTURE, ROLES, PRINCIPLES, ROBLOX_GUIDELINES,
+    │   │                         #          ROUTING_GUIDE, TASK_TEMPLATE
+    │   └── Index/                # สารบัญ: DEPARTMENTS_ARCHITECTURE, SKILLS_ARCHITECTURE
+    ├── 01_CEO/ … 08_Operations/  # แต่ละแผนก: DEPARTMENT_INFO.md (Level 2) + Skills/*.md (Level 3)
+    └── 09_Workflows/             # สูตรงานสำเร็จรูป 4 แบบ
 ```
 
-| โฟลเดอร์ | หน้าที่ | สถานะ Phase 0 |
-|---|---|---|
-| `_Organization_Docs/` | เอกสารรากฐานขององค์กร | สร้างครบ 3 ไฟล์ |
-| `Departments/` | พื้นที่สำหรับหน่วยงานขององค์กร | ว่าง — กำหนดใน Phase ถัดไป |
-| `Roblox_Project/` | พื้นที่สำหรับโปรเจกต์เกม | ว่าง — กำหนดใน Phase ถัดไป |
+| โฟลเดอร์ | หน้าที่ |
+|---|---|
+| `00_Organization_Core/` | เอกสารรากฐานและคู่มือกลางขององค์กร |
+| `01_CEO/` – `08_Operations/` | 8 แผนก ชื่อโฟลเดอร์ = รหัสแผนกที่ใช้อ้างในเอกสาร (เช่น `05_CTO`) |
+| `09_Workflows/` | Workflow Template สำหรับสถานการณ์ที่พบบ่อย |
+| `src/` (ที่ root ของ repo) | โค้ด Luau ที่ Rojo sync เข้า Roblox Studio |
 
-- ห้ามเพิ่มโฟลเดอร์หรือไฟล์ใหม่ใน Root โดยไม่ได้รับอนุมัติจาก Gemini/CEO
+- ห้ามเพิ่มโฟลเดอร์หรือไฟล์ใหม่ใน `Roblox_AI_Org_By_Function/` โดยไม่ได้รับอนุมัติจาก Gemini/CEO
+- การเพิ่มไฟล์โค้ดใน `src/` ทำได้ตามสเปก โดยต้องเป็นไปตาม `ROBLOX_GUIDELINES.md`
 
 ---
 
@@ -58,14 +68,14 @@
 - **เลิกโหลดไฟล์รวมทั้งหมด** (ห้ามมีไฟล์รวมยักษ์ที่ต้องโหลดทุกครั้ง)
 - ผลที่ต้องการ: Context เล็ก โฟกัสชัด ไม่ปนข้อมูลที่ไม่เกี่ยวข้อง และตรวจย้อนกลับได้ว่างานอิงไฟล์ใด
 
-### 4.2 ระดับของ Context (Level 1–5) `[Proposed]`
+### 4.2 ระดับของ Context (Level 1–5)
 
 | Level | ชื่อ | เนื้อหา | ตำแหน่ง | เมื่อไหร่ที่โหลด |
 |---|---|---|---|---|
-| 1 | Organization Core | กฎและสถาปัตยกรรมกลางขององค์กร | `_Organization_Docs/` | ทุกครั้งที่เริ่มงาน (ระดับเดียวที่โหลดเสมอ) |
-| 2 | Department Context | ขอบเขตและกติกาของหน่วยงานที่เกี่ยวข้อง | `Departments/` | เฉพาะหน่วยงานที่งานนั้นเกี่ยวข้อง |
-| 3 | Skill / Procedure | ขั้นตอนหรือเช็กลิสต์เฉพาะทางของงานประเภทหนึ่ง | กำหนดตำแหน่งใน Phase ถัดไป | เฉพาะเมื่อต้องทำงานประเภทนั้นจริง |
-| 4 | Project Context | สถานะ การตัดสินใจ และสเปกของโปรเจกต์ปัจจุบัน | `Roblox_Project/` | เฉพาะส่วนที่งานนั้นแตะต้อง |
+| 1 | Organization Core | กฎและสถาปัตยกรรมกลางขององค์กร | `00_Organization_Core/` | ทุกครั้งที่เริ่มงาน (ระดับเดียวที่โหลดเสมอ) |
+| 2 | Department Context | ขอบเขตและกติกาของหน่วยงานที่เกี่ยวข้อง | `<แผนก>/DEPARTMENT_INFO.md` | เฉพาะหน่วยงานที่งานนั้นเกี่ยวข้อง |
+| 3 | Skill / Procedure | ขั้นตอนหรือเช็กลิสต์เฉพาะทางของงานประเภทหนึ่ง | `<แผนก>/Skills/<Skill>.md` | เฉพาะเมื่อต้องทำงานประเภทนั้นจริง |
+| 4 | Project Context | สถานะ การตัดสินใจ และสเปกของโปรเจกต์ปัจจุบัน | `src/` และ `default.project.json` (root ของ repo) | เฉพาะไฟล์ที่งานนั้นแตะต้อง |
 | 5 | Reference & Detail | รายละเอียดเชิงลึก เช่น เอกสารอ้างอิง ข้อมูลดิบ ผลงานเดิม | ระบุเป็นรายกรณี | On-demand เท่านั้น ทีละไฟล์ที่ระบุชัดเจน |
 
 ### 4.3 กฎการโหลด
@@ -186,11 +196,15 @@ Idea → Research → Design → Implementation → Validation → Data
 
 ---
 
-## 8. สิ่งที่อยู่นอกขอบเขต Phase 0
+## 8. สถานะปัจจุบันขององค์กร
 
-- เนื้อหาของ Departments และ Skills
-- เนื้อหาใน `Roblox_Project/`
-- สคริปต์ Luau ทุกชนิด
-- เนื้อหาเกี่ยวกับเกมเพลย์
+| Phase | เนื้อหา | สถานะ |
+|---|---|---|
+| 0 | Master Architecture (ไฟล์นี้, `ROLES.md`, `PRINCIPLES.md`) | เสร็จ |
+| 1 | 8 แผนก (`DEPARTMENT_INFO.md`) | เสร็จ |
+| 3–4 | 17 Skills (`<แผนก>/Skills/`) | เสร็จ — ใช้งานได้ |
+| 5–6 | `ROUTING_GUIDE.md` และ `09_Workflows/` | เสร็จ |
+| 7–8 | `TASK_TEMPLATE.md` และ `ROBLOX_GUIDELINES.md` (Rojo) | เสร็จ |
 
-ทั้งหมดนี้จะถูกกำหนดใน Phase ถัดไปหลังได้รับอนุมัติ
+- **การเขียนโค้ด Luau อยู่ในขอบเขตแล้ว** — Skill ใน `05_CTO` เขียนโค้ดลง `src/` ได้ตามสเปก โดยยึด `ROBLOX_GUIDELINES.md`
+- ขั้น Data ใน Development Workflow (หัวข้อ 6) ยังรอ Gemini/CEO ยืนยันความหมาย

@@ -2,17 +2,17 @@
 สร้างฟีเจอร์ใหม่ตั้งแต่ต้น ที่มีทั้งกลไกเกมเพลย์ การสื่อสาร Client-Server และหน้าจอ UI (เช่น ระบบภารกิจใหม่, ระบบคราฟไอเทม)
 
 ## Required Skills to Load
-- `Departments/02_Product_UX/Skills/Systems_Designer.md`
-- `Departments/02_Product_UX/Skills/UX_Architect.md`
-- `Departments/05_CTO/Skills/Architecture_Lead.md`
-- `Departments/05_CTO/Skills/Gameplay_Scripter.md`
-- `Departments/05_CTO/Skills/Networking_Specialist.md`
-- `Departments/05_CTO/Skills/Client_UI_Scripter.md`
-- `Departments/07_QA_Security/Skills/QA_Tester.md`
-- `Departments/07_QA_Security/Skills/Security_Analyst.md`
+- `02_Product_UX/Skills/Systems_Designer.md`
+- `02_Product_UX/Skills/UX_Architect.md`
+- `05_CTO/Skills/Architecture_Lead.md`
+- `05_CTO/Skills/Gameplay_Scripter.md`
+- `05_CTO/Skills/Networking_Specialist.md`
+- `05_CTO/Skills/Client_UI_Scripter.md`
+- `07_QA_Security/Skills/QA_Tester.md`
+- `07_QA_Security/Skills/Security_Analyst.md`
 
-> ถ้าฟีเจอร์ต้องบันทึกข้อมูลถาวร (เช่น ความก้าวหน้า ไอเทมที่ได้) ให้เพิ่ม `Departments/05_CTO/Skills/DataStore_Backend.md`
-> ถ้าฟีเจอร์เกี่ยวกับเศรษฐกิจ/ราคา ให้เพิ่ม `Departments/04_CFO/Skills/Economy_Designer.md`
+> ถ้าฟีเจอร์ต้องบันทึกข้อมูลถาวร (เช่น ความก้าวหน้า ไอเทมที่ได้) ให้เพิ่ม `05_CTO/Skills/DataStore_Backend.md`
+> ถ้าฟีเจอร์เกี่ยวกับเศรษฐกิจ/ราคา ให้เพิ่ม `04_CFO/Skills/Economy_Designer.md`
 
 ## Execution Steps
 - *Step 1:* ให้ **Systems_Designer** ออกแบบกฎของระบบและเขียน Feature Spec พร้อมเกณฑ์ตรวจรับ

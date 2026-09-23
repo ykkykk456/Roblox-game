@@ -1,0 +1,105 @@
+# ROBLOX GUIDELINES — มาตรฐานโค้ดสำหรับซิงค์ผ่าน Rojo
+
+**โครงการ:** Roblox AI Development Organization
+**สถานะ:** Active — ตรงกับ `default.project.json` ของ repo (Rojo 7.7)
+**เครื่องมือ:** VS Code, Git, Rojo (**ห้ามใช้ MCP**)
+
+> เอกสารนี้กำหนดมาตรฐานทางเทคนิคที่ทุก Skill ใน `05_CTO` ต้องใช้เมื่อ implement โค้ดจริง
+> ยึดคู่กับกฎเหล็กใน `PRINCIPLES.md` โดยเฉพาะ Server Authority และ Data Safety
+> **แหล่งความจริงของการจับคู่โฟลเดอร์คือ `default.project.json`** — ถ้าเอกสารนี้ขัดกับไฟล์นั้น → STOP and REPORT
+
+---
+
+## 1. Rojo File Structure
+
+Rojo อ่านนามสกุลไฟล์เพื่อตัดสินว่าจะสร้าง Instance ชนิดใดใน Studio การตั้งชื่อผิดจะได้ Instance ผิดชนิดโดยไม่มี error เตือน:
+
+| นามสกุลไฟล์ | Instance ที่ Rojo สร้าง | ใช้เมื่อ |
+|---|---|---|
+| `.server.luau` | `Script` | เฉพาะ `src/server/init.server.luau` (จุดเริ่มต้นฝั่ง Server) |
+| `.client.luau` | `LocalScript` | เฉพาะ `src/client/init.client.luau` (จุดเริ่มต้นฝั่ง Client) |
+| `.luau` | `ModuleScript` | **โค้ดทุกไฟล์ที่เหลือ** (Service, Controller, Config, Util) |
+
+**กฎการตั้งชื่อ**
+- ใช้นามสกุล `.luau` เท่านั้น (ไม่ใช้ `.lua`) ให้ตรงกับไฟล์ที่มีอยู่ในโปรเจกต์
+- **Single Entry Point:** ฝั่งละ 1 Script เท่านั้น — ห้ามสร้าง `.server.luau` / `.client.luau` เพิ่ม ให้เขียนเป็น ModuleScript แล้ว `require` จาก `init` แทน (ลำดับการโหลดคาดเดาได้ ไม่มี Script แข่งกันรัน)
+- ไฟล์ชื่อ `init.*` ทำให้ **โฟลเดอร์นั้นกลายเป็น Instance ตัวเดียว** และไฟล์อื่นในโฟลเดอร์กลายเป็นลูกของมัน
+  - `src/server/` → `Script` ชื่อ `Server` → อ้างลูกด้วย `script.Services.X`
+  - `src/client/` → `LocalScript` ชื่อ `Client` → อ้างลูกด้วย `script.Controllers.X`
+- ชื่อไฟล์ (ไม่รวมนามสกุล) = ชื่อ Instance ใน Studio ต้องตรงกับที่ระบุใน Feature Spec · ใช้ PascalCase
+
+---
+
+## 2. Directory Standard
+
+การจับคู่จริงใน `default.project.json`:
+
+| โฟลเดอร์ใน repo | Instance ใน Studio | ใครเข้าถึงได้ |
+|---|---|---|
+| `src/server/` | `ServerScriptService.Server` | Server เท่านั้น |
+| `src/shared/` | `ReplicatedStorage.Shared` | Server และ Client |
+| `src/client/` | `StarterPlayer.StarterPlayerScripts.Client` | Client (ของผู้เล่นแต่ละคน) |
+
+> **ไฟล์ที่อยู่นอก 3 โฟลเดอร์นี้ Rojo จะไม่ sync เข้า Studio** (ไฟล์ยังอยู่ใน VS Code แต่ไม่เข้าเกม)
+
+โครงสร้างภายในที่กำหนด:
+
+```
+src/
+├── server/                              → ServerScriptService.Server
+│   ├── init.server.luau                 # จุดเริ่มต้น: require และเรียก Init() ของทุก Service
+│   ├── Services/<Feature>Service.luau    # Gameplay_Scripter: ตรรกะเกมฝั่ง Server
+│   ├── Network/<Feature>Handler.luau    # Networking_Specialist: รับ Remote + validate + rate limit
+│   └── Data/<Name>Store.luau            # DataStore_Backend: โหลด/บันทึกข้อมูลถาวร
+├── shared/                              → ReplicatedStorage.Shared
+│   ├── Remotes.luau                     # Networking_Specialist: รายชื่อ Remote ทั้งหมดของเกม (ที่เดียว)
+│   ├── Config/<Name>.luau               # ค่าคงที่ เช่น ราคา/Balance จาก Economy_Designer
+│   └── Util/<Name>.luau                 # ฟังก์ชันที่ไม่มีผลต่อความปลอดภัย
+└── client/                              → StarterPlayer.StarterPlayerScripts.Client
+    ├── init.client.luau                 # จุดเริ่มต้น: require และเรียก Init() ของทุก Controller
+    ├── Controllers/<Feature>Controller.luau  # Client_UI_Scripter: รับ Input / ส่งคำขอ
+    └── UI/<Feature>UI.luau              # Client_UI_Scripter: สร้าง ScreenGui ลง PlayerGui ด้วยโค้ด
+```
+
+**กฎการวาง**
+- ตรรกะเกม ข้อมูลลับ และการเข้าถึง DataStore → `src/server/` เท่านั้น (Client มองไม่เห็น ServerScriptService)
+- สิ่งที่ใช้ร่วมทั้งสองฝั่งและ**ไม่เป็นความลับ** → `src/shared/` (ผู้เล่นอ่านโค้ดในนี้ได้ทั้งหมด)
+- Remote ทุกตัวประกาศชื่อไว้ที่ `src/shared/Remotes.luau` ที่เดียว ฝั่ง Server สร้าง Instance ตอนเริ่มเกม ฝั่ง Client ใช้ `WaitForChild`
+- UI สร้างด้วยโค้ดใน `src/client/UI/` (ยังไม่มีการจับคู่ `StarterGui`)
+- ต้องการโฟลเดอร์ใหม่ที่ Rojo ยังไม่รู้จัก (เช่น `ServerStorage` สำหรับโมเดล, `StarterGui`) → Architecture_Lead เสนอแก้ `default.project.json` พร้อมอัปเดตตารางด้านบน **ก่อน** วางไฟล์
+
+---
+
+## 3. Security Rules
+
+**หลักการหลัก: Never trust the client** — ยึดตาม `PRINCIPLES.md` กฎเหล็กข้อ 1 (Roblox Security / Server Authority)
+
+- Client ทำได้เพียง 3 อย่าง: รับ Input, แสดงผล, ส่งคำขอผ่าน Remote — **ห้ามให้ Client ตัดสินผลลัพธ์ของเกมเอง**
+- ทุก `RemoteEvent`/`RemoteFunction` ต้องมีการ validate ที่ฝั่ง Server (โค้ดใน `src/server/`) ก่อนประมวลผลเสมอ ไม่มีข้อยกเว้น โดยตรวจอย่างน้อย:
+  - ชนิดข้อมูล (type) ตรงตามที่กำหนด
+  - ช่วงค่า (range) อยู่ในขอบเขตที่ Economy_Designer/Systems_Designer ระบุ
+  - สิทธิ์ของผู้เรียก (permission) เช่น เป็นเจ้าของไอเทมจริงหรือไม่
+- ใช้ `RemoteEvent` เป็นค่าเริ่มต้น หลีกเลี่ยง `RemoteFunction` เว้นแต่จำเป็น เพราะเสี่ยง Client ทำให้ Server รอ (yield) นานเกินควร
+- ต้องมี rate limiting ต่อผู้เล่นต่อ Remote เพื่อป้องกัน spam/exploit จากเครื่องมือฝั่ง Client
+- ข้อมูลถาวรของผู้เล่น (ผ่าน `DataStoreService`) ต้อง validate ก่อนบันทึกทุกครั้ง และห้ามบันทึกทับข้อมูลเดิมเมื่อโหลดล้มเหลว ตาม Data Safety ใน `PRINCIPLES.md`
+- ห้ามใช้การซ่อน/บดบังโค้ด (obfuscation) แทนการตรวจสอบฝั่ง Server — Security_Analyst ถือว่าไม่ผ่านหากพบรูปแบบนี้
+
+---
+
+## 4. เส้นทางของโค้ดจาก AI → VS Code → Studio
+
+Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · สิ่งที่แก้ในสคริปต์ใน Studio **จะไม่ถูกบันทึกกลับ** และจะถูกทับเมื่อไฟล์เปลี่ยน → แก้โค้ดในไฟล์เท่านั้น
+
+| วิธีที่ AI ทำงาน | ขั้นตอนให้โค้ดเข้า Studio |
+|---|---|
+| AI รันบนเครื่องเดียวกับ VS Code (เช่น Claude Code ใน VS Code / Terminal, Cursor) | AI แก้ไฟล์ใน `src/` → `rojo serve` ที่เปิดค้างไว้ sync เข้า Studio ทันที |
+| AI รันบน Cloud (เช่น Claude Code บนเว็บ/แอป) | AI commit + push ไปที่ branch → กด `git pull` ใน VS Code → Rojo sync ทันที |
+
+**การเตรียมเครื่อง (ครั้งเดียว)**
+1. `aftman install` (ติดตั้ง Rojo ตาม `aftman.toml`) และติดตั้ง Rojo Plugin ใน Studio
+2. เปิดโปรเจกต์ใน VS Code → รัน `rojo serve` ที่ root ของ repo
+3. ใน Studio → แท็บ Plugins → Rojo → **Connect**
+
+**กฎ**
+- ทุกการเปลี่ยนแปลงโค้ดต้องผ่าน Git เพื่อให้ตรวจสอบย้อนกลับได้
+- ก่อนส่งงาน Skill ใน `05_CTO` ต้องตรวจว่าไฟล์ทุกไฟล์อยู่ใต้ `src/server`, `src/shared` หรือ `src/client` และนามสกุลตรงตามหัวข้อ 1

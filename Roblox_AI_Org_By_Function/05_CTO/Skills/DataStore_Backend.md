@@ -15,6 +15,7 @@
 - ตรรกะกลไกเกมเพลย์ที่ไม่เกี่ยวกับการบันทึกถาวร -> ให้ส่งต่อไปที่ Gameplay_Scripter
 
 ## Roblox Context & Constraints
+- โค้ดทั้งหมดอยู่ที่ `src/server/Data/<Name>Store.luau` เท่านั้น (Client ต้องเข้าถึงไม่ได้)
 - ใช้ DataStoreService เป็นหลัก เลือกระหว่าง SetAsync (เขียนทับ) และ UpdateAsync (อ่าน-แก้-เขียนแบบปลอดภัยกว่า) ตามความเสี่ยงของข้อมูล
 - ต้องคำนึงถึง budget/throttling ของ DataStore API และหลีกเลี่ยงการเรียกถี่เกินจำเป็น
 - ทุกการเรียก DataStore ต้องครอบด้วย pcall และมี retry ที่เหมาะสมตามหลัก Data Safety

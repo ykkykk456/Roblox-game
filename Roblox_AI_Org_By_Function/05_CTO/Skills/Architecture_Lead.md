@@ -16,7 +16,8 @@
 
 ## Roblox Context & Constraints
 - ยึด Server Authority เป็นหลักสูงสุด: ตรรกะและสถานะที่มีผลต่อเกมต้องอยู่ฝั่ง Server เท่านั้น
-- ต้องกำหนดว่าอะไรอยู่ใน ReplicatedStorage (ใช้ร่วมกันได้ทั้ง Server/Client) กับ ServerStorage/ServerScriptService (Server เข้าถึงได้เท่านั้น) อย่างชัดเจนในทุกฟีเจอร์
+- ต้องกำหนดว่าอะไรอยู่ใน `src/shared/` (ReplicatedStorage — Client อ่านได้) กับ `src/server/` (ServerScriptService — Server เท่านั้น) อย่างชัดเจนในทุกฟีเจอร์ ตาม `ROBLOX_GUIDELINES.md`
+- เป็นผู้เสนอการแก้ `default.project.json` เมื่อต้องจับคู่โฟลเดอร์ใหม่ (เช่น ServerStorage, StarterGui) และต้องอัปเดต `ROBLOX_GUIDELINES.md` หัวข้อ 2 ให้ตรงกันเสมอ
 - ต้องตรวจว่าไม่มี Skill ใดออกแบบให้ Client เป็นแหล่งความจริงของสถานะเกม
 
 ## Handoff / Output Format
