@@ -31,6 +31,7 @@ local MIGRATIONS: { [number]: (any) -> any } = {}
 type Profile = { data: any, loaded: boolean }
 
 local profiles: { [Player]: Profile } = {}
+local changedEvent = Instance.new("BindableEvent")
 local store: DataStore? = nil
 
 local function deepCopy(value: any): any
@@ -97,8 +98,13 @@ local function keyFor(player: Player): string
 	return `u_{player.UserId}`
 end
 
+local function setProfile(player: Player, profile: Profile)
+	profiles[player] = profile
+	changedEvent:Fire(player, profile.data)
+end
+
 local function onLoadFailed(player: Player)
-	profiles[player] = { data = deepCopy(DEFAULT), loaded = false }
+	setProfile(player, { data = deepCopy(DEFAULT), loaded = false })
 	if RunService:IsStudio() then
 		warn("[PlayerData] ใช้ข้อมูลชั่วคราวและจะไม่บันทึก (เปิด Game Settings > Security > Enable Studio Access to API Services เพื่อทดสอบ DataStore จริง)")
 	else
@@ -123,7 +129,7 @@ local function load(player: Player)
 		return
 	end
 	if type(stored) ~= "table" then
-		profiles[player] = { data = deepCopy(DEFAULT), loaded = true }
+		setProfile(player, { data = deepCopy(DEFAULT), loaded = true })
 		return
 	end
 	if type(stored.Version) == "number" and stored.Version > VERSION then
@@ -133,7 +139,7 @@ local function load(player: Player)
 	end
 	local data = migrate(stored)
 	reconcile(data, DEFAULT, `u_{player.UserId}`)
-	profiles[player] = { data = data, loaded = true }
+	setProfile(player, { data = data, loaded = true })
 end
 
 local function save(player: Player)
@@ -152,6 +158,9 @@ end
 
 local PlayerData = {}
 
+-- ยิงเมื่อข้อมูลโหลดเสร็จ และหลัง update ทุกครั้ง: (player, data)
+PlayerData.Changed = changedEvent.Event
+
 -- คืนข้อมูลของผู้เล่น (อ่านอย่างเดียว) หรือ nil ถ้ายังโหลดไม่เสร็จ
 function PlayerData.get(player: Player): any?
 	local profile = profiles[player]
@@ -165,6 +174,7 @@ function PlayerData.update(player: Player, callback: (any) -> ()): boolean
 		return false
 	end
 	callback(profile.data)
+	changedEvent:Fire(player, profile.data)
 	return true
 end
 
