@@ -1,4 +1,5 @@
--- ป้อมของผู้เล่น: วาง · เล็ง · ยิง · อัปเลเวล · สกิล (เจ้าของ: Gameplay_Scripter)
+-- ป้อมของผู้เล่น: วาง · เล็ง · ยิง · อัปเลเวล · ใช้สกิล (เจ้าของ: Gameplay_Scripter)
+-- คลังสกิล/กาชา/คูลดาวน์อยู่ที่ SkillService · ที่นี่แค่นำผลสกิลมาใช้ตอนยิง
 -- Server เลือกเป้าและคำนวณดาเมจเองทั้งหมด · Client ส่งได้แค่ "ขออัป" / "ขอใช้สกิล" (ผ่าน TurretHandler)
 -- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ
 -- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางอัตโนมัติรอบวงกลางแมพ · หน้าตาเป็น Part ธรรมดา
@@ -9,10 +10,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local SkillMath = require(ReplicatedStorage.Shared.Util.SkillMath)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local BossService = require(script.Parent.BossService)
 local FriendBoostService = require(script.Parent.FriendBoostService)
 local MonsterService = require(script.Parent.MonsterService)
+local SkillService = require(script.Parent.SkillService)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 local GROUND_Y = 1
@@ -31,11 +34,8 @@ type Turret = {
 	nextFireAt: number,
 }
 
-type SkillState = { activeUntil: number, readyAt: number }
-
 local turrets: { [Player]: Turret } = {}
 local slotOwner: { [number]: Player } = {}
-local skills: { [Player]: SkillState } = {}
 local folder: Folder
 
 local function levelOf(player: Player): number
@@ -144,21 +144,15 @@ local function onPlayerRemoving(player: Player)
 		slotOwner[turret.slot] = nil
 		turret.model:Destroy()
 	end
-	skills[player] = nil
 end
 
-local function skillActive(player: Player, serverNow: number): boolean
-	local skill = skills[player]
-	return skill ~= nil and serverNow < skill.activeUntil
-end
-
--- คืน (ตำแหน่งเป้า, ฟังก์ชันทำดาเมจ) หรือ nil ถ้าไม่มีเป้าในระยะ
-local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): (Vector3?, ((number) -> ())?)
+-- คืน (ตำแหน่งเป้า, ฟังก์ชันทำดาเมจ, เป็นบอสไหม) หรือ nil ถ้าไม่มีเป้าในระยะ
+local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): (Vector3?, ((number) -> ())?, boolean)
 	local range = Combat.Turret.Range
 	if bossPosition and (bossPosition - turret.headPosition).Magnitude <= range then
 		return bossPosition, function(amount)
 			BossService.damage(turret.owner, amount)
-		end
+		end, true
 	end
 	local best, bestPosition, bestDistance = nil, nil, range
 	for _, monster in MonsterService.getAlive() do
@@ -174,9 +168,14 @@ local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): 
 		local monster = best
 		return bestPosition, function(amount)
 			MonsterService.damage(monster, turret.owner, amount)
-		end
+		end, false
 	end
-	return nil, nil
+	return nil, nil, false
+end
+
+-- ตำแหน่งปากกระบอกปืนเมื่อยิงไปที่เป้า
+local function muzzleOf(turret: Turret, target: Vector3): Vector3
+	return turret.headPosition + (target - turret.headPosition).Unit * (BARREL_LENGTH + 1)
 end
 
 local function tick(firedRemote: RemoteEvent)
@@ -189,27 +188,24 @@ local function tick(firedRemote: RemoteEvent)
 		if now < turret.nextFireAt then
 			continue
 		end
-		local targetPosition, dealDamage = pickTarget(turret, bossPosition, now)
+		local targetPosition, dealDamage, isBoss = pickTarget(turret, bossPosition, now)
 		if not targetPosition or not dealDamage then
 			turret.nextFireAt = now -- ไม่มีเป้า: พร้อมยิงทันทีที่เจอ แต่ไม่สะสมนัดค้าง
 			continue
 		end
 
 		local level = levelOf(owner)
-		local rate = TurretMath.fireRate(level)
-		if skillActive(owner, serverNow) then
-			rate *= Combat.Skill.FireRateMultiplier
-		end
+		local fireRateMul, damageMul, bossDamageMul = SkillService.modifiers(owner, serverNow)
+		local rate = TurretMath.fireRate(level) * fireRateMul
 		local interval = 1 / rate
 		local count = math.min(1 + math.floor((now - turret.nextFireAt) / interval), MAX_SHOTS_PER_TICK)
 		turret.nextFireAt = math.max(turret.nextFireAt, now - interval) + count * interval
 
-		local damage = TurretMath.damage(level) * (1 + FriendBoostService.get(owner)) * count
+		local multiplier = damageMul * (if isBoss then bossDamageMul else 1) * (1 + FriendBoostService.get(owner))
 		aim(turret, targetPosition)
-		dealDamage(damage)
+		dealDamage(TurretMath.damage(level) * multiplier * count)
 
-		local direction = (targetPosition - turret.headPosition).Unit
-		table.insert(shots, turret.headPosition + direction * (BARREL_LENGTH + 1))
+		table.insert(shots, muzzleOf(turret, targetPosition))
 		table.insert(shots, targetPosition)
 	end
 
@@ -243,21 +239,38 @@ function TurretService.upgrade(player: Player): boolean
 	return upgraded
 end
 
--- เรียกจาก TurretHandler หลังผ่าน Guard แล้ว · คืน true ถ้าเปิดสกิลสำเร็จ
+-- เรียกจาก TurretHandler หลังผ่าน Guard แล้ว · ใช้สกิลที่เลือกไว้ · คืน true ถ้าสำเร็จ
 function TurretService.useSkill(player: Player): boolean
-	if not turrets[player] then
+	local turret = turrets[player]
+	local id, def, level = SkillService.equipped(player)
+	if not turret or not id or not def or not level then
 		return false
 	end
 	local serverNow = workspace:GetServerTimeNow()
-	local skill = skills[player]
-	if skill and serverNow < skill.readyAt then
+	if not SkillService.isReady(player, serverNow) then
 		return false
 	end
-	skill = { activeUntil = serverNow + Combat.Skill.Duration, readyAt = serverNow + Combat.Skill.Cooldown }
-	skills[player] = skill
-	-- ให้ Client แสดงเวลานับถอยหลัง (ค่าจริงอยู่ในตาราง skills ฝั่ง Server)
-	player:SetAttribute("SkillActiveUntil", skill.activeUntil)
-	player:SetAttribute("SkillReadyAt", skill.readyAt)
+
+	-- สกิลยิงทันที: ต้องมีเป้าในระยะ ไม่งั้นไม่เสียคูลดาวน์
+	local burst = SkillMath.burst(def.Burst, level)
+	local targetPosition, dealDamage, isBoss = nil, nil, false
+	if burst > 0 then
+		targetPosition, dealDamage, isBoss = pickTarget(turret, BossService.getTarget(), os.clock())
+		if not targetPosition or not dealDamage then
+			return false
+		end
+	end
+
+	SkillService.activate(player, id, def, level, serverNow)
+
+	if targetPosition and dealDamage then
+		local _, damageMul, bossDamageMul = SkillService.modifiers(player, serverNow)
+		local multiplier = damageMul * (if isBoss then bossDamageMul else 1) * (1 + FriendBoostService.get(player))
+		aim(turret, targetPosition)
+		dealDamage(TurretMath.damage(levelOf(player)) * burst * multiplier)
+		local firedRemote = Remotes.get("TurretFired") :: RemoteEvent
+		firedRemote:FireAllClients({ muzzleOf(turret, targetPosition), targetPosition })
+	end
 	return true
 end
 

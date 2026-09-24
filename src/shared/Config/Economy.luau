@@ -17,6 +17,15 @@ return table.freeze({
 	Boss = table.freeze({
 		BaseReward = 50, -- ทุกคนที่มีดาเมจ > 0 ได้เท่ากัน
 		DamageRewardPool = 300, -- แบ่งตามสัดส่วนดาเมจ
+		EscapeMoneyMultiplier = 0.5, -- บอสหนี: ได้เงินตามสูตรเดียวกัน × ค่านี้ และไม่ได้ตั๋ว (IDEA.md)
+	}),
+
+	Gacha = table.freeze({
+		TicketsPerBossKill = 1, -- ทุกคนที่มีดาเมจ > 0 เมื่อชนะบอส
+		TopBonusTickets = 1, -- โบนัสเพิ่มให้อันดับดาเมจ 1..TopBonusRanks
+		TopBonusRanks = 3,
+		MaxTickets = 100_000, -- เพดานกันค่าล้น
+		RollSizes = table.freeze({ 1, 10 }), -- จำนวนครั้งที่สุ่มได้ต่อคำขอ
 	}),
 
 	-- เพดานรวมคุมไว้ที่ Max เพื่อไม่ให้ตัวคูณซ้อนกันพุ่งเกิน

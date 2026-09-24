@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
+local Skills = require(ReplicatedStorage.Shared.Config.Skills)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local Components = require(script.Parent.Components)
 local Theme = require(script.Parent.Theme)
@@ -120,17 +121,19 @@ local function renderTurret()
 		upgradeButton.TextTransparency = if coins >= cost then 0 else 0.5
 	end
 
+	local equipped = Skills.List[player:GetAttribute("EquippedSkill") or ""]
+	local skillName = if equipped then equipped.Name else "-"
 	local serverNow = workspace:GetServerTimeNow()
 	local activeLeft = numberAttr(player, "SkillActiveUntil", 0) - serverNow
 	local readyLeft = numberAttr(player, "SkillReadyAt", 0) - serverNow
 	if activeLeft > 0 then
-		skillButton.Text = `⚡ {Combat.Skill.Name} {math.ceil(activeLeft)} วิ`
+		skillButton.Text = `⚡ {skillName} {math.ceil(activeLeft)} วิ`
 		skillButton.TextTransparency = 0
 	elseif readyLeft > 0 then
 		skillButton.Text = `⚡ รอ {math.ceil(readyLeft)} วิ`
 		skillButton.TextTransparency = 0.5
 	else
-		skillButton.Text = `⚡ {Combat.Skill.Name}{keyHint("Q", "X")}`
+		skillButton.Text = `⚡ {skillName}{keyHint("Q", "X")}`
 		skillButton.TextTransparency = 0
 	end
 end
@@ -262,7 +265,7 @@ function CombatUI.Start()
 	end)
 	bossState:GetAttributeChangedSignal("Top"):Connect(renderBoard)
 	player:GetAttributeChangedSignal("BossDamage"):Connect(renderBoard)
-	for _, name in { "TurretLevel", "Coins", "FriendBoost" } do
+	for _, name in { "TurretLevel", "Coins", "FriendBoost", "EquippedSkill" } do
 		player:GetAttributeChangedSignal(name):Connect(renderTurret)
 	end
 	renderBoard()

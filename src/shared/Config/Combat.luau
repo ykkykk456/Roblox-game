@@ -16,14 +16,6 @@ return table.freeze({
 		FireRatePerLevel = 0.1,
 	}),
 
-	-- สกิลป้อมตัวเดียวของ prototype (ของจริงได้จากกาชาตาม IDEA.md)
-	Skill = table.freeze({
-		Name = "Overdrive",
-		Duration = 5, -- วินาที
-		Cooldown = 30, -- วินาที (นับจากตอนกด)
-		FireRateMultiplier = 3,
-	}),
-
 	Monster = table.freeze({
 		SpawnInterval = 2, -- วินาที
 		MaxAlive = 15,

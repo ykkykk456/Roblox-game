@@ -1,4 +1,5 @@
 -- บอสอีเวนต์: เกิดตามเวลา ทั้งเซิร์ฟช่วยกันตี แบ่งรางวัล "ขั้นต่ำ + ตามดาเมจ" (เจ้าของ: Gameplay_Scripter)
+-- ชนะ = เงิน + ตั๋วกาชา (อันดับต้นได้โบนัส) · หนี = เงินลดลง ไม่มีตั๋ว
 -- สถานะส่งให้ Client ผ่าน Attribute ของ ReplicatedStorage.BossState (อ่านอย่างเดียว ใช้แสดงผล):
 --   Active: boolean · Hp / MaxHp: number · EndsAt / NextAt: เวลา workspace:GetServerTimeNow()
 --   Top: JSON [{ n = ชื่อ, d = ดาเมจ }] 5 อันดับ · Result: ข้อความผลรอบล่าสุด
@@ -10,12 +11,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
+local SkillService = require(script.Parent.SkillService)
 local Wallet = require(script.Parent.Wallet)
 
 local PUBLISH_INTERVAL = 0.2
 local TOP_COUNT = 5
 
-type Entry = { name: string, damage: number }
+type Entry = { userId: number, name: string, damage: number }
 type Boss = {
 	part: BasePart,
 	hp: number,
@@ -112,24 +114,34 @@ local function finish(current: Boss, killed: boolean)
 	publish(current)
 
 	local ranking = sortedEntries(current)
-	if killed then
-		local total = 0
-		for _, entry in ranking do
-			total += entry.damage
-		end
-		for userId, entry in current.damageBy do
-			local player = Players:GetPlayerByUserId(userId)
-			if player and total > 0 then
-				Wallet.earn(player, Economy.Boss.BaseReward + Economy.Boss.DamageRewardPool * entry.damage / total)
+	local total = 0
+	for _, entry in ranking do
+		total += entry.damage
+	end
+	-- เงิน: ขั้นต่ำทุกคน + ตามสัดส่วนดาเมจ · บอสหนีได้เงินลดลงและไม่ได้ตั๋ว (IDEA.md)
+	local moneyMultiplier = if killed then 1 else Economy.Boss.EscapeMoneyMultiplier
+	for rank, entry in ranking do
+		local player = Players:GetPlayerByUserId(entry.userId)
+		if player and total > 0 then
+			local money = Economy.Boss.BaseReward + Economy.Boss.DamageRewardPool * entry.damage / total
+			Wallet.earn(player, money * moneyMultiplier)
+			if killed then
+				local bonus = if rank <= Economy.Gacha.TopBonusRanks then Economy.Gacha.TopBonusTickets else 0
+				SkillService.grantTickets(player, Economy.Gacha.TicketsPerBossKill + bonus)
 			end
 		end
-		local mvp = if ranking[1] then ranking[1].name else "-"
-		state:SetAttribute("Result", `ชนะบอสแล้ว! 🏆 ดาเมจสูงสุด: {mvp}`)
-	else
-		-- [Proposed] บอสหนี = ไม่มีรางวัล (รอเจ้าของเกมยืนยัน)
+	end
+
+	local mvp = if ranking[1] then ranking[1].name else "-"
+	if killed then
 		state:SetAttribute(
 			"Result",
-			"บอสหนีไปแล้ว… รอบหน้าต้องตีให้แรงขึ้น"
+			`ชนะบอสแล้ว! 🏆 {mvp} · ได้เงิน + 🎟 ตั๋วกาชา`
+		)
+	else
+		state:SetAttribute(
+			"Result",
+			"บอสหนีไปแล้ว… ได้เงินบางส่วน (ไม่ได้ตั๋ว)"
 		)
 	end
 	state:SetAttribute("Active", false)
@@ -155,7 +167,7 @@ function BossService.damage(player: Player, amount: number)
 	current.hp -= applied
 	local entry = current.damageBy[player.UserId]
 	if not entry then
-		entry = { name = player.DisplayName, damage = 0 }
+		entry = { userId = player.UserId, name = player.DisplayName, damage = 0 }
 		current.damageBy[player.UserId] = entry
 	end
 	entry.damage += applied
