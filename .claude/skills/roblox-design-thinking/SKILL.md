@@ -11,7 +11,7 @@ description: Workflow Design Thinking สำหรับเกม Roblox (Empath
 | Step | บทบาท | โหลด | ผลลัพธ์ |
 |---|---|---|---|
 | 1 Empathize | Player_Researcher | `03_Market_Data/Skills/Player_Researcher.md` | Persona 1–3 แบบ (อายุ · อุปกรณ์ · เล่นนานแค่ไหน · มาเพื่ออะไร) + สิ่งที่ผู้เล่นทำ/พูด/รู้สึก/ติดขัด · เกมคู่แข่งที่คล้ายกัน |
-| 2 Define | Game_Director | `01_CEO/Skills/Game_Director.md` | Problem Statement 1 ประโยค: *"[ผู้เล่นแบบไหน] ต้องการ [อะไร] เพราะ [insight]"* + คำถาม **How Might We** 3–5 ข้อ · เช็กว่าตรงเสาหลักของเกม (`IDEA.md`) |
+| 2 Define | Game_Director | `01_CEO/Skills/Game_Director.md` | Problem Statement 1 ประโยค: *"[ผู้เล่นแบบไหน] ต้องการ [อะไร] เพราะ [insight]"* + คำถาม **How Might We** 3–5 ข้อ · เช็กว่าตรงเสาหลักของเกม (`IDEA.md` — ถ้ายัง "รอยืนยัน" ใช้สิ่งที่ผู้ใช้ตัดสินในแชทแทน) |
 | 3 Ideate | Systems_Designer | `02_Product_UX/Skills/Systems_Designer.md` | ไอเดีย 8–15 ข้อ (ไม่ตัดสินระหว่างคิด) → จัดกลุ่ม → คัดด้วย **ตาราง 4 ช่อง** (ด้านล่าง) → เสนอ 1–3 ไอเดียให้ผู้ใช้เลือก |
 | 4 Prototype | UX_Architect *(ถ้าเป็นหน้าจอ)* / World_Builder `/roblox-map` *(ถ้าเป็นพื้นที่)* | `02_Product_UX/Skills/UX_Architect.md` | ต้นแบบที่ถูกและเร็วที่สุดที่ตอบคำถามได้ (ดูระดับด้านล่าง) + **สมมติฐานที่จะทดสอบ** |
 | 5 Test | Player_Researcher *(+ Data_Analyst ถ้ามีตัวเลข)* | `03_Market_Data/Skills/Data_Analyst.md` เฉพาะเมื่อมีข้อมูลเชิงปริมาณ | แผนเพลย์เทสต์ + สรุปผล: สมมติฐานผ่าน/ไม่ผ่าน → **ไปต่อ / ปรับ / ทิ้ง** |
@@ -39,4 +39,5 @@ description: Workflow Design Thinking สำหรับเกม Roblox (Empath
 ผลไม่ผ่าน → วนกลับ Step 2 หรือ 3 ได้ (บอกเหตุผลสั้นๆ) · ไม่ต้องทำครบทุก Step ถ้าผู้ใช้มีข้อมูลแล้ว
 
 ปิดงาน: **Design Brief** (Persona · Problem Statement · ไอเดียที่เลือก + เหตุผล · ผลเทสต์ · คำถามค้าง) → ส่งต่อ `/roblox-feature` (ระบบ+UI) · `/roblox-ui` (หน้าจอ) · `/roblox-map` (แมพ) · `/roblox-economy` (ถ้าเป็นเรื่องตัวเลข)
-ผู้ใช้อยากเก็บไว้ → บันทึกเป็น `design/<หัวข้อ>.md` ที่ root ของ repo (ไม่เข้าเกม)
+ระหว่างคุย: สรุป "ข้อที่ผู้ใช้ตัดสินแล้ว / ยังเปิดอยู่" ท้ายทุกคำตอบ เพื่อให้เห็นว่าเข้าใจตรงกันไหม
+บันทึกลงไฟล์ **เฉพาะเมื่อผู้ใช้ยืนยันว่าเข้าใจตรงกันแล้ว**: วิสัยทัศน์/เสาหลัก → `IDEA.md` · รายละเอียดฟีเจอร์ → `design/<หัวข้อ>.md` ที่ root ของ repo (ทั้งสองไฟล์ไม่เข้าเกม)
