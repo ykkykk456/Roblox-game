@@ -16,17 +16,24 @@ local RunService = game:GetService("RunService")
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
 
 local STORE_NAME = "PlayerData"
-local VERSION = 1
+local VERSION = 2
 local MAX_ATTEMPTS = 3
 local AUTOSAVE_INTERVAL = 120
 
 local DEFAULT = {
 	Version = VERSION,
 	Coins = Economy.StartingCoins,
+	TurretLevel = 1, -- v2
 }
 
 -- MIGRATIONS[n] แปลงข้อมูลจากเวอร์ชัน n เป็น n + 1
-local MIGRATIONS: { [number]: (any) -> any } = {}
+local MIGRATIONS: { [number]: (any) -> any } = {
+	-- v1 → v2: เพิ่มเลเวลป้อม
+	[1] = function(data)
+		data.TurretLevel = 1
+		return data
+	end,
+}
 
 type Profile = { data: any, loaded: boolean }
 

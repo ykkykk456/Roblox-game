@@ -7,7 +7,7 @@ local Players = game:GetService("Players")
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- field ใน PlayerData ที่เปิดให้ Client เห็น (เพิ่มได้ เช่น "Level") · ห้ามใส่ข้อมูลลับ
-local PUBLIC_FIELDS = { "Coins" }
+local PUBLIC_FIELDS = { "Coins", "TurretLevel" }
 
 local function mirror(player: Player, data: any)
 	for _, field in PUBLIC_FIELDS do

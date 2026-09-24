@@ -9,6 +9,9 @@ local RunService = game:GetService("RunService")
 
 local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	-- ตัวอย่าง: BuyItem = "RemoteEvent",
+	UpgradeTurret = "RemoteEvent", -- Client → Server: ขออัปเลเวลป้อม (ไม่มี argument)
+	UseTurretSkill = "RemoteEvent", -- Client → Server: ขอใช้สกิลป้อม (ไม่มี argument)
+	TurretFired = "RemoteEvent", -- Server → Client: ตำแหน่งกระสุนสำหรับวาดเอฟเฟกต์เท่านั้น
 }
 
 local FOLDER_NAME = "Remotes"
