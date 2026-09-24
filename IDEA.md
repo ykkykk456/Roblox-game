@@ -1,5 +1,21 @@
-A tiny browser game built in a weekend.
+# IDEA — วิสัยทัศน์และเสาหลักของเกม
 
-- One core mechanic, juicy feedback
-- No build step — single HTML/JS file
-- Playable in under 60 seconds
+> **สถานะ: ยังไม่สรุป** — เจ้าของเกม (CEO) จะยืนยันเนื้อหาเมื่อเข้าใจตรงกันแล้ว
+> Claude ห้ามเติมหรือแก้หัวข้อด้านล่างเองจนกว่าจะได้รับอนุมัติ
+
+เอกสารนี้เป็นที่อ้างอิงของ Game_Director และ `/roblox-design-thinking` (Step 2 Define)
+
+## แนวเกม
+_(รอยืนยัน)_
+
+## Core Loop
+_(รอยืนยัน)_
+
+## เสาหลักของเกม (Pillars)
+_(รอยืนยัน)_
+
+## ผู้เล่นเป้าหมาย
+_(รอยืนยัน)_
+
+## สิ่งที่ "ไม่ทำ"
+_(รอยืนยัน)_
