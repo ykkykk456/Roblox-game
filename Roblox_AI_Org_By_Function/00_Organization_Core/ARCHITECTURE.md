@@ -37,7 +37,7 @@
 ├── CLAUDE.md                     # Level 1 สำหรับ Claude: กฎย่อ + โครงสร้าง + วิธีเลือก Workflow (โหลดทุกครั้ง)
 ├── .claude/
 │   ├── rules/                    # กฎตามโฟลเดอร์ โหลดเองเมื่อแก้ src/server | src/shared | src/client
-│   └── skills/                   # Workflow เป็น Skill: /roblox-feature, -ui, -bugfix, -economy, -map, -review
+│   └── skills/                   # Workflow เป็น Skill: /roblox-design-thinking, -feature, -ui, -bugfix, -economy, -map, -review
 ├── default.project.json          # แผนที่ Rojo: โฟลเดอร์ src/ → Instance ใน Studio
 ├── aftman.toml                   # เวอร์ชันเครื่องมือ (Rojo)
 ├── src/                          # โค้ดเกมทั้งหมด (Level 4) — ดู ROBLOX_GUIDELINES.md

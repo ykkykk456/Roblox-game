@@ -5,6 +5,7 @@ Workflow ทุกตัวย้ายไปเป็น **Claude Skill** ท�
 
 | งาน | Skill (พิมพ์ใน Claude Code) | ไฟล์ |
 |---|---|---|
+| หาไอเดีย/แก้ปัญหาผู้เล่น (Design Thinking) | `/roblox-design-thinking` | `.claude/skills/roblox-design-thinking/SKILL.md` |
 | ฟีเจอร์ใหม่ (ระบบ + UI) | `/roblox-feature` | `.claude/skills/roblox-feature/SKILL.md` |
 | สร้าง/แก้หน้าจอ UI | `/roblox-ui` | `.claude/skills/roblox-ui/SKILL.md` |
 | แก้บั๊ก | `/roblox-bugfix` | `.claude/skills/roblox-bugfix/SKILL.md` |
