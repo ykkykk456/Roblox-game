@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>คู่มือหลุมอุกกาบาต</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Anuphan:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0E1024; --bg2:#141836; --card:#1A1F42; --card2:#222853; --line:#2E3566;
+  --ink:#F4F1EA; --muted:#A9ABCB; --dim:#7479A3;
+  --meteor:#FF8A3D; --boss:#FF4D5E; --gold:#FFD34D; --mint:#8EF0B4; --violet:#B98BFF; --sky:#7FB2FF;
+  --display:"Mitr","Anuphan",system-ui,sans-serif;
+  --body:"Anuphan",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.7;
+  background-image:
+    radial-gradient(1px 1px at 12% 8%,#fff8 50%,transparent 51%),
+    radial-gradient(1px 1px at 78% 4%,#fff6 50%,transparent 51%),
+    radial-gradient(1.5px 1.5px at 42% 14%,#fff7 50%,transparent 51%),
+    radial-gradient(1px 1px at 90% 22%,#fff5 50%,transparent 51%),
+    radial-gradient(1px 1px at 24% 30%,#fff4 50%,transparent 51%),
+    radial-gradient(900px 500px at 85% -10%,#3B2A6E55,transparent 70%),
+    radial-gradient(700px 420px at 0% 0%,#FF8A3D1A,transparent 70%);
+  background-repeat:no-repeat}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.2;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:var(--gold)}
+kbd{font-family:var(--mono);font-size:.82em;background:var(--card2);border:1px solid var(--line);border-bottom-width:3px;border-radius:7px;padding:.1em .5em;white-space:nowrap}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+
+.wrap{max-width:1200px;margin:0 auto;padding-inline:24px}
+header.top{position:sticky;top:0;z-index:20;background:#0E1024E6;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+header.top .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:1.05rem;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.logo i{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFB27A,var(--meteor) 45%,#8A2F10);box-shadow:0 0 14px #FF8A3D88}
+header nav{display:flex;gap:4px;overflow-x:auto;margin-left:auto;scrollbar-width:none}
+header nav a{color:var(--muted);text-decoration:none;font-size:.92rem;padding:6px 11px;border-radius:999px;white-space:nowrap}
+header nav a:hover{color:var(--ink);background:var(--card)}
+
+/* hero */
+.hero{padding-block:56px 34px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:end}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--meteor)}
+.hero h1{font-size:clamp(2.3rem,5.4vw,4.2rem);margin-top:12px;letter-spacing:-.01em}
+.hero h1 span{color:var(--meteor);text-shadow:0 0 30px #FF8A3D66}
+.hero .sub{color:var(--muted);font-size:1.08rem;max-width:56ch;margin-top:16px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fact{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 14px 12px}
+.fact b{display:block;font-family:var(--display);font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+.fact span{color:var(--muted);font-size:.84rem;line-height:1.4;display:block}
+.fact:nth-child(1) b{color:var(--gold)} .fact:nth-child(2) b{color:var(--boss)} .fact:nth-child(3) b{color:var(--mint)}
+
+/* scrolly */
+.play{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:40px;align-items:start;padding-bottom:40px}
+.steps{display:flex;flex-direction:column;gap:0;padding-top:4vh;padding-bottom:10vh}
+.step{min-height:72vh;display:flex;align-items:center}
+.step:last-child{min-height:60vh}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px 24px;display:flex;flex-direction:column;gap:12px;opacity:.55;transform:scale(.98);transition:opacity .35s,transform .35s,border-color .35s;width:100%}
+.step.on .sc{opacity:1;transform:none;border-color:var(--c,var(--meteor));box-shadow:0 10px 40px -18px var(--c,var(--meteor))}
+.sc .n{display:flex;align-items:center;gap:12px}
+.sc .n b{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-size:1.2rem;background:var(--c,var(--meteor));color:#14122A;flex:none}
+.sc h3{font-size:1.4rem}
+.sc p{color:#D9D8E8}
+.sc ul{margin:0;padding-left:1.1em;color:var(--muted);display:flex;flex-direction:column;gap:3px;font-size:.95rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:.76rem;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--card2);color:var(--muted);white-space:nowrap}
+.chip.ok{background:#8EF0B41F;color:var(--mint)}
+.chip.wip{background:#FFD34D1F;color:var(--gold)}
+.chip.part{background:#7FB2FF1F;color:var(--sky)}
+
+.stage{position:sticky;top:78px;height:calc(100vh - 98px);max-height:760px;display:flex;flex-direction:column;gap:10px}
+.mapcard{position:relative;flex:1;min-height:0;border-radius:24px;background:radial-gradient(circle at 50% 45%,#1E2550,#10132C 70%);border:1px solid var(--line);overflow:hidden}
+.mapcard svg{position:absolute;inset:0;width:100%;height:100%}
+.mapcard .shade{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,transparent 20%,#05061499 80%);opacity:0;transition:opacity .8s;pointer-events:none}
+.mapcard.warn .shade{opacity:1}
+.hud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;width:min(320px,80%)}
+.hud .pill{background:#0E1024D9;border:1px solid var(--line);border-radius:999px;padding:5px 14px;font-size:.86rem;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hud .pill.alert{border-color:var(--boss);color:var(--boss);animation:blink .6s steps(2) infinite}
+@keyframes blink{50%{opacity:.45}}
+.hud .hp{width:100%;height:12px;border-radius:999px;background:#0E1024D9;border:1px solid var(--line);overflow:hidden}
+.hud .hp i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--boss),#FF8A6A);transition:width .15s linear}
+.cap{position:absolute;left:14px;bottom:14px;right:14px;display:flex;justify-content:space-between;gap:10px;align-items:end;pointer-events:none}
+.cap .where{background:#0E1024D9;border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:.86rem}
+.cap .where b{color:var(--gold);font-family:var(--display);font-weight:500}
+.cap .demo{font-family:var(--mono);font-size:.68rem;color:var(--dim);background:#0E1024D9;border-radius:8px;padding:3px 8px}
+.maptools{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.82rem;color:var(--muted);flex-wrap:wrap}
+.maptools button{font:inherit;font-size:.82rem;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+.maptools button:hover{border-color:var(--gold)}
+
+/* map layers */
+#map .z{transition:opacity .45s}
+#map.focus .z{opacity:.18}
+#map.focus .z.on{opacity:1}
+#map .lbl{opacity:0;transition:opacity .35s;pointer-events:none}
+#map .lbl.show{opacity:1}
+#map .twinkle{animation:tw 1.6s ease-in-out infinite}
+@keyframes tw{50%{opacity:.35}}
+#map .glow{filter:drop-shadow(0 0 3px #FFD34D)}
+
+/* sections */
+section.block{padding-block:70px;display:flex;flex-direction:column;gap:22px}
+section.block > .head{display:flex;flex-direction:column;gap:8px;max-width:70ch}
+section.block h2{font-size:clamp(1.8rem,3.4vw,2.5rem)}
+.lead{color:var(--muted);font-size:1.02rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+
+.tl{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;overflow-x:auto}
+.tlin{min-width:620px;display:flex;flex-direction:column;gap:8px}
+.lane{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:center;font-size:.85rem;color:var(--muted)}
+.bar{position:relative;height:30px;background:var(--bg2);border-radius:8px}
+.seg{position:absolute;top:0;bottom:0;border-radius:8px;display:flex;align-items:center;padding-inline:8px;font-size:.76rem;font-weight:600;white-space:nowrap;overflow:hidden}
+.seg.b{background:var(--boss);color:#fff}
+.seg.w{background:#FFD34D26;color:var(--gold)}
+.seg.m{background:repeating-linear-gradient(90deg,#C8A06E 0 5px,transparent 5px 13px);opacity:.55}
+.ticks{position:relative;height:18px;margin-left:108px;font-family:var(--mono);font-size:.7rem;color:var(--dim)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.win h3{color:var(--mint)} .lose h3{color:var(--boss)}
+.win,.lose{display:flex;flex-direction:column;gap:8px}
+.win ul,.lose ul{margin:0;padding-left:1.1em;color:#D9D8E8;display:flex;flex-direction:column;gap:3px}
+.stat b{display:block;font-family:var(--display);font-size:1.45rem;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.85rem}
+
+.odds{display:flex;height:34px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.odds div{display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:#14122A;white-space:nowrap;overflow:hidden}
+.skills{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.skill{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--r);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.skill .r{font-size:.74rem;font-weight:700;color:var(--r);letter-spacing:.04em}
+.skill h3{font-size:1.08rem}
+.skill p{color:var(--muted);font-size:.88rem}
+.skill .meta{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap;font-family:var(--mono);font-size:.72rem;color:var(--dim)}
+
+.cur{display:flex;flex-direction:column;gap:8px}
+.cur .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center}
+.cur h3{font-size:1.15rem}
+.cur p{color:var(--muted);font-size:.92rem}
+.cur .flow{font-size:.84rem;color:#D9D8E8;display:flex;flex-direction:column;gap:2px}
+.cur .flow span b{color:var(--muted);font-weight:500}
+
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.key{display:flex;flex-direction:column;gap:10px}
+.key .k{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.key p{color:var(--muted);font-size:.9rem}
+
+.tips{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.tip{display:flex;gap:12px;align-items:flex-start}
+.tip b{font-family:var(--display);color:var(--gold);font-size:1.3rem;line-height:1.2}
+.tip p{color:#D9D8E8;font-size:.94rem}
+
+footer{border-top:1px solid var(--line);padding-block:30px 50px;color:var(--muted);font-size:.9rem;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+footer h3{font-size:1rem;color:var(--ink);margin-bottom:6px}
+footer code{font-family:var(--mono);font-size:.84em;background:var(--card);padding:.1em .4em;border-radius:5px}
+
+@media (max-width:960px){
+  .hero{grid-template-columns:minmax(0,1fr);padding-block:34px 20px;gap:24px}
+  .play{grid-template-columns:minmax(0,1fr);gap:0}
+  .stage{order:-1;top:58px;height:48vh;max-height:none;z-index:5;background:var(--bg);padding-block:8px;margin-inline:-24px;padding-inline:16px}
+  .step{min-height:62vh}
+  .skills{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .keys,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tips{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:600px){
+  .wrap{padding-inline:16px}
+  .stage{margin-inline:-16px}
+  .facts{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+  .fact b{font-size:1.2rem}
+  .g2,.g4,.keys{grid-template-columns:minmax(0,1fr)}
+  .skills{grid-template-columns:minmax(0,1fr)}
+  footer{grid-template-columns:minmax(0,1fr)}
+  header nav{display:none}
+  .sc{padding:18px}
+  .maptools{display:none}
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#top"><i aria-hidden="true"></i>หลุมอุกกาบาต</a>
+    <nav aria-label="เมนู">
+      <a href="#play">วิธีเล่น</a>
+      <a href="#boss">บอส</a>
+      <a href="#skills">สกิลป้อม</a>
+      <a href="#loot">ของสะสม</a>
+      <a href="#controls">ปุ่มกด</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <div class="eyebrow">คู่มือผู้เล่น · ฉบับ prototype</div>
+      <h1>บอสพุ่งลงหลุม<br><span>ทั้งเซิร์ฟ</span>รุมยิงด้วยป้อม</h1>
+      <p class="sub">เก็บของรอบหลุม ขนกลับฐาน อัปป้อมให้แรง แล้วรอให้บอสตกลงมา ทุกคนที่ช่วยยิงได้รางวัล ใครยิงแรงสุดขึ้นท็อปดาเมจ เลื่อนลงไปดูทีละขั้นบนแมพได้เลย</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>8 คน</b><span>ต่อเซิร์ฟ คนละ 1 ฐานล้อมหลุม</span></div>
+      <div class="fact"><b>~3 นาที</b><span>บอสมาทีละรอบ ตัวแรกมาใน 45 วินาที</span></div>
+      <div class="fact"><b>AFK ได้</b><span>ป้อมยิงเอง แต่คนอยู่หน้าจอได้มากกว่า</span></div>
+    </div>
+  </div>
+
+  <div class="wrap play" id="play">
+    <div class="steps" id="steps">
+      <div class="step" data-focus="spawn" style="--c:var(--sky)"><div class="sc">
+        <div class="n"><b>1</b><h3>เกิดที่ฐานของตัวเอง</h3></div>
+        <p>แมพเป็นวงกลม 8 ฐานล้อมหลุมอุกกาบาตตรงกลาง ขอบลานฐานเป็นสีประจำตัวคุณ มองจากไกลก็รู้ว่าฐานไหนของใคร</p>
+        <ul><li>หน้าฐานมี <b>ป้อมเริ่มต้น</b> หันเข้าหาหลุม ยิงเองอัตโนมัติ</li><li>หลังฐานมี <b>บ้าน</b> ที่ผลิตเงินให้ตอนคุณไม่อยู่</li></ul>
+        <div class="chips"><span class="chip ok">มีในเกมแล้ว (ฐาน 1)</span></div>
+      </div></div>
+
+      <div class="step" data-focus="loot" style="--c:var(--mint)"><div class="sc">
+        <div class="n"><b>2</b><h3>วิ่งไปเก็บของรอบหลุม</h3></div>
+        <p>ทุ่งสีเขียวอ่อนที่ล้อมหลุมเป็นของทุกคน เดินชนของเพื่อเก็บ ใครถึงก่อนได้ก่อน</p>
+        <ul><li>ถือได้จำกัดตามขนาด <b>กระเป๋า</b> (อัปได้)</li><li>ของ <b style="color:var(--gold)">สีทอง</b> เป็นของหายาก เกิดสุ่มจุด ให้สิทธิพิเศษชั่วคราว</li></ul>
+        <div class="chips"><span class="chip wip">กำลังสร้าง</span></div>
+      </div></div>
+
+      <div class="step" data-focus="sell" style="--c:var(--gold)"><div class="sc">
+        <div class="n"><b>3</b><h3>ขนกลับฐาน: ขาย หรือ เติมกระสุน</h3></div>
+        <p>ของทุกชิ้นใช้ได้สองทาง เลือกเองว่าจะเอาเงินไว้อัประยะยาว หรือเก็บไว้ถล่มบอสรอบหน้า</p>
+        <ul><li><b style="color:var(--gold)">แผ่นเหลือง</b> เดินทับเพื่อขาย ได้เงินทันที</li><li><b style="color:#D29A62">ลังไม้ข้างป้อม</b> ใส่ของเป็นกระสุนพิเศษ ไฟ · น้ำแข็ง · ระเบิด ยิงตอนบอสมา</li></ul>
+        <div class="chips"><span class="chip wip">กำลังสร้าง</span></div>
+      </div></div>
+
+      <div class="step" data-focus="upgrade" style="--c:var(--sky)"><div class="sc">
+        <div class="n"><b>4</b><h3>อัปเกรดที่ป้ายหน้าฐาน</h3></div>
+        <p>ไม่มีร้านกลางแมพ ทุกอย่างอัปที่ป้ายในฐานของคุณเอง</p>
+        <ul><li><b>ป้อม</b> ดาเมจและความเร็วยิง (สูงสุด Lv.50) หน้าตาไม่เปลี่ยนตามเลเวล</li><li><b>บ้าน</b> เงิน idle · <b>กระเป๋า</b> ถือของได้มากขึ้น · <b>แม็กกาซีน</b> กระสุนพิเศษ · <b>ความเร็ว</b> วิ่งไวขึ้น</li></ul>
+        <div class="chips"><span class="chip ok">อัปป้อมได้แล้ว (ปุ่ม U)</span><span class="chip wip">ป้ายอัปเกรด กำลังสร้าง</span></div>
+      </div></div>
+
+      <div class="step" data-focus="yard" style="--c:#FF7A5C"><div class="sc">
+        <div class="n"><b>5</b><h3>ป้อมยิงมอนจากสวนหลังบ้าน</h3></div>
+        <p>ระหว่างรอบอส มอนจะเกิดในสวนหลังฐานของคุณ แล้วเดินตามทางดินเข้าหาหลุม ป้อมยิงเองและได้เงินทุกตัวที่ตาย ทุกฐานได้มอนเท่ากัน</p>
+        <ul><li><b style="color:#FF6B6B">มอนเล็ก</b> เร็ว HP น้อย</li><li><b style="color:var(--meteor)">มอนกลาง</b> ช้า HP 3 เท่า เงิน 3 เท่า</li></ul>
+        <div class="chips"><span class="chip ok">มีในเกมแล้ว</span></div>
+      </div></div>
+
+      <div class="step" data-focus="boss" style="--c:var(--boss)"><div class="sc">
+        <div class="n"><b>6</b><h3>บอสพุ่งลงหลุม ทุกคนรุมยิง</h3></div>
+        <p>ก่อนบอสมา 10 วินาที ฟ้าจะมืดและมีเงาวงกลมในหลุม เตือนทุกคนพร้อมกัน จากนั้นบอสพุ่งลงจากฟ้า ป้อมทุกฐานหันมายิงบอสทันที</p>
+        <ul><li>มีเวลา <b>60 วินาที</b> ตีไม่ตาย = บอสหนี</li><li>กดสกิลป้อม <kbd>Q</kbd> และยิงกระสุนพิเศษเพื่อขึ้นท็อปดาเมจ</li></ul>
+        <div class="chips"><span class="chip ok">บอสและตารางดาเมจมีแล้ว</span><span class="chip wip">ฟ้ามืดเตือน กำลังสร้าง</span></div>
+      </div></div>
+
+      <div class="step" data-focus="altar" style="--c:var(--violet)"><div class="sc">
+        <div class="n"><b>7</b><h3>ช่วยกันเรียกบอสพิเศษ</h3></div>
+        <p>ส่งของเข้า <b style="color:var(--violet)">แท่นสีม่วง</b> ในฐานของคุณ ยอดของทุกคนรวมเป็นเกจเดียวทั้งเซิร์ฟ พอครบเป้า บอสพิเศษจะพุ่งลงหลุม</p>
+        <ul><li>โบนัสแบ่งตามสัดส่วนของที่แต่ละคนส่ง</li><li>คน AFK ได้แค่รางวัลขั้นต่ำ แต่ไม่ได้ขัดขวางใคร</li></ul>
+        <div class="chips"><span class="chip wip">กำลังสร้าง</span></div>
+      </div></div>
+
+      <div class="step" data-focus="all" style="--c:var(--meteor)"><div class="sc">
+        <div class="n"><b>↻</b><h3>แล้ววนใหม่</h3></div>
+        <p>รางวัลจากบอสเอาไปอัปของ ของที่แรงขึ้นทำให้ได้ดาเมจมากขึ้นในรอบถัดไป ระยะยาวมีรางวัล Login ภารกิจรายวัน และ Rebirth ที่รีเซ็ตเพื่อแลกตัวคูณถาวร</p>
+      </div></div>
+    </div>
+
+    <aside class="stage" aria-label="แมพหลุมอุกกาบาต">
+      <div class="mapcard" id="mapcard">
+        <svg id="map" viewBox="-185 -185 370 370" preserveAspectRatio="xMidYMid meet" role="img" aria-label="ผังแมพหลุมอุกกาบาต มองจากด้านบน 8 ฐานล้อมหลุมบอส"></svg>
+        <div class="shade"></div>
+        <div class="hud"><div class="pill" id="hudText">บอสจะมาใน 0:12</div><div class="hp" id="hpbar" hidden><i id="hpfill"></i></div></div>
+        <div class="cap"><div class="where" id="where"><b>ทั้งแมพ</b> · 362 × 362 studs</div><div class="demo">เดโม่เร่งเวลา</div></div>
+      </div>
+      <div class="maptools"><span>ผังเต็ม 8 ฐาน · prototype ตอนนี้สร้างแล้ว 1 ฐาน</span><button type="button" id="bossNow">เรียกบอสดู</button></div>
+    </aside>
+  </div>
+
+  <section class="block wrap" id="boss">
+    <div class="head"><div class="eyebrow">บอสรอบปกติ</div><h2>บอสมาแล้วเกิดอะไรขึ้น</h2><p class="lead">บอสตัวแรกมาเร็วให้ผู้เล่นใหม่เจอจุดสนุกทันที แล้วมาเป็นรอบ ตัวเลขชุดนี้เป็นค่าทดสอบของ prototype ยังปรับได้</p></div>
+    <div class="tl"><div class="tlin">
+      <div class="lane"><span>มอน</span><div class="bar"><div class="seg m" style="left:0;width:100%"></div></div></div>
+      <div class="lane"><span>บอส</span><div class="bar" id="bossbar"></div></div>
+      <div class="lane"><span>คุณ</span><div class="bar" id="farmbar"></div></div>
+      <div class="ticks" id="ticks"></div>
+    </div></div>
+    <div class="grid g4">
+      <div class="card stat"><span>บอสตัวแรก</span><b>45 วินาที</b><span>หลังเซิร์ฟเปิด</span></div>
+      <div class="card stat"><span>เวลาตี</span><b>60 วินาที</b><span>ต่อรอบ</span></div>
+      <div class="card stat"><span>พักระหว่างรอบ</span><b>3 นาที</b><span>นับจากบอสตัวก่อนจบ</span></div>
+      <div class="card stat"><span>HP บอส</span><b>300 + 400/คน</b><span>คนเยอะ บอสยิ่งอึด</span></div>
+    </div>
+    <div class="grid g2">
+      <div class="card win"><h3>ตีบอสตาย</h3><ul><li>ทุกคนที่มีดาเมจได้เงินขั้นต่ำเท่ากัน</li><li>เงินอีกก้อนแบ่งตามสัดส่วนดาเมจ</li><li>ตั๋วกาชา 1 ใบ · ท็อป 3 ดาเมจได้เพิ่มอีกใบ</li><li>โอกาสได้อุปกรณ์แต่งปืน ยิงแรงยิ่งได้ระดับสูง</li></ul></div>
+      <div class="card lose"><h3>บอสหนี</h3><ul><li>ได้เงินครึ่งเดียว กับของอัปบ้าน</li><li>ไม่ได้ตั๋วกาชา</li><li>ตีให้ทันเวลาจึงคุ้มกว่าเสมอ</li></ul></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="skills">
+    <div class="head"><div class="eyebrow">กาชาสกิลป้อม</div><h2>สกิลป้อม 5 แบบ</h2><p class="lead">ใช้ตั๋วจากบอสสุ่มได้ครั้งละ 1 หรือ 10 ใบ สกิลได้ถาวร สุ่มซ้ำได้เป็นวัตถุดิบอัปขั้น (สูงสุดขั้น 5) ใส่ได้ครั้งละ 1 สกิล กด <kbd>Q</kbd> ใช้ตอนสู้ ทุกคนเริ่มด้วย Overdrive</p></div>
+    <div class="odds" aria-label="โอกาสได้แต่ละระดับ">
+      <div style="width:60%;background:#AAB0BE">ธรรมดา 60%</div>
+      <div style="width:28%;background:#50A0FF">หายาก 28%</div>
+      <div style="width:10%;background:#B464FF">มหากาพย์ 10%</div>
+      <div style="width:2%;background:#FFC43C" title="ตำนาน 2%"></div>
+    </div>
+    <p class="lead" style="font-size:.88rem;margin-top:-10px">ตำนาน 2% · สกิลในระดับเดียวกันมีโอกาสเท่ากัน</p>
+    <div class="skills">
+      <div class="skill" style="--r:#AAB0BE"><span class="r">ธรรมดา</span><h3>Overdrive</h3><p>ยิงเร็วขึ้น 3 เท่า</p><div class="meta"><span>5 วิ</span><span>· คูลดาวน์ 30 วิ</span></div></div>
+      <div class="skill" style="--r:#AAB0BE"><span class="r">ธรรมดา</span><h3>กระสุนหนัก</h3><p>ดาเมจแรงขึ้น 2 เท่า</p><div class="meta"><span>6 วิ</span><span>· คูลดาวน์ 35 วิ</span></div></div>
+      <div class="skill" style="--r:#50A0FF"><span class="r">หายาก</span><h3>ทุบบอส</h3><p>ดาเมจใส่บอสแรงขึ้น 3 เท่า</p><div class="meta"><span>6 วิ</span><span>· คูลดาวน์ 40 วิ</span></div></div>
+      <div class="skill" style="--r:#B464FF"><span class="r">มหากาพย์</span><h3>ระดมยิง</h3><p>ยิงนัดใหญ่ทันที แรง 30 เท่าของดาเมจป้อม</p><div class="meta"><span>ทันที</span><span>· คูลดาวน์ 45 วิ</span></div></div>
+      <div class="skill" style="--r:#FFC43C"><span class="r">ตำนาน</span><h3>โอเวอร์โหลด</h3><p>ยิงเร็ว 3 เท่า และแรง 2 เท่าพร้อมกัน</p><div class="meta"><span>6 วิ</span><span>· คูลดาวน์ 60 วิ</span></div></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="loot">
+    <div class="head"><div class="eyebrow">ของที่สะสมในเกม</div><h2>ได้อะไร เอาไปทำอะไร</h2></div>
+    <div class="grid g4">
+      <div class="card cur"><div class="ic" style="background:#FFD34D26"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#FFD34D"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#B8860B" stroke-width="2"/></svg></div><h3>เงิน</h3><div class="flow"><span><b>ได้จาก</b> มอน · บอส · ขายของ · บ้าน</span><span><b>ใช้กับ</b> อัปป้อม บ้าน กระเป๋า แม็กกาซีน ความเร็ว</span></div><p>เพื่อนในเซิร์ฟเดียวกันเพิ่มรายได้ +10% ต่อคน สูงสุด +40%</p></div>
+      <div class="card cur"><div class="ic" style="background:#8EF0B426"><svg width="24" height="24" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3" fill="#5AA7E6"/><rect x="9" y="9" width="6" height="6" rx="1" fill="#FFD34D"/></svg></div><h3>ของที่เก็บ</h3><div class="flow"><span><b>ได้จาก</b> ทุ่งรอบหลุม</span><span><b>ใช้กับ</b> ขาย · กระสุนพิเศษ · เรียกบอสพิเศษ</span></div><p>ถือได้ตามขนาดกระเป๋า ต้องขนกลับฐานก่อนใช้</p></div>
+      <div class="card cur"><div class="ic" style="background:#B98BFF26"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 7h18v3a2 2 0 000 4v3H3v-3a2 2 0 000-4z" fill="#B98BFF"/><path d="M14 7v10" stroke="#14122A" stroke-dasharray="2 2"/></svg></div><h3>ตั๋วกาชา</h3><div class="flow"><span><b>ได้จาก</b> ชนะบอส (ท็อป 3 ได้เพิ่ม)</span><span><b>ใช้กับ</b> สุ่มสกิลป้อม</span></div><p>บอสหนีไม่ได้ตั๋ว ภายหลังจะซื้อด้วย Robux ได้</p></div>
+      <div class="card cur"><div class="ic" style="background:#7FB2FF26"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="#7FB2FF" stroke-width="3"/><circle cx="12" cy="12" r="2.5" fill="#7FB2FF"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="#7FB2FF" stroke-width="2"/></svg></div><h3>อุปกรณ์แต่งปืน</h3><div class="flow"><span><b>ได้จาก</b> บอส (ยิงแรง = ได้ของดี)</span><span><b>ใช้กับ</b> ใส่ป้อม 4 ช่อง · รวม 3 ชิ้นเป็นระดับถัดไป</span></div><p>ลำกล้อง · กลไกยิง · ศูนย์เล็ง · แกนพลัง มี 5 ระดับและเปลี่ยนหน้าตาป้อม</p></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="controls">
+    <div class="head"><div class="eyebrow">เล่นได้ทั้งคอม มือถือ จอยเกม</div><h2>ปุ่มกด</h2></div>
+    <div class="keys">
+      <div class="card key"><div class="k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div><p>เดิน (มือถือใช้จอยสติ๊กบนจอ) เดินชนของเพื่อเก็บ เดินทับแผ่นเพื่อขาย</p></div>
+      <div class="card key"><div class="k"><kbd>Q</kbd><kbd>X</kbd></div><p>ใช้สกิลป้อมที่ใส่อยู่ (Q บนคีย์บอร์ด · X บนจอย)</p></div>
+      <div class="card key"><div class="k"><kbd>U</kbd><kbd>Y</kbd></div><p>อัปเลเวลป้อม ถ้าเงินพอ</p></div>
+      <div class="card key"><div class="k"><kbd>M</kbd><kbd>Select</kbd></div><p>เปิดหน้าตั้งค่า เสียง เงา มุมกล้อง</p></div>
+    </div>
+    <p class="lead" style="font-size:.92rem">บนมือถือทุกคำสั่งมีปุ่มบนจอให้แตะ</p>
+  </section>
+
+  <section class="block wrap">
+    <div class="head"><div class="eyebrow">สำหรับมือใหม่</div><h2>เคล็ดลับ</h2></div>
+    <div class="tips">
+      <div class="card tip"><b>01</b><p>เก็บของหายากสีทองก่อนเสมอ คนอื่นก็มองหาอยู่เหมือนกัน</p></div>
+      <div class="card tip"><b>02</b><p>เติมกระสุนพิเศษไว้ก่อนบอสมา ช่วงบอสไม่มีเวลาวิ่งกลับฐาน</p></div>
+      <div class="card tip"><b>03</b><p>เก็บสกิลไว้กดตอนบอสลงหลุม ได้ดาเมจมากกว่าใช้กับมอน</p></div>
+      <div class="card tip"><b>04</b><p>ชวนเพื่อนเข้าเซิร์ฟเดียวกัน ได้ทั้งเงินและดาเมจเพิ่ม</p></div>
+      <div class="card tip"><b>05</b><p>ไม่ต้องห่วงเรื่องโดนขโมย เกมนี้ไม่มี PvP ฐานของคุณปลอดภัยเสมอ</p></div>
+      <div class="card tip"><b>06</b><p>ช่วยส่งของเข้าแท่นม่วง ยิ่งส่งมาก ยิ่งได้โบนัสบอสพิเศษมาก</p></div>
+    </div>
+  </section>
+
+  <footer class="wrap">
+    <div><h3>เกี่ยวกับหน้านี้</h3><p>เกมยังอยู่ในช่วง prototype ตัวเลขทุกตัวเป็นค่าทดสอบและอาจเปลี่ยน ป้าย “กำลังสร้าง” คือส่วนที่ออกแบบแล้วแต่ยังไม่อยู่ในเกม ผังแมพมาจาก <code>design/crater-map.md</code> และ <code>Config/Map</code></p></div>
+    <div><h3>เปิดใน Google Chrome</h3><p>ไฟล์นี้อยู่ใน repo ที่ <code>docs/how-to-play.html</code> สั่ง <code>git pull</code> แล้วดับเบิลคลิกไฟล์ หรือลากไฟล์ใส่หน้าต่าง Chrome ก็เปิดได้เลย ไม่ต้องติดตั้งอะไร</p></div>
+  </footer>
+</main>
+
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function el(tag,a,p){var e=document.createElementNS(NS,tag);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+  function txt(p,x,y,s,size,anchor,fill,weight){var t=el("text",{x:x,y:y,"font-size":size,"text-anchor":anchor||"middle",fill:fill||"#F4F1EA","font-family":"Mitr, Anuphan, sans-serif","font-weight":weight||500,"paint-order":"stroke",stroke:"#0E1024","stroke-width":size*0.28,"stroke-linejoin":"round"},p);t.textContent=s;return t}
+  var D2R=Math.PI/180;
+
+  // ---- Map values (Config/Map.luau, studs) ----
+  var M={floor:362,pit:38,rim:4,loot:[42,54],baseDist:80,baseSize:44,turret:56,yard:[104,150,18],laneSide:12,laneEnd:58,range:60};
+  var SLOT=["#E0564A","#3F8FD9","#4DB860","#F2C23A","#9A6BD8","#F28C3A","#E86FA8","#34B5B0"];
+  function ang(s){return (-90+45*s)*D2R} // s = 0..7, slot 1 north
+  function pt(s,u,v){var a=ang(s),ox=Math.cos(a),oy=Math.sin(a);return [ox*u-oy*v, oy*u+ox*v]}
+
+  var svg=document.getElementById("map");
+  var defs=el("defs",{},svg);
+  var rg=el("radialGradient",{id:"pitg"},defs);el("stop",{offset:"0%","stop-color":"#4A3F33"},rg);el("stop",{offset:"100%","stop-color":"#786A58"},rg);
+  var bg=el("radialGradient",{id:"bossg"},defs);el("stop",{offset:"0%","stop-color":"#FFB0A0"},bg);el("stop",{offset:"55%","stop-color":"#FF4D5E"},bg);el("stop",{offset:"100%","stop-color":"#8A1030"},bg);
+
+  function layer(zones){return el("g",{"class":"z "+zones.split(" ").map(function(z){return "z-"+z}).join(" ")},svg)}
+
+  // ground + trees
+  var ground=el("g",{},svg);
+  el("rect",{x:-181,y:-181,width:362,height:362,rx:10,fill:"#6BBF4E"},ground);
+  var seed=11;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+  for(var i=0;i<120;i++){var side=i%4,t=-176+rnd()*352,off=170+rnd()*8,sz=7+rnd()*6,x,y;
+    if(side===0){x=t;y=-off}else if(side===1){x=off;y=t}else if(side===2){x=t;y=off}else{x=-off;y=t}
+    el("rect",{x:(x-sz/2).toFixed(1),y:(y-sz/2).toFixed(1),width:sz.toFixed(1),height:sz.toFixed(1),rx:2,fill:rnd()<.5?"#3E8E3A":"#4FA746"},ground)}
+
+  // yards
+  var yards=layer("yard");
+  for(var s=0;s<8;s++){var a0=ang(s)-M.yard[2]*D2R,a1=ang(s)+M.yard[2]*D2R,r0=M.yard[0],r1=M.yard[1];
+    var d="M"+(Math.cos(a0)*r0).toFixed(1)+" "+(Math.sin(a0)*r0).toFixed(1)+" L"+(Math.cos(a0)*r1).toFixed(1)+" "+(Math.sin(a0)*r1).toFixed(1)+
+      " A"+r1+" "+r1+" 0 0 1 "+(Math.cos(a1)*r1).toFixed(1)+" "+(Math.sin(a1)*r1).toFixed(1)+" L"+(Math.cos(a1)*r0).toFixed(1)+" "+(Math.sin(a1)*r0).toFixed(1)+
+      " A"+r0+" "+r0+" 0 0 0 "+(Math.cos(a0)*r0).toFixed(1)+" "+(Math.sin(a0)*r0).toFixed(1)+"Z";
+    el("path",{d:d,fill:"#5A9E43",stroke:"#8FD263","stroke-width":1,"stroke-dasharray":"3 3"},yards)}
+
+  // loot ring
+  var loot=layer("loot");
+  el("circle",{cx:0,cy:0,r:48,fill:"none",stroke:"#C4E8A4","stroke-width":12},loot);
+  for(var i=0;i<46;i++){var a=rnd()*Math.PI*2,r=43.5+rnd()*9,gold=rnd()<.13;
+    el("rect",{x:(Math.cos(a)*r-1.6).toFixed(2),y:(Math.sin(a)*r-1.6).toFixed(2),width:3.2,height:3.2,rx:.6,fill:gold?"#FFC928":"#4E9BE0","class":gold?"twinkle glow":""},loot)}
+
+  // pit
+  var pit=layer("pit");
+  el("circle",{cx:0,cy:0,r:M.pit+M.rim,fill:"#8C7D68"},pit);
+  el("circle",{cx:0,cy:0,r:M.pit,fill:"url(#pitg)"},pit);
+  var warnRing=el("circle",{cx:0,cy:0,r:0,fill:"#000",opacity:0},pit);
+
+  // bases (drawn in base-1 local frame, rotated per slot)
+  var parts={pad:layer("pad"),lane:layer("lane"),house:layer("house"),sell:layer("sell"),crate:layer("crate"),board:layer("board"),altar:layer("altar"),turret:layer("turret")};
+  // local (u,v) -> base-1 svg (v,-u)
+  function R(g,u,v,w,h,fill,extra){var a={x:v-w/2,y:-u-h/2,width:w,height:h,fill:fill};for(var k in extra)a[k]=extra[k];return el("rect",a,g)}
+  var turrets=[];
+  for(var s=0;s<8;s++){
+    var rot="rotate("+(45*s)+")",c=SLOT[s],g;
+    g=el("g",{transform:rot},parts.lane);R(g,(M.laneEnd+M.yard[0])/2,M.laneSide,8,M.yard[0]-M.laneEnd,"#B08A5C");
+    g=el("g",{transform:rot},parts.pad);R(g,M.baseDist,0,44,44,c,{rx:2});R(g,M.baseDist,0,40,40,"#E9E3D3",{rx:1});
+    g=el("g",{transform:rot},parts.house);R(g,90,-10,16,16,c,{rx:1.5});el("line",{x1:-18,y1:-90,x2:-2,y2:-90,stroke:"#0003","stroke-width":1},g);
+    g=el("g",{transform:rot},parts.sell);R(g,72,-12,8,8,"#F5CF45",{rx:1});
+    g=el("g",{transform:rot},parts.crate);R(g,61,-8,4,4,"#9A6A3C",{rx:.5});
+    g=el("g",{transform:rot},parts.board);R(g,64,-17,5,1.6,c);el("circle",{cx:-17,cy:-64,r:.7,fill:"#464A56"},g);
+    g=el("g",{transform:rot},parts.altar);R(g,96,3,6,6,"#8A3CC8",{rx:1});R(g,96,3,3,3,"#C79BFF",{rx:.5});
+    g=el("g",{transform:rot},parts.turret);
+    var barrel=el("line",{x1:0,y1:-M.turret,x2:0,y2:-M.turret+6,stroke:"#1B1F2E","stroke-width":2,"stroke-linecap":"round"},g);
+    el("circle",{cx:0,cy:-M.turret,r:3.6,fill:"#2A2F45",stroke:c,"stroke-width":1.4},g);
+    var p=pt(s,M.turret,0);turrets.push({s:s,x:p[0],y:p[1],cd:rnd(),barrel:barrel,rot:45*s});
+  }
+
+  // dynamic layers
+  var mobs=layer("mobs"),fx=layer("fx");
+  var bossG=layer("boss");
+  var bossBody=el("circle",{cx:0,cy:0,r:12,fill:"url(#bossg)",stroke:"#FFD0C8","stroke-width":1},bossG);
+  var bossEye1=el("circle",{cx:-4,cy:-2,r:1.6,fill:"#1A0B12"},bossG),bossEye2=el("circle",{cx:4,cy:-2,r:1.6,fill:"#1A0B12"},bossG);
+  bossG.setAttribute("opacity","0");
+  var hero=layer("hero");
+  var heroDot=el("circle",{r:2.6,fill:"#fff",stroke:SLOT[0],"stroke-width":1.3},hero);
+  var heroBag=el("rect",{width:2.4,height:2.4,rx:.5,fill:"#FFC928",opacity:0},hero);
+
+  // labels
+  var labels=[];
+  function L(zones,view,x,y,s,size,anchor,fill){var g=el("g",{"class":"lbl"},svg);txt(g,x,y,s,size,anchor,fill);labels.push({g:g,z:zones.split(" "),view:view})}
+  L("pad turret house","zoom",0,-104.5,"ฐานของคุณ",3.6,"middle","#9CC7FF");
+  L("turret","zoom",4.5,-53.5,"ป้อม",3.2,"start");
+  L("house","zoom",-10,-99.6,"บ้าน",3.2);
+  L("sell","zoom",-12,-65.4,"แผ่นขาย",3.2,"middle","#FFE58A");
+  L("crate","zoom",-5.4,-59.6,"ลังกระสุน",3,"start","#E7B784");
+  L("board","zoom",-20.5,-63.2,"ป้ายอัปเกรด",3,"end","#9CC7FF");
+  L("altar","zoom",7,-94.6,"แท่นเรียกบอสพิเศษ",3,"start","#D7B8FF");
+  L("loot","zoom",-30,-44,"ทุ่งเก็บของ",3,"middle","#C4E8A4");
+  L("pit","full",0,27,"หลุมบอส",8,"middle","#FFD9CF");
+  L("loot","full",78,-8,"ทุ่งเก็บของร่วม",9,"middle","#C4E8A4");
+  L("yard","full",0,-124,"สวนหลังบ้าน",8,"middle","#DFF5CC");
+  L("lane","full",38,-112,"ทางมอน",7,"middle","#F3D7B0");
+
+  // ---- focus + camera ----
+  var VIEWS={full:[-185,-185,370,370],zoom:[-40,-112,80,80],yardv:[-95,-165,190,190]};
+  var FOCUS={
+    none:{view:"full",on:null,where:"<b>ทั้งแมพ</b> · 362 × 362 studs"},
+    spawn:{view:"zoom",on:"pad turret house hero",where:"<b>ฐาน 1</b> · ลาน 44 × 44"},
+    loot:{view:"full",on:"loot hero",where:"<b>ทุ่งเก็บของร่วม</b> · วงแหวนรอบหลุม"},
+    sell:{view:"zoom",on:"sell crate hero",where:"<b>แผ่นขาย + ลังกระสุน</b>"},
+    upgrade:{view:"zoom",on:"board turret house",where:"<b>ป้ายอัปเกรด</b> · หน้าฐาน"},
+    yard:{view:"yardv",on:"yard lane mobs turret fx",where:"<b>สวนหลังบ้าน</b> · มอนเกิดตรงนี้"},
+    boss:{view:"full",on:"pit boss turret fx",where:"<b>หลุมบอส</b> · รัศมี 38 studs"},
+    altar:{view:"zoom",on:"altar",where:"<b>แท่นเรียกบอสพิเศษ</b>"},
+    all:{view:"full",on:null,where:"<b>ทั้งแมพ</b> · วนใหม่"}
+  };
+  var vb=VIEWS.full.slice(),vbFrom=vb.slice(),vbTo=vb.slice(),vbT=1;
+  var current="none";
+  function setFocus(key){
+    var f=FOCUS[key]||FOCUS.none;current=key;
+    svg.classList.toggle("focus",!!f.on);
+    var on=f.on?f.on.split(" "):[];
+    [].forEach.call(svg.querySelectorAll(".z"),function(g){var hit=on.some(function(z){return g.classList.contains("z-"+z)});g.classList.toggle("on",hit)});
+    labels.forEach(function(l){l.g.classList.toggle("show",!!f.on&&l.view===(f.view==="zoom"?"zoom":"full")&&l.z.some(function(z){return on.indexOf(z)>=0}))});
+    document.getElementById("where").innerHTML=f.where;
+    vbFrom=vb.slice();vbTo=VIEWS[f.view].slice();vbT=reduce?1:0;if(reduce){vb=vbTo.slice();applyVB()}
+    if(key==="boss"&&phase==="calm")startWarn();
+  }
+  function applyVB(){svg.setAttribute("viewBox",vb.map(function(n){return n.toFixed(2)}).join(" "))}
+
+  // ---- simulation (demo speed) ----
+  var monsters=[],spawnT=[0,0,0,0,0,0,0,0].map(function(){return rnd()*1.5});
+  var TYPES={S:{hp:30,sp:12,r:1.5,c:"#E24848"},M:{hp:90,sp:7.5,r:2.5,c:"#F08A3A"}};
+  function spawn(s){var ty=rnd()<.75?"S":"M",T=TYPES[ty];var r=M.yard[0]+4+rnd()*(M.yard[1]-M.yard[0]-8),phi=(rnd()*2-1)*(M.yard[2]-3)*D2R;
+    var u=r*Math.cos(phi),v=r*Math.sin(phi);
+    var m={s:s,ty:ty,hp:T.hp,u:u,v:v,stage:0,node:el("circle",{r:T.r,fill:T.c,stroke:"#0006","stroke-width":.5},mobs)};monsters.push(m)}
+  function mobPos(m){return pt(m.s,m.u,m.v)}
+  var phase="calm",phaseT=0,bossHp=0,BOSS_MAX=1400,CALM=12,WARN=3.5;
+  var hudText=document.getElementById("hudText"),hpbar=document.getElementById("hpbar"),hpfill=document.getElementById("hpfill"),card=document.getElementById("mapcard");
+  function startWarn(){phase="warn";phaseT=0;card.classList.add("warn");hudText.classList.add("alert");hudText.textContent="บอสกำลังพุ่งลงมา!"}
+  function startBoss(){phase="boss";phaseT=0;bossHp=BOSS_MAX;hpbar.hidden=false;card.classList.remove("warn");hudText.classList.remove("alert")}
+  function endBoss(){phase="win";phaseT=0;hpbar.hidden=true;hudText.textContent="ชนะ! ทุกคนได้เงิน + ตั๋วกาชา";burst(0,0,"#FFD34D",26)}
+  function burst(x,y,col,n){for(var i=0;i<n;i++){var a=rnd()*Math.PI*2,sp=10+rnd()*30;fxParts.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,node:el("circle",{r:1.2,fill:col},fx)})}}
+  var fxParts=[],tracers=[],floats=[];
+  function tracer(x1,y1,x2,y2,col){tracers.push({t:0,node:el("line",{x1:x1,y1:y1,x2:x2,y2:y2,stroke:col,"stroke-width":.9,"stroke-linecap":"round"},fx)})}
+  function floatText(x,y,s,col){var n=txt(fx,x,y,s,4,"middle",col,600);floats.push({t:0,y:y,x:x,node:n})}
+
+  // hero route in base 1 local coords (u,v)
+  var route=[[84,6,.4,""],[50,-6,1.2,"loot"],[46,8,1.0,"loot"],[72,-12,1.1,"sell"],[61,-5,.5,""],[84,6,.8,""]];
+  var hero={i:0,u:84,v:6,wait:.5,carry:false};
+  function stepHero(dt){
+    if(hero.wait>0){hero.wait-=dt;return}
+    var tgt=route[(hero.i+1)%route.length],du=tgt[0]-hero.u,dv=tgt[1]-hero.v,d=Math.hypot(du,dv),sp=26*dt;
+    if(d<=sp){hero.u=tgt[0];hero.v=tgt[1];hero.i=(hero.i+1)%route.length;hero.wait=tgt[2];
+      var p=pt(0,hero.u,hero.v);
+      if(tgt[3]==="loot"){hero.carry=true;floatText(p[0],p[1]-4,"+ของ","#C4E8A4")}
+      if(tgt[3]==="sell"&&hero.carry){hero.carry=false;floatText(p[0],p[1]-4,"+$","#FFD34D")}
+    }else{hero.u+=du/d*sp;hero.v+=dv/d*sp}
+  }
+
+  function tick(dt){
+    // camera
+    if(vbT<1){vbT=Math.min(1,vbT+dt/0.8);var e=vbT<.5?2*vbT*vbT:1-Math.pow(-2*vbT+2,2)/2;for(var k=0;k<4;k++)vb[k]=vbFrom[k]+(vbTo[k]-vbFrom[k])*e;applyVB()}
+    // phases
+    phaseT+=dt;
+    if(phase==="calm"){var left=Math.max(0,CALM-phaseT);hudText.textContent="บอสจะมาใน 0:"+String(Math.ceil(left)).padStart(2,"0");if(phaseT>=CALM)startWarn()}
+    else if(phase==="warn"){var k2=Math.min(1,phaseT/WARN);warnRing.setAttribute("r",(M.pit*k2).toFixed(1));warnRing.setAttribute("opacity",(0.45*k2).toFixed(2));if(phaseT>=WARN){warnRing.setAttribute("opacity",0);startBoss()}}
+    else if(phase==="boss"){var drop=Math.min(1,phaseT/0.5);bossG.setAttribute("opacity",drop.toFixed(2));bossG.setAttribute("transform","scale("+(3-2*drop).toFixed(2)+")");
+      hudText.textContent="บอส · เหลือเวลา 0:"+String(Math.max(0,Math.ceil(60-phaseT*5))).padStart(2,"0");
+      hpfill.style.width=(bossHp/BOSS_MAX*100).toFixed(1)+"%";if(bossHp<=0)endBoss()}
+    else if(phase==="win"){bossG.setAttribute("opacity",Math.max(0,1-phaseT*2).toFixed(2));if(phaseT>3){phase="calm";phaseT=0;bossG.setAttribute("opacity",0)}}
+    // monsters
+    for(var s=0;s<8;s++){spawnT[s]-=dt;var alive=0;for(var j=0;j<monsters.length;j++)if(monsters[j].s===s)alive++;
+      if(spawnT[s]<=0&&alive<5){spawn(s);spawnT[s]=1.6+rnd()*.8}}
+    for(var j=monsters.length-1;j>=0;j--){var m=monsters[j],sp=TYPES[m.ty].sp*dt;
+      var tu,tv;if(m.stage===0){tu=M.yard[0];tv=M.laneSide}else{tu=M.laneEnd;tv=M.laneSide}
+      var du=tu-m.u,dv=tv-m.v,d=Math.hypot(du,dv);
+      if(d<=sp){m.u=tu;m.v=tv;if(m.stage===0)m.stage=1;else{m.node.remove();monsters.splice(j,1);continue}}else{m.u+=du/d*sp;m.v+=dv/d*sp}
+      var p=mobPos(m);m.node.setAttribute("cx",p[0].toFixed(2));m.node.setAttribute("cy",p[1].toFixed(2))}
+    // turrets
+    turrets.forEach(function(tu){tu.cd-=dt;if(tu.cd>0)return;
+      var tx,ty,target=null;
+      if(phase==="boss"&&bossHp>0&&phaseT>0.5){tx=0;ty=0;target="boss"}
+      else{var best=M.range;monsters.forEach(function(m){if(m.s!==tu.s)return;var p=mobPos(m),d=Math.hypot(p[0]-tu.x,p[1]-tu.y);if(d<best){best=d;target=m;tx=p[0];ty=p[1]}})}
+      if(!target){tu.cd=.15;return}
+      tu.cd=target==="boss"?.45:.8;
+      tracer(tu.x,tu.y,tx,ty,target==="boss"?"#FFD34D":"#FFFFFF");
+      var a=Math.atan2(ty-tu.y,tx-tu.x)*180/Math.PI+90-tu.rot;tu.barrel.setAttribute("transform","rotate("+a.toFixed(1)+" 0 "+(-M.turret)+")");
+      if(target==="boss"){bossHp-=18+rnd()*8}
+      else{target.hp-=10;if(target.hp<=0){var i2=monsters.indexOf(target);if(i2>=0){monsters.splice(i2,1);target.node.remove();burst(tx,ty,TYPES[target.ty].c,5);if(tu.s===0)floatText(tx,ty-3,"+$","#FFD34D")}}}
+    });
+    // fx
+    for(var i=tracers.length-1;i>=0;i--){var tr=tracers[i];tr.t+=dt;tr.node.setAttribute("opacity",Math.max(0,1-tr.t/0.14).toFixed(2));if(tr.t>0.14){tr.node.remove();tracers.splice(i,1)}}
+    for(var i=fxParts.length-1;i>=0;i--){var f=fxParts[i];f.t+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.node.setAttribute("cx",f.x.toFixed(2));f.node.setAttribute("cy",f.y.toFixed(2));f.node.setAttribute("opacity",Math.max(0,1-f.t/0.6).toFixed(2));if(f.t>0.6){f.node.remove();fxParts.splice(i,1)}}
+    for(var i=floats.length-1;i>=0;i--){var fl=floats[i];fl.t+=dt;fl.node.setAttribute("y",(fl.y-fl.t*8).toFixed(2));fl.node.setAttribute("opacity",Math.max(0,1-fl.t/1).toFixed(2));if(fl.t>1){fl.node.remove();floats.splice(i,1)}}
+    // hero
+    stepHero(dt);var hp=pt(0,hero.u,hero.v);heroDot.setAttribute("cx",hp[0].toFixed(2));heroDot.setAttribute("cy",hp[1].toFixed(2));
+    heroBag.setAttribute("x",(hp[0]+1.6).toFixed(2));heroBag.setAttribute("y",(hp[1]-4).toFixed(2));heroBag.setAttribute("opacity",hero.carry?1:0);
+  }
+
+  if(reduce){
+    // static frame: boss present, a few monsters on lanes
+    for(var s=0;s<8;s++){for(var q=0;q<2;q++){var m={s:s,ty:q?"M":"S",u:70+q*20,v:12,node:el("circle",{r:q?2.5:1.5,fill:q?"#F08A3A":"#E24848"},mobs)};var p=mobPos(m);m.node.setAttribute("cx",p[0]);m.node.setAttribute("cy",p[1])}}
+    bossG.setAttribute("opacity",1);hudText.textContent="บอสอยู่ในหลุม";var hp0=pt(0,84,6);heroDot.setAttribute("cx",hp0[0]);heroDot.setAttribute("cy",hp0[1]);
+  }else{
+    var last=performance.now();
+    (function loop(now){var dt=Math.min(.05,(now-last)/1000);last=now;if(!document.hidden)tick(dt);requestAnimationFrame(loop)})(last);
+  }
+
+  document.getElementById("bossNow").addEventListener("click",function(){if(phase==="calm")startWarn()});
+
+  // ---- scroll steps ----
+  var steps=[].slice.call(document.querySelectorAll(".step"));
+  function activate(stepEl){steps.forEach(function(s){s.classList.toggle("on",s===stepEl)});setFocus(stepEl.dataset.focus)}
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)activate(e.target)})},{rootMargin:"-45% 0px -45% 0px"});
+    steps.forEach(function(s){io.observe(s)});
+  }
+  steps.forEach(function(s){s.addEventListener("click",function(){activate(s)})});
+  setFocus("none");
+
+  // ---- boss timeline (Config/Combat prototype values, seconds) ----
+  var TOTAL=600,FIRST=45,DUR=60,GAP=180;
+  var bb=document.getElementById("bossbar"),fb=document.getElementById("farmbar"),tk=document.getElementById("ticks");
+  function pc(x){return (x/TOTAL*100).toFixed(2)+"%"}
+  function seg(p,c,a,b,t){var d=document.createElement("div");d.className="seg "+c;d.style.left=pc(a);d.style.width=pc(b-a);d.textContent=t||"";p.appendChild(d)}
+  var t=FIRST,prev=0,n=1;
+  while(t<TOTAL){seg(fb,"w",prev,t,n===1?"เริ่มเล่น":"เก็บของ · อัป · เติมกระสุน");var e=Math.min(t+DUR,TOTAL);seg(bb,"b",t,e,"บอส "+n);prev=e;t=e+GAP;n++}
+  if(prev<TOTAL)seg(fb,"w",prev,TOTAL,"");
+  for(var k=0;k<=TOTAL;k+=60){var sp=document.createElement("span");sp.style.left=pc(k);sp.textContent=(k/60)+":00";tk.appendChild(sp)}
+})();
+</script>
