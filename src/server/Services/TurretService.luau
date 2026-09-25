@@ -2,23 +2,25 @@
 -- คลังสกิล/กาชา/คูลดาวน์อยู่ที่ SkillService · ที่นี่แค่นำผลสกิลมาใช้ตอนยิง
 -- Server เลือกเป้าและคำนวณดาเมจเองทั้งหมด · Client ส่งได้แค่ "ขออัป" / "ขอใช้สกิล" (ผ่าน TurretHandler)
 -- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ
--- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางอัตโนมัติรอบวงกลางแมพ · หน้าตาเป็น Part ธรรมดา
+-- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางหน้าฐานของตัวเอง (BaseService) · หน้าตาเป็น Part ธรรมดา
 -- (ตาม IDEA.md หน้าตาไม่เปลี่ยนตามเลเวล — จะเปลี่ยนตามอุปกรณ์แต่งปืนในเฟสหลัง)
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
+local Map = require(ReplicatedStorage.Shared.Config.Map)
+local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local SkillMath = require(ReplicatedStorage.Shared.Util.SkillMath)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
+local BaseService = require(script.Parent.BaseService)
 local BossService = require(script.Parent.BossService)
 local FriendBoostService = require(script.Parent.FriendBoostService)
 local MonsterService = require(script.Parent.MonsterService)
 local SkillService = require(script.Parent.SkillService)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
-local GROUND_Y = 1
+local GROUND_Y = Map.GroundY
 local HEAD_HEIGHT = 5
 local BARREL_LENGTH = 4
 local MAX_SHOTS_PER_TICK = 5 -- กันอัตรายิงสูงเกินรอบคำนวณ: รวมหลายนัดเป็นครั้งเดียว
@@ -35,7 +37,6 @@ type Turret = {
 }
 
 local turrets: { [Player]: Turret } = {}
-local slotOwner: { [number]: Player } = {}
 local folder: Folder
 
 local function levelOf(player: Player): number
@@ -70,8 +71,7 @@ local function refreshLabel(turret: Turret)
 end
 
 local function build(owner: Player, slot: number): Turret
-	local angle = (slot - 1) / Combat.Turret.Slots * 2 * math.pi
-	local base = Vector3.new(math.cos(angle), 0, math.sin(angle)) * Combat.Turret.RingRadius
+	local base = MapMath.point(slot, Map.Base.TurretDistance, 0)
 	local headPosition = base + Vector3.new(0, GROUND_Y + HEAD_HEIGHT, 0)
 
 	local model = Instance.new("Model")
@@ -121,28 +121,15 @@ local function build(owner: Player, slot: number): Turret
 	return turret
 end
 
-local function onPlayerAdded(player: Player)
-	if turrets[player] then
-		return
-	end
-	for slot = 1, Combat.Turret.Slots do
-		if not slotOwner[slot] then
-			slotOwner[slot] = player
-			turrets[player] = build(player, slot)
-			return
-		end
-	end
-	warn(
-		`[TurretService] จุดวางป้อมเต็ม ({Combat.Turret.Slots}) — {player.Name} ยังไม่มีป้อม`
-	)
-end
-
-local function onPlayerRemoving(player: Player)
+-- ได้ฐาน = ได้ป้อมหน้าฐาน · เสียฐาน (ออกเกม) = ลบป้อม
+local function onBaseChanged(player: Player, slot: number?)
 	local turret = turrets[player]
-	if turret then
+	if turret and turret.slot ~= slot then
 		turrets[player] = nil
-		slotOwner[turret.slot] = nil
 		turret.model:Destroy()
+	end
+	if slot and not turrets[player] then
+		turrets[player] = build(player, slot)
 	end
 end
 
@@ -279,10 +266,9 @@ function TurretService.Init()
 	folder.Name = "Turrets"
 	folder.Parent = workspace
 
-	Players.PlayerAdded:Connect(onPlayerAdded)
-	Players.PlayerRemoving:Connect(onPlayerRemoving)
-	for _, player in Players:GetPlayers() do
-		onPlayerAdded(player)
+	BaseService.Changed:Connect(onBaseChanged)
+	for slot, player in BaseService.owners() do
+		onBaseChanged(player, slot)
 	end
 
 	PlayerData.Changed:Connect(function(player: Player)

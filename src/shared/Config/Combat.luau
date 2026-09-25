@@ -6,9 +6,8 @@ return table.freeze({
 	TickRate = 10, -- รอบคำนวณการยิงต่อวินาทีฝั่ง Server
 
 	Turret = table.freeze({
-		Slots = 12, -- จำนวนจุดวางป้อมรอบวง (ผู้เล่นเกินนี้จะยังไม่มีป้อม)
-		RingRadius = 40, -- ระยะจากกลางแมพถึงป้อม (studs)
-		Range = 60, -- ระยะยิง (studs) ต้องมากกว่า RingRadius เพื่อให้ถึงบอสกลางแมพ
+		-- ตำแหน่ง/จำนวนป้อมมาจากฐาน (Config/Map: BaseCount, Base.TurretDistance)
+		Range = 60, -- ระยะยิง (studs) ต้องมากกว่า Map.Base.TurretDistance เพื่อให้ถึงบอสกลางหลุม · ยังไม่ได้ออกแบบใหม่ (ป้อมอาจยิงมอนฐานข้างๆ ได้)
 		MaxLevel = 50,
 		BaseDamage = 10,
 		DamagePerLevel = 5,
@@ -17,11 +16,15 @@ return table.freeze({
 	}),
 
 	Monster = table.freeze({
-		SpawnInterval = 2, -- วินาที
-		MaxAlive = 15,
-		Hp = 30,
-		Speed = 8, -- studs ต่อวินาที
-		SpawnRadius = 80, -- เกิดที่ขอบวงนี้แล้วเดินผ่านกลางแมพไปอีกฝั่ง
+		-- เกิดในสวนหลังบ้านของฐานที่มีเจ้าของ แล้วเดินตามทางมอนเข้าหาหลุม (ผัง: Config/Map)
+		SpawnInterval = 2, -- วินาที (เกิดฐานละ 1 ตัวต่อรอบ)
+		MaxAlivePerBase = 6,
+		TypeOrder = table.freeze({ "Small", "Medium" }),
+		-- Weight = โอกาสเกิดเทียบกัน · Speed = studs ต่อวินาที · Size = เส้นผ่านศูนย์กลาง · เงินอยู่ที่ Economy.MonsterRewardMultiplier
+		Types = table.freeze({
+			Small = table.freeze({ Hp = 30, Speed = 8, Size = 3, Weight = 3, Color = Color3.fromRGB(205, 72, 72) }),
+			Medium = table.freeze({ Hp = 90, Speed = 5, Size = 5, Weight = 1, Color = Color3.fromRGB(240, 138, 58) }),
+		}),
 	}),
 
 	Boss = table.freeze({

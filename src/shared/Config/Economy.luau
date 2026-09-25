@@ -13,6 +13,7 @@ return table.freeze({
 	}),
 
 	MonsterReward = 5, -- เงินต่อมอน 1 ตัว แบ่งให้ผู้ตีตามสัดส่วนดาเมจ (ขั้นต่ำ 1 ต่อคน)
+	MonsterRewardMultiplier = table.freeze({ Small = 1, Medium = 3 }), -- [Proposed] ตัวกลาง HP 3 เท่า ได้เงิน 3 เท่า
 
 	Boss = table.freeze({
 		BaseReward = 50, -- ทุกคนที่มีดาเมจ > 0 ได้เท่ากัน

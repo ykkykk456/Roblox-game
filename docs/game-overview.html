@@ -253,7 +253,7 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
       <h2>ตอบคำถามเร็ว</h2>
       <div class="faq">
         <div class="card"><div class="q"><span>ถาม · </span>เกมนี้แนวอะไร</div><p>Tycoon/Idle ที่มีจุดขายคือบอสรวมเซิร์ฟ ผู้เล่นไม่ได้เล็งยิงเอง ป้อมยิงอัตโนมัติ งานของผู้เล่นคือหาของ อัปของ และกดสกิลตอนบอสมา</p></div>
-        <div class="card"><div class="q"><span>ถาม · </span>แมพออกแบบแนวไหน</div><p>สนามวงกลางวงเดียว ฐานผู้เล่น 8 ฐานล้อมเสาพลังกลางแมพ บอสลอยเหนือเสา มีทุ่งเก็บของรอบนอกและทางมอนตัดผ่าน ทุกชิ้นเป็นบล็อกสีเรียบ ไม่ใช้ texture</p><a href="#map">ดูผังแมพ →</a></div>
+        <div class="card"><div class="q"><span>ถาม · </span>แมพออกแบบแนวไหน</div><p>หลุมอุกกาบาตกลางแมพเป็นจุดบอสเกิด รอบปากหลุมเป็นทุ่งเก็บของร่วม ฐาน 8 ฐานล้อมรอบ หลังฐานเป็นสวนที่มอนเกิด ทุกชิ้นเป็นบล็อกสีเรียบ ไม่ใช้ texture</p><a href="#map">ดูผังแมพ →</a></div>
         <div class="card"><div class="q"><span>ถาม · </span>ผู้เล่นทำอะไรบ้าง</div><p>เดินเก็บของ → ขนกลับฐาน → ขายเป็นเงินหรือใส่ป้อมเป็นกระสุนพิเศษ → อัปบ้านและป้อม → บอสมาแล้วช่วยกันตี → ได้เงิน ตั๋วกาชา อุปกรณ์แต่งปืน แล้ววนใหม่</p><a href="#loop">ดู Core Loop →</a></div>
         <div class="card"><div class="q"><span>ถาม · </span>ระบบหลักมีอะไร</div><p>ป้อม · มอนเล็ก · บอสตามเวลา · ตารางดาเมจ · สกิลป้อมจากกาชา · Friend Boost · บ้าน idle · กระสุนพิเศษ · อุปกรณ์แต่งปืน · Login/ภารกิจรายวัน/Rebirth</p><a href="#systems">ดูสถานะแต่ละระบบ →</a></div>
         <div class="card"><div class="q"><span>ถาม · </span>ตอนนี้ทำถึงไหนแล้ว</div><p>ส่วนต่อสู้เล่นได้แล้วใน Studio: ป้อมยิงมอนและบอส ตารางดาเมจ อัปป้อม กาชาสกิล Friend Boost ส่วนที่กำลังทำคือผังแมพจริง แล้วต่อด้วยวงจรเก็บของ</p><a href="#roadmap">ดูทิศทาง →</a></div>
@@ -295,7 +295,7 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
         </ol>
         <div class="side-notes">
           <div class="card"><h3>ทางแยกสำคัญ: ขาย หรือ ทำกระสุน</h3><p class="muted">ของชิ้นเดียวกันใช้ได้สองทาง ขายได้เงินไว้อัประยะยาว ใส่ป้อมได้ดาเมจบอสเพิ่มในรอบนี้ ของต่างชนิดให้ผลต่างกัน เช่น ไฟ น้ำแข็ง ระเบิด แม็กกาซีนมีจำกัดและอัปได้</p></div>
-          <div class="card"><h3>บอสพิเศษ</h3><p class="muted">ทั้งเซิร์ฟส่งของเข้าเสาพลังกลางจนครบเป้า จะเรียกบอสพิเศษได้ โบนัสให้เฉพาะคนที่ส่งของตามสัดส่วน คน AFK ไม่ได้ แต่ก็ไม่ขัดขวางใคร</p></div>
+          <div class="card"><h3>บอสพิเศษ</h3><p class="muted">ทั้งเซิร์ฟช่วยกันส่งของที่แท่นในฐานตัวเองจนครบเป้า จะเรียกบอสพิเศษได้ (ไม่มีเสาพลังกลางแมพ) คนไม่ส่งได้ของน้อยกว่าคนส่ง คน AFK ได้แค่ขั้นต่ำ แต่ไม่ขัดขวางใคร</p></div>
           <div class="card"><h3>ระยะยาว</h3><p class="muted">รางวัล Login รายวัน · ภารกิจรายวัน · Rebirth รีเซ็ตความก้าวหน้าเพื่อแลกตัวคูณถาวร</p></div>
         </div>
       </div>
@@ -326,31 +326,20 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
     </section>
 
     <section id="map">
-      <div class="eyebrow">docs/map-sketch/base-maps.html</div>
-      <h2>แมพ: สนามวงกลาง 8 ฐานล้อมบอส</h2>
-      <p class="lead">บอสอยู่ตรงกลาง ทุกฐานหันเข้าหากลาง ผู้เล่นเห็นบอสและฐานคนอื่นตลอด เลยรู้สึกว่ากำลังสู้ร่วมกัน สไตล์ภาพเป็นบล็อกสีเรียบ วัสดุ SmoothPlastic ไม่ใช้ texture อ่านง่ายบนมือถือ ผังด้านล่างคือแบบ “วงล้อ” ที่แนะนำสำหรับ prototype <span class="pill prop">[Proposed]</span></p>
+      <div class="eyebrow">docs/map-sketch/crater-concepts.html · src/shared/Config/Map.luau</div>
+      <h2>แมพ: หลุมอุกกาบาต 8 ฐาน</h2>
+      <p class="lead">หลุมกลางแมพเป็นจุดบอสเกิดอย่างเดียว บอสพุ่งลงจากฟ้าลงหลุมทุกรอบ รอบปากหลุมเป็นทุ่งเก็บของที่ทุกคนแย่งกันเก็บ ฐานเรียงรอบวงห่างบอสเท่ากัน หลังฐานเป็นสวนที่มอนของฐานนั้นเกิด ทุกชิ้นเป็นบล็อกสี SmoothPlastic ไม่ใช้ texture ตอนนี้ prototype สร้างฐาน 1 ฐานก่อน</p>
       <div class="mapwrap">
-        <div class="mapbox"><svg id="mapsvg" viewBox="-190 -190 380 380" role="img" aria-label="ผังแมพแบบวงล้อ มองจากด้านบน"></svg></div>
+        <div class="mapbox"><svg id="mapsvg" viewBox="-190 -190 380 380" role="img" aria-label="ผังแมพหลุมอุกกาบาต มองจากด้านบน"></svg></div>
         <div class="legend">
-          <div class="lg"><span class="sw" style="background:var(--boss)"></span><div><b>บอส + เสาพลังกลาง</b><span>บอสลอยสูง 14 studs เหนือเสา ผู้เล่นเดินลอดได้ ทั้งเซิร์ฟส่งของเข้าเสาเพื่อเรียกบอสพิเศษ</span></div></div>
-          <div class="lg"><span class="sw" style="background:var(--plaza);box-shadow:inset 0 0 0 3px #3f8fd9"></span><div><b>ฐานผู้เล่น 44×44 studs ×8</b><span>ขอบเป็นสีประจำผู้เล่น มองจากไกลก็รู้ว่าฐานใคร</span></div></div>
-          <div class="lg"><span class="sw" style="background:var(--mapink);border-radius:50%"></span><div><b>ป้อม (หน้าฐาน)</b><span>หันเข้าหาบอส ระยะยิง 60 studs ถึงบอสได้ทุกฐาน วงประบนผังคือระยะยิงของป้อม 1 ตัว</span></div></div>
-          <div class="lg"><span class="sw" style="background:#3f8fd9"></span><div><b>บ้าน (หลังฐาน)</b><span>ผลิตเงินอัตโนมัติ หลังคาสีผู้เล่น</span></div></div>
-          <div class="lg"><span class="sw" style="background:var(--coin)"></span><div><b>จุดขาย</b><span>แผ่นสีเหลืองข้างบ้าน เดินทับเพื่อขายของที่ถือ</span></div></div>
-          <div class="lg"><span class="sw" style="background:var(--boss);opacity:.6"></span><div><b>ลังกระสุนพิเศษ</b><span>ข้างป้อม เอาของมาเติมก่อนบอสมา</span></div></div>
-          <div class="lg"><span class="sw" style="background:var(--loot)"></span><div><b>ทุ่งเก็บของ</b><span>รอบนอกแมพ ของทั่วไปสีฟ้า ของหายากสีทอง</span></div></div>
-          <div class="lg"><span class="sw" style="background:var(--lane)"></span><div><b>ทางมอน</b><span>มอนเล็ก (จุดแดง) เดินตัดแมพระหว่างฐาน ให้ป้อมยิงหาเงิน</span></div></div>
-          <p class="muted">พื้นที่เล่น 362×362 studs เท่าพื้นหญ้าเดิม แนวต้นไม้อยู่นอกขอบเพื่อบังขอบแมพ</p>
+          <div class="lg"><span class="sw" style="background:var(--boss)"></span><div><b>หลุมบอส รัศมี 38</b><span>ลึก 10 studs มีกำแพงใสกันตก บอสลอยสูง 14 studs เหนือหลุม</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--loot)"></span><div><b>ทุ่งเก็บของร่วม</b><span>วงแหวนรัศมี 42–54 รอบหลุม แย่งกันเก็บ ของหายากให้สิทธิพิเศษ</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--mapink);border-radius:50%"></span><div><b>ป้อมเริ่มต้น</b><span>ห่างกลาง 56 หน้าฐาน ยิงถึงบอสด้วย Range 60 เดิม</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--plaza);box-shadow:inset 0 0 0 3px #e0564a"></span><div><b>ฐาน 44×44 ห่างกลาง 80</b><span>บ้าน · แผ่นขาย · ลังกระสุน · ป้ายอัปเกรด · แท่นส่งของเรียกบอสพิเศษ · จุดเกิด</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--lane)"></span><div><b>สวนหลังบ้าน + ทางมอน</b><span>มอนเล็ก/กลางเกิดในสวนรูปพัด 104–150 เดินเลียบข้างฐานเข้าหาหลุม</span></div></div>
+          <p class="muted">ฐานสีเข้ม = ฐาน 1 ที่สร้างใน prototype · ฐานจางคือที่ที่จะเพิ่มทีหลัง</p>
         </div>
       </div>
-      <h3>ผังที่พิจารณาอยู่ 4 แบบ</h3>
-      <div class="layouts">
-        <div class="card layout pick"><div><span class="pill done">แนะนำ</span></div><h3>วงล้อ</h3><ul><li>ตรงกับโค้ดตอนนี้ (ป้อมวางเป็นวงอยู่แล้ว)</li><li>ทุกฐานห่างบอสเท่ากัน แข่งดาเมจยุติธรรม</li><li>จุดอ่อน: ทุกทิศหน้าตาเหมือนกัน อาจหลงทิศ</li></ul></div>
-        <div class="card layout"><h3>สนามกลางสองฝั่ง</h3><ul><li>อ่านแมพง่ายสุด คุ้นตาแบบเกมสวน/tycoon</li><li>จุดอ่อน: ฐานริมไกลบอสกว่า เสียเปรียบเรื่องดาเมจ</li></ul></div>
-        <div class="card layout"><h3>ถนนวนรอบลาน</h3><ul><li>รายได้ช่วง AFK ใกล้เคียงกันทุกฐาน</li><li>มอนไม่บังบอส</li><li>จุดอ่อน: ต้องข้ามถนนมอนตอนเดินไปส่งของเข้าเสา</li></ul></div>
-        <div class="card layout"><h3>สี่แฉก</h3><ul><li>จำทิศง่าย มีเพื่อนบ้านข้างฐาน</li><li>ใกล้ภาพ reference มากกว่า</li><li>จุดอ่อน: ป้อมอยู่ชิดกัน ถ้าแต่งป้อมใหญ่อาจทับกัน</li></ul></div>
-      </div>
-      <p class="muted">อีกไฟล์ <code>docs/map-sketch/garden-map.html</code> (แปลงปลูก 6 แปลง + ลานร้านค้า) เป็นร่างสไตล์ภาพจากภาพอ้างอิง ใช้เป็นแนวทางเรื่องสีและบล็อกเรียบ</p>
     </section>
 
     <section id="economy">
@@ -371,7 +360,7 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
           <div class="arrow">→</div>
           <div class="cur loot">ของที่เก็บ<span>ถือได้จำกัดตามกระเป๋า</span></div>
           <div class="arrow">→</div>
-          <div class="col"><div class="chip">ขาย → เงิน <span class="pill next">ถัดไป</span></div><div class="chip">กระสุนพิเศษ ไฟ/น้ำแข็ง/ระเบิด <span class="pill next">ถัดไป</span></div><div class="chip">ส่งเข้าเสาพลัง → บอสพิเศษ <span class="pill later">ภายหลัง</span></div></div>
+          <div class="col"><div class="chip">ขาย → เงิน <span class="pill next">ถัดไป</span></div><div class="chip">กระสุนพิเศษ ไฟ/น้ำแข็ง/ระเบิด <span class="pill next">ถัดไป</span></div><div class="chip">ส่งที่แท่นในฐาน → บอสพิเศษ <span class="pill later">ภายหลัง</span></div></div>
         </div>
         <div class="erow">
           <div class="col"><div class="chip">ชนะบอส (ท็อป 3 ได้โบนัส) <span class="pill done">มีแล้ว</span></div><div class="chip">ซื้อด้วย Robux <span class="pill later">ภายหลัง</span></div></div>
@@ -411,7 +400,7 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
         <div class="card" data-s="next"><div class="top"><h3>บ้าน idle</h3><span class="pill next">ถัดไป</span></div><ul><li>ผลิตเงินอัตโนมัติ อัปด้วยเงินและของอัปบ้านจากบอส</li></ul></div>
         <div class="card" data-s="next"><div class="top"><h3>กระสุนพิเศษ</h3><span class="pill next">ถัดไป</span></div><ul><li>เอาของใส่ลังข้างป้อม ยิงตอนบอสมา</li><li>ไฟ / น้ำแข็ง / ระเบิด ผลต่างกัน · แม็กกาซีนอัปได้</li></ul></div>
         <div class="card" data-s="later"><div class="top"><h3>อุปกรณ์แต่งปืน</h3><span class="pill later">ภายหลัง</span></div><ul><li>4 ช่อง: ลำกล้อง (ดาเมจ) · กลไกยิง (อัตรายิง) · ศูนย์เล็ง (คริ) · แกนพลัง (ผลพิเศษ)</li><li>5 ระดับ ธรรมดา → ตำนาน และเปลี่ยนหน้าตาป้อม</li></ul></div>
-        <div class="card" data-s="later"><div class="top"><h3>เสาพลัง + บอสพิเศษ</h3><span class="pill later">ภายหลัง</span></div><ul><li>ทั้งเซิร์ฟส่งของครบเป้า เรียกบอสพิเศษ</li><li>โบนัสเฉพาะคนที่ส่ง ตามสัดส่วน</li></ul></div>
+        <div class="card" data-s="later"><div class="top"><h3>แท่นส่งของ + บอสพิเศษ</h3><span class="pill later">ภายหลัง</span></div><ul><li>ทั้งเซิร์ฟส่งของครบเป้า เรียกบอสพิเศษ</li><li>โบนัสเฉพาะคนที่ส่ง ตามสัดส่วน</li></ul></div>
         <div class="card" data-s="later"><div class="top"><h3>Login · ภารกิจรายวัน · Rebirth</h3><span class="pill later">ภายหลัง</span></div><ul><li>เหตุผลให้กลับมาเล่นทุกวัน</li><li>Rebirth: รีเซ็ตแลกตัวคูณถาวร</li></ul></div>
         <div class="card" data-s="later"><div class="top"><h3>ตั๋วกาชาด้วย Robux</h3><span class="pill later">ภายหลัง</span></div><ul><li>ต้องแสดงโอกาสได้ทุกชิ้น</li><li>เช็กนโยบาย Roblox เรื่องผู้เล่นอายุต่ำกว่า 13 ปีก่อนเปิด</li></ul></div>
         <div class="card" data-s="later"><div class="top"><h3>แลกเปลี่ยนไอเทม</h3><span class="pill later">เฟสหลัง</span></div><ul><li>เสี่ยงเกิดของซ้ำ ต้องออกแบบการเซฟข้อมูลให้รัดกุมก่อน</li></ul></div>
@@ -426,9 +415,9 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
         <div class="ph done"><div class="rail"><div class="dot">✓</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 1 · รากฐาน</h3><span class="pill done">เสร็จ</span></div><ul><li>โครงโปรเจกต์ ระบบเซฟข้อมูล ด่านกันโกง HUD หน้าตั้งค่า</li></ul></div></div>
         <div class="ph done"><div class="rail"><div class="dot">✓</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 2 · ต่อสู้ prototype</h3><span class="pill done">เสร็จ</span></div><ul><li>ป้อม มอนเล็ก บอสตามเวลา ตารางดาเมจ อัปป้อม Friend Boost</li></ul></div></div>
         <div class="ph done"><div class="rail"><div class="dot">✓</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 3 · สกิลป้อม + กาชา</h3><span class="pill done">เสร็จ</span></div><ul><li>5 สกิล ตั๋วจากบอส สกิลซ้ำใช้อัปขั้น</li></ul></div></div>
-        <div class="ph now"><div class="rail"><div class="dot">4</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 4 · แมพจริง</h3><span class="pill next">กำลังทำ</span></div><ul><li>เลือกผังจาก 4 แบบ วางฐาน 8 ฐาน เสาพลังกลาง ทุ่งเก็บของ ทางมอน</li><li>ทีมสร้างฉากเองใน Studio แล้วติด tag ให้โค้ดหาชิ้นส่วนเจอ</li></ul></div></div>
+        <div class="ph now"><div class="rail"><div class="dot">4</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 4 · แมพจริง</h3><span class="pill next">กำลังทำ</span></div><ul><li>เลือกแล้ว: หลุมอุกกาบาต · prototype สร้างฐาน 1 ฐานด้วยโค้ด (MapService) เพื่อดูระบบก่อน</li><li>มอนเล็ก/กลางเกิดในสวนหลังบ้าน · ต่อไป: เพิ่มเป็น 8 ฐาน + ออกแบบระยะยิงป้อม</li></ul></div></div>
         <div class="ph"><div class="rail"><div class="dot">5</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 5 · วงจรเก็บของครบ</h3></div><ul><li>เก็บของ + กระเป๋า · จุดขาย · บ้าน idle · กระสุนพิเศษ</li><li>จบเฟสนี้ Core Loop ครบทั้งวงเป็นครั้งแรก</li></ul></div></div>
-        <div class="ph"><div class="rail"><div class="dot">6</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 6 · รางวัลบอสเต็มรูปแบบ</h3></div><ul><li>อุปกรณ์แต่งปืน 4 ช่อง 5 ระดับ + รวม 3→1 · เสาพลังและบอสพิเศษ</li></ul></div></div>
+        <div class="ph"><div class="rail"><div class="dot">6</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 6 · รางวัลบอสเต็มรูปแบบ</h3></div><ul><li>อุปกรณ์แต่งปืน 4 ช่อง 5 ระดับ + รวม 3→1 · แท่นส่งของและบอสพิเศษ</li></ul></div></div>
         <div class="ph"><div class="rail"><div class="dot">7</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 7 · เหตุผลให้กลับมาทุกวัน</h3></div><ul><li>รางวัล Login · ภารกิจรายวัน · Rebirth</li></ul></div></div>
         <div class="ph"><div class="rail"><div class="dot">8</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 8 · รายได้ + แลกเปลี่ยน</h3></div><ul><li>ตั๋ว Robux (หลังเช็กนโยบาย) · ระบบแลกเปลี่ยนอุปกรณ์</li></ul></div></div>
       </div>
@@ -463,9 +452,8 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
         <table>
           <thead><tr><th>เรื่อง</th><th>ตอนนี้</th><th>ใครตัดสิน</th></tr></thead>
           <tbody>
-            <tr><td>ธีมและหน้าตาของโลก</td><td>มีแค่แนวภาพบล็อกสีเรียบจากสเก็ตช์ ยังไม่มีธีมเรื่องราว</td><td>เจ้าของเกม</td></tr>
-            <tr><td>ผังแมพ</td><td>แนะนำแบบวงล้อ อีก 3 แบบเป็นตัวเลือก</td><td>เจ้าของเกม</td></tr>
-            <tr><td>จำนวนผู้เล่นต่อเซิร์ฟ</td><td>ผังแมพออกแบบไว้ 8 ฐาน · โค้ดตอนนี้รองรับป้อม 12 จุด</td><td>เจ้าของเกม</td></tr>
+            <tr><td>ระยะยิงป้อม</td><td>ใช้ 60 เดิมไปก่อน · ถ้าเป็นวงกลมจะยิงมอนฐานข้างๆ ได้ ต้องออกแบบใหม่</td><td>เจ้าของเกม</td></tr>
+                        <tr><td>จำนวนผู้เล่นต่อเซิร์ฟ</td><td>ผังแมพออกแบบไว้ 8 ฐาน · prototype เปิดใช้ 1 ฐาน (Map.BaseCount)</td><td>เจ้าของเกม</td></tr>
             <tr><td>ตัวเลขทั้งหมด (เวลาบอส รางวัล ราคา โอกาสดรอป)</td><td>ใช้ค่าทดสอบ ติดป้าย [Proposed] ทุกค่า</td><td>ฝ่ายเศรษฐกิจ + เจ้าของเกม</td></tr>
             <tr><td>ลำดับเฟส 4–8</td><td>ข้อเสนอในหน้านี้</td><td>เจ้าของเกม</td></tr>
             <tr><td>กาชา Robux กับผู้เล่นอายุต่ำกว่า 13 ปี</td><td>ต้องเช็กนโยบาย Roblox ล่าสุดก่อน <span class="pill no">[Unverified]</span></td><td>ตรวจก่อนออกแบบฟีเจอร์</td></tr>
@@ -482,36 +470,36 @@ footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padd
   var NS="http://www.w3.org/2000/svg";
   function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
 
-  // Map: wheel layout in studs (floor 362×362, turret ring 46, range 60)
+  // Map: crater layout in studs (numbers from src/shared/Config/Map.luau)
   var svg=document.getElementById("mapsvg");
   var PLAYER=["#e0564a","#3f8fd9","#4db860","#f2c23a","#9a6bd8","#f28c3a","#e86fa8","#34b5b0"];
-  var LANES=[22.5,67.5,112.5,157.5];
   el("rect",{x:-181,y:-181,width:362,height:362,rx:6,fill:"var(--grass)"},svg);
-  el("circle",{cx:0,cy:0,r:160,fill:"none",stroke:"var(--loot)","stroke-width":38},svg);
+  el("circle",{cx:0,cy:0,r:48,fill:"none",stroke:"var(--loot)","stroke-width":12},svg);
   var seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
-  for(var i=0;i<70;i++){var a=rnd()*Math.PI*2,r=144+rnd()*32,rare=rnd()<.12;
-    el("rect",{x:(Math.cos(a)*r-2.5).toFixed(1),y:(Math.sin(a)*r-2.5).toFixed(1),width:5,height:5,rx:1,fill:rare?"#f2b61f":"#5aa7e6"},svg)}
-  LANES.forEach(function(d){var a=d*Math.PI/180;
-    el("line",{x1:(Math.cos(a)*-176).toFixed(1),y1:(Math.sin(a)*-176).toFixed(1),x2:(Math.cos(a)*176).toFixed(1),y2:(Math.sin(a)*176).toFixed(1),stroke:"var(--lane)","stroke-width":9,"stroke-linecap":"round"},svg)});
-  [[0,-150],[1,-95],[2,120],[3,60],[0,70],[2,-40]].forEach(function(p){var a=LANES[p[0]]*Math.PI/180;
-    el("circle",{cx:(Math.cos(a)*p[1]).toFixed(1),cy:(Math.sin(a)*p[1]).toFixed(1),r:3.5,fill:"var(--boss)"},svg)});
-  el("circle",{cx:0,cy:-46,r:60,fill:"none",stroke:"var(--mapink)","stroke-width":1,"stroke-dasharray":"4 3",opacity:.6},svg);
+  for(var i=0;i<46;i++){var a=rnd()*Math.PI*2,r=44+rnd()*8,rare=rnd()<.12;
+    el("rect",{x:(Math.cos(a)*r-1.8).toFixed(1),y:(Math.sin(a)*r-1.8).toFixed(1),width:3.6,height:3.6,rx:.8,fill:rare?"#f2b61f":"#5aa7e6"},svg)}
+  function arc(r0,r1,a0,a1){var p=[],n=12,k;for(k=0;k<=n;k++){var t=a0+(a1-a0)*k/n;p.push((Math.cos(t)*r1).toFixed(1)+","+(Math.sin(t)*r1).toFixed(1))}
+    for(k=n;k>=0;k--){var u=a0+(a1-a0)*k/n;p.push((Math.cos(u)*r0).toFixed(1)+","+(Math.sin(u)*r0).toFixed(1))}return p.join(" ")}
   for(var b=0;b<8;b++){
-    var g=el("g",{transform:"rotate("+(b*45)+")"},svg),c=PLAYER[b];
-    el("rect",{x:-22,y:-112,width:44,height:44,rx:3,fill:"var(--plaza)",stroke:c,"stroke-width":3},g);
-    el("rect",{x:-12,y:-109,width:24,height:14,rx:2,fill:c},g);
-    el("rect",{x:11,y:-92,width:8,height:8,rx:1,fill:"var(--coin)"},g);
-    el("rect",{x:-19,y:-80,width:8,height:8,rx:1,fill:"var(--boss)",opacity:.6},g);
-    el("line",{x1:0,y1:-46,x2:0,y2:-36,stroke:"var(--mapink)","stroke-width":2.4,"stroke-linecap":"round"},g);
-    el("circle",{cx:0,cy:-46,r:5.5,fill:"var(--mapink)",stroke:c,"stroke-width":2},g);
+    var ang=-Math.PI/2+b*Math.PI/4,c=PLAYER[b],op=b===0?1:.3;
+    el("polygon",{points:arc(104,150,ang-.31,ang+.31),fill:c,opacity:.25*op+.05},svg);
+    var g=el("g",{transform:"rotate("+(b*45)+")",opacity:op},svg);
+    el("rect",{x:8,y:-104,width:8,height:46,fill:"var(--lane)"},g);
+    el("rect",{x:-22,y:-102,width:44,height:44,rx:3,fill:"var(--plaza)",stroke:c,"stroke-width":3},g);
+    el("rect",{x:-17,y:-97,width:14,height:14,rx:2,fill:c},g);
+    el("rect",{x:-16,y:-76,width:8,height:8,rx:1,fill:"var(--coin)"},g);
+    el("rect",{x:0,y:-99,width:6,height:6,rx:1,fill:"var(--violet)"},g);
+    el("circle",{cx:0,cy:-56,r:4.5,fill:"var(--mapink)",stroke:c,"stroke-width":2},g);
   }
-  el("circle",{cx:0,cy:0,r:16,fill:"var(--boss)",opacity:.3},svg);
-  el("circle",{cx:0,cy:0,r:9,fill:"var(--violet)"},svg);
-  el("circle",{cx:0,cy:0,r:5,fill:"var(--boss)"},svg);
+  [[0,112,3],[0,128,5],[0,84,3]].forEach(function(m){var a=-Math.PI/2+(m[0]?0:0),x=Math.cos(a)*m[1]+(m[1]<100?12:(rnd()-.5)*20),y=Math.sin(a)*m[1];
+    el("circle",{cx:x.toFixed(1),cy:y.toFixed(1),r:m[2]/1.5+1,fill:m[2]>4?"#f08a3a":"var(--boss)"},svg)});
+  el("circle",{cx:0,cy:0,r:42,fill:"#8c7d68"},svg);
+  el("circle",{cx:0,cy:0,r:38,fill:"#6e6152"},svg);
+  el("circle",{cx:0,cy:0,r:12,fill:"var(--violet)"},svg);
   function label(x,y,txt,size,weight){var t=el("text",{x:x,y:y,"text-anchor":"middle","font-size":size,"font-weight":weight||500,fill:"var(--mapink)","font-family":"Chakra Petch, IBM Plex Sans Thai, sans-serif"},svg);t.textContent=txt}
-  label(0,26,"บอส",11,700);
-  label(0,-117,"ฐาน 1",9);
-  label(88,-50,"ระยะยิง 60",8);
+  label(0,24,"บอส",11,700);
+  label(0,-162,"สวนหลังบ้าน ฐาน 1",9);
+  label(0,-64,"ป้อม",8);
 
   // Timeline: prototype values from Config/Combat (seconds)
   var TOTAL=600,FIRST=45,DUR=60,GAP=180;
