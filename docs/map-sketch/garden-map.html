@@ -1,0 +1,485 @@
+<title>Six-Plot Garden Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg: #eef4ef;
+    --panel: #ffffff;
+    --ink: #1d2a22;
+    --muted: #5d6e63;
+    --line: #d5e2d8;
+    --accent: #3f9b45;
+    --accent-ink: #ffffff;
+    --sky-top: #bfe3f5;
+    --sky-bottom: #e6f4ea;
+    --chip: #f3f7f3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #141c17;
+      --panel: #1c2620;
+      --ink: #e5eee7;
+      --muted: #9db0a2;
+      --line: #2e3c33;
+      --accent: #6cc672;
+      --accent-ink: #0f1a12;
+      --sky-top: #22384a;
+      --sky-bottom: #1b2a22;
+      --chip: #243029;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #141c17;
+    --panel: #1c2620;
+    --ink: #e5eee7;
+    --muted: #9db0a2;
+    --line: #2e3c33;
+    --accent: #6cc672;
+    --accent-ink: #0f1a12;
+    --sky-top: #22384a;
+    --sky-bottom: #1b2a22;
+    --chip: #243029;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 28px 48px;
+    display: grid;
+    gap: 22px;
+  }
+  header { display: grid; gap: 6px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1, h2 {
+    font-family: "Mitr", "IBM Plex Sans Thai", system-ui, sans-serif;
+    font-weight: 500;
+    text-wrap: balance;
+    margin: 0;
+  }
+  h1 { font-size: clamp(26px, 4.4vw, 38px); line-height: 1.2; }
+  h2 { font-size: 20px; }
+  header p { margin: 0; color: var(--muted); max-width: 65ch; }
+
+  .stage {
+    background: linear-gradient(var(--sky-top), var(--sky-bottom));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+  }
+  .stage canvas { display: block; width: 100%; height: auto; }
+  .toolbar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .toolbar button {
+    pointer-events: auto;
+    font: 500 14px "Mitr", system-ui, sans-serif;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .toolbar button[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .toolbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 22px;
+    align-items: start;
+  }
+  section { display: grid; gap: 12px; }
+  .zones { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .zones li {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 10px;
+    align-items: baseline;
+    padding: 10px 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .sw { width: 14px; height: 14px; border-radius: 4px; transform: translateY(2px); }
+  .zones b { font-weight: 600; }
+  .zones span.d { display: block; color: var(--muted); font-size: 13px; }
+  .num {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tablebox { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td .sw { display: inline-block; margin-right: 8px; transform: translateY(2px); }
+  .rules { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .tag {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    background: var(--chip);
+    border: 1px solid var(--line);
+    padding: 0 6px;
+    border-radius: 6px;
+    color: var(--muted);
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Roblox map sketch · 1 ช่อง = 4 studs</div>
+    <h1>Six-Plot Garden Map</h1>
+    <p>ผังแมพแนวฟาร์มปลูกผักตามภาพอ้างอิง: ถนนหญ้ากลางแมพ แปลงดินผู้เล่น 3 แปลงต่อฝั่ง ลานร้านค้าด้านบน และแนวต้นไม้ล้อมรอบ ทุกชิ้นเป็นบล็อกสีเรียบ ไม่ใช้ Texture หรือ Decal</p>
+  </header>
+
+  <div class="stage">
+    <div class="toolbar" role="toolbar" aria-label="มุมมองแมพ">
+      <button id="btn-iso" type="button" aria-pressed="true">มุมเฉียง 3D</button>
+      <button id="btn-top" type="button" aria-pressed="false">มุมบน (ผัง)</button>
+      <button id="btn-rot" type="button">หมุน 90°</button>
+      <button id="btn-lbl" type="button" aria-pressed="true">ป้ายชื่อ</button>
+    </div>
+    <canvas id="map" aria-label="ภาพสเก็ตช์แมพสวน 6 แปลง"></canvas>
+  </div>
+
+  <div class="cols">
+    <section>
+      <h2>โซนในแมพ</h2>
+      <ul class="zones">
+        <li><i class="sw" style="background:#f2a33a"></i><div><b>ลานร้านค้า</b><span class="d">Seeds · Gear · Sell เรียงหน้ากระดาน หันหน้าลงถนน</span></div><span class="num">144×48</span></li>
+        <li><i class="sw" style="background:#8a5a3b"></i><div><b>แปลงผู้เล่น ×6</b><span class="d">ขอบดินเข้ม สูงกว่าดินปลูก ป้ายชื่ออยู่ฝั่งถนน</span></div><span class="num">120×72</span></li>
+        <li><i class="sw" style="background:#8fd263"></i><div><b>ถนนหญ้ากลาง</b><span class="d">เดินจากลานร้านค้าไปทุกแปลงได้ตรงๆ</span></div><span class="num">48×280</span></li>
+        <li><i class="sw" style="background:#f4efe1"></i><div><b>จุดเกิด (Spawn)</b><span class="d">กลางถนน ห่างทุกแปลงพอๆ กัน</span></div><span class="num">32×32</span></li>
+        <li><i class="sw" style="background:#3e8e3a"></i><div><b>แนวต้นไม้ + รั้ว</b><span class="d">กั้นขอบแมพ ต้นไม้ทรงกล่อง 2–3 ชั้น</span></div><span class="num">แถบ 56</span></li>
+      </ul>
+      <p class="num">ขนาดพื้นที่เล่นรวม 384×352 studs (ไม่นับแนวต้นไม้)</p>
+    </section>
+
+    <section>
+      <h2>สีและวัสดุ</h2>
+      <div class="tablebox">
+        <table>
+          <thead><tr><th>ส่วน</th><th>Color3 (hex)</th><th>Material</th></tr></thead>
+          <tbody>
+            <tr><td><i class="sw" style="background:#6bbf4e"></i>หญ้าพื้น</td><td class="num">#6BBF4E</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#8fd263"></i>ถนนหญ้า</td><td class="num">#8FD263</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#5e3a26"></i>ขอบแปลง</td><td class="num">#5E3A26</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#8a5a3b"></i>ดินปลูก</td><td class="num">#8A5A3B</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#cfc7b3"></i>ลานหิน</td><td class="num">#CFC7B3</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#b07a4a"></i>ไม้ร้าน/รั้ว</td><td class="num">#B07A4A</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#3e8e3a"></i>ใบไม้</td><td class="num">#3E8E3A · #4FA746</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#f2a33a"></i>หลังคา Seeds</td><td class="num">#F2A33A</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#3f8fd9"></i>หลังคา Gear</td><td class="num">#3F8FD9</td><td>SmoothPlastic</td></tr>
+            <tr><td><i class="sw" style="background:#e0453a"></i>หลังคา Sell</td><td class="num">#E0453A</td><td>SmoothPlastic</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <h2>กติกาให้แมพดูสะอาดตา</h2>
+    <ol class="rules">
+      <li>ใช้ Part สีเรียบทั้งหมด วัสดุ SmoothPlastic ไม่ใส่ Texture, Decal หรือ SurfaceAppearance <span class="tag">[Proposed]</span></li>
+      <li>ใช้สีไม่เกิน 10 สีตามตารางด้านบน สีเข้มไว้ที่ขอบ สีสดไว้ที่ร้านค้า ผู้เล่นจะมองหาจุดสำคัญได้เร็ว</li>
+      <li>พื้นใช้ Part แผ่นใหญ่แทน Terrain หญ้า เพราะ Terrain Grass มีลายและใบหญ้าขึ้นเอง <span class="tag">[Inferred]</span></li>
+      <li>ต้นไม้เป็นกล่องซ้อน 2–3 ชั้น ความสูงต่างกันเล็กน้อยให้ขอบฟ้าไม่เรียบเป็นเส้นตรง</li>
+      <li>ตัวเลขขนาดเป็นค่าเริ่มต้นสำหรับสเก็ตช์ ปรับได้ตอนวางจริงใน Studio <span class="tag">[Proposed]</span></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+  const C = {
+    grass: "#6bbf4e", grassDark: "#5eaf43", path: "#8fd263", rim: "#5e3a26", soil: "#8a5a3b",
+    plaza: "#cfc7b3", wood: "#b07a4a", woodDark: "#8b5e38", fence: "#a8784c",
+    leaf1: "#3e8e3a", leaf2: "#4fa746", leaf3: "#5cb850", trunk: "#7a5234",
+    seeds: "#f2a33a", gear: "#3f8fd9", sell: "#e0453a", spawn: "#f4efe1", spawnIn: "#ffffff",
+    stem: "#3fa34d", carrot: "#f08a24", tomato: "#e5483b", berry: "#4b6fd6", corn: "#f5d33c", sign: "#d9b27c"
+  };
+
+  // Seeded random so the sketch looks the same every load.
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+  const boxes = [];   // flat ground layer = 0, standing objects = 1
+  const labels = [];
+  const box = (x, y, z, w, d, h, c, layer = 1, bias = 0) => boxes.push({ x, y, z, w, d, h, c, layer, bias });
+  const label = (text, x, y, z, color) => labels.push({ text, x, y, z, color });
+
+  const W = 96, H = 88; // play area in units (1 unit = 4 studs)
+
+  // Ground
+  box(-16, -16, 0, W + 32, H + 32, 0.6, C.grassDark, 0);
+  box(0, 0, 0, W, H, 0.7, C.grass, 0);
+  box(42, 16, 0, 12, H - 16, 0.8, C.path, 0);
+  box(30, 4, 0, 36, 12, 0.8, C.plaza, 0);
+  box(36, 16, 0, 24, 3, 0.8, C.path, 0);
+
+  // Spawn pad
+  box(44, 46, 0, 8, 8, 1.0, C.spawn, 0);
+  box(46, 48, 0, 4, 4, 1.15, C.spawnIn, 0);
+  label("จุดเกิด", 48, 50, 2, "#1d2a22");
+
+  // Shops
+  const shop = (sx, roof, name) => {
+    box(sx, 5, 0.8, 10, 1, 6, C.woodDark);
+    box(sx, 10, 0.8, 10, 2.4, 2.2, C.wood);
+    box(sx + 0.8, 10.6, 3, 8.4, 1.2, 0.7, roof);
+    box(sx, 12, 0.8, 0.6, 0.6, 5.8, C.woodDark);
+    box(sx + 9.4, 12, 0.8, 0.6, 0.6, 5.8, C.woodDark);
+    box(sx - 0.6, 4.4, 6.6, 11.2, 9, 1, roof, 1, 30);
+    box(sx + 2, 4.8, 7.6, 6, 0.6, 2.2, "#ffffff", 1, 31);
+    label(name, sx + 5, 9, 11, roof);
+  };
+  shop(32, C.seeds, "Seeds");
+  shop(43, C.gear, "Gear");
+  shop(54, C.sell, "Sell");
+
+  // Player plots
+  const cropColors = [C.carrot, C.tomato, C.berry, C.corn];
+  const plot = (px, py, n, fill, signLeft) => {
+    box(px, py, 0, 30, 18, 1.3, C.rim, 0);
+    box(px + 1.2, py + 1.2, 0, 27.6, 15.6, 1.1, C.soil, 0);
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (rnd() > fill) continue;
+        const x = px + 3 + c * 3.8, y = py + 3 + r * 3.8;
+        const tall = 1.2 + rnd() * 2.2;
+        box(x, y, 1.1, 0.5, 0.5, tall, C.stem);
+        box(x - 0.45, y - 0.45, 1.1 + tall, 1.4, 1.4, 1.1, rnd() > 0.4 ? C.leaf3 : cropColors[(r + n) % 4]);
+      }
+    }
+    const sx = signLeft ? px + 30.6 : px - 1.4;
+    box(sx, py + 8.6, 0.7, 0.5, 0.5, 3, C.woodDark);
+    box(sx - 0.2, py + 7, 3.4, 0.9, 3.6, 1.8, C.sign);
+    label("แปลง " + n, px + 15, py + 9, 3, "#5e3a26");
+  };
+  const rows = [20, 42, 64];
+  const fills = [0.9, 0.55, 0.3, 0.75, 0.15, 0.6];
+  rows.forEach((y, i) => {
+    plot(6, y, i * 2 + 1, fills[i * 2], true);
+    plot(60, y, i * 2 + 2, fills[i * 2 + 1], false);
+  });
+
+  // Fence, split into short segments so depth sorting stays clean
+  const fenceRun = (x0, y0, x1, y1) => {
+    const len = Math.hypot(x1 - x0, y1 - y0), steps = Math.ceil(len / 6);
+    for (let i = 0; i < steps; i++) {
+      const a = i / steps, b = (i + 1) / steps;
+      const ax = x0 + (x1 - x0) * a, ay = y0 + (y1 - y0) * a;
+      const bx = x0 + (x1 - x0) * b, by = y0 + (y1 - y0) * b;
+      box(Math.min(ax, bx), Math.min(ay, by), 0.7, Math.max(Math.abs(bx - ax), 0.35), Math.max(Math.abs(by - ay), 0.35), 1.6, C.fence);
+      box(ax - 0.2, ay - 0.2, 0.7, 0.75, 0.75, 2.2, C.woodDark);
+    }
+  };
+  fenceRun(0, 0, W, 0);
+  fenceRun(0, H, W, H);
+  fenceRun(0, 0, 0, H);
+  fenceRun(W, 0, W, H);
+
+  // Trees
+  const tree = (x, y, s) => {
+    const t = 3 + rnd() * 2.5;
+    box(x - 0.6 * s, y - 0.6 * s, 0.6, 1.2 * s, 1.2 * s, t, C.trunk);
+    const tiers = rnd() > 0.5 ? 3 : 2;
+    let z = 0.6 + t, size = 6.5 * s;
+    for (let i = 0; i < tiers; i++) {
+      const hh = (2.4 + rnd()) * s;
+      box(x - size / 2, y - size / 2, z, size, size, hh, [C.leaf1, C.leaf2, C.leaf3][i]);
+      z += hh; size *= 0.66;
+    }
+  };
+  for (let x = -12; x <= W + 12; x += 7 + rnd() * 3) {
+    tree(x, -8 - rnd() * 4, 0.8 + rnd() * 0.5);
+    tree(x, H + 8 + rnd() * 4, 0.8 + rnd() * 0.5);
+  }
+  for (let y = 2; y <= H - 2; y += 7 + rnd() * 3) {
+    tree(-8 - rnd() * 4, y, 0.8 + rnd() * 0.5);
+    tree(W + 8 + rnd() * 4, y, 0.8 + rnd() * 0.5);
+  }
+  // Bushes around the plaza
+  [[27, 6], [27, 12], [68, 6], [68, 12]].forEach(([x, y]) => {
+    box(x, y, 0.7, 2.4, 2.4, 1.6, C.leaf2);
+  });
+
+  // ---------- Rendering ----------
+  const canvas = document.getElementById("map");
+  const ctx = canvas.getContext("2d");
+  const state = { mode: "iso", rot: 0, labels: true };
+
+  const shade = (hex, f) => {
+    const n = parseInt(hex.slice(1), 16);
+    const r = Math.round(((n >> 16) & 255) * f), g = Math.round(((n >> 8) & 255) * f), b = Math.round((n & 255) * f);
+    return `rgb(${r},${g},${b})`;
+  };
+  const rotPt = (x, y, k) => {
+    for (let i = 0; i < k; i++) [x, y] = [-y, x];
+    return [x, y];
+  };
+  const rotBox = (b, k) => {
+    const pts = [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.d], [b.x + b.w, b.y + b.d]].map(([x, y]) => rotPt(x, y, k));
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const x = Math.min(...xs), y = Math.min(...ys);
+    return { ...b, x, y, w: Math.max(...xs) - x, d: Math.max(...ys) - y };
+  };
+
+  const COS = Math.cos(Math.PI / 6), SIN = Math.sin(Math.PI / 6);
+  const isoP = (x, y, z) => [(x - y) * COS, (x + y) * SIN - z];
+  const topP = (x, y) => [x, y];
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.parentElement.clientWidth;
+    const cssH = Math.max(340, Math.min(cssW * (state.mode === "iso" ? 0.62 : 0.8), 760));
+    canvas.style.height = cssH + "px";
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const k = state.rot;
+    const list = boxes.map(b => rotBox(b, k));
+    const labs = labels.map(l => { const [x, y] = rotPt(l.x, l.y, k); return { ...l, x, y }; });
+
+    // Fit to canvas
+    const proj = state.mode === "iso" ? (x, y, z) => isoP(x, y, z) : (x, y) => topP(x, y);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const b of list) {
+      for (const [x, y] of [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.d], [b.x + b.w, b.y + b.d]]) {
+        for (const z of [b.z, b.z + b.h]) {
+          const [px, py] = proj(x, y, z);
+          minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+          minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+        }
+      }
+    }
+    const padTop = 58, pad = 16;
+    const s = Math.min((cssW - pad * 2) / (maxX - minX), (cssH - padTop - pad) / (maxY - minY));
+    const ox = (cssW - (maxX - minX) * s) / 2 - minX * s;
+    const oy = padTop + (cssH - padTop - pad - (maxY - minY) * s) / 2 - minY * s;
+    const P = (x, y, z) => { const [px, py] = proj(x, y, z); return [ox + px * s, oy + py * s]; };
+
+    const poly = (pts, fill) => {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = fill;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    };
+
+    if (state.mode === "iso") {
+      const ground = list.filter(b => b.layer === 0);
+      const stand = list.filter(b => b.layer === 1)
+        .sort((a, b) => (a.x + a.w / 2 + a.y + a.d / 2 + a.z * 0.01 + a.bias) - (b.x + b.w / 2 + b.y + b.d / 2 + b.z * 0.01 + b.bias));
+      for (const b of [...ground, ...stand]) {
+        const { x, y, z, w, d, h, c } = b;
+        const t = z + h;
+        poly([P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, t), P(x, y + d, t)], shade(c, 0.8));
+        poly([P(x + w, y, z), P(x + w, y + d, z), P(x + w, y + d, t), P(x + w, y, t)], shade(c, 0.66));
+        poly([P(x, y, t), P(x + w, y, t), P(x + w, y + d, t), P(x, y + d, t)], c);
+      }
+    } else {
+      const sorted = [...list].sort((a, b) => (a.layer - b.layer) || (a.layer ? (a.z + a.h) - (b.z + b.h) : 0));
+      for (const b of sorted) {
+        const [x0, y0] = P(b.x, b.y), [x1, y1] = P(b.x + b.w, b.y + b.d);
+        ctx.fillStyle = b.c;
+        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+        if (b.layer === 1 && b.h > 1.5) {
+          ctx.strokeStyle = shade(b.c, 0.7);
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x0 + 0.5, y0 + 0.5, x1 - x0 - 1, y1 - y0 - 1);
+        }
+      }
+      // Scale bar: 10 units = 40 studs
+      const [a] = P(0, 0), [bq] = P(10, 0);
+      const bx = 16, by = cssH - 18, len = bq - a;
+      ctx.fillStyle = "rgba(255,255,255,.9)";
+      ctx.fillRect(bx - 6, by - 20, len + 72, 28);
+      ctx.fillStyle = "#1d2a22";
+      ctx.fillRect(bx, by - 4, len, 4);
+      ctx.font = "600 12px 'JetBrains Mono', monospace";
+      ctx.textBaseline = "middle";
+      ctx.fillText("40 studs", bx + len + 6, by - 3);
+    }
+
+    if (state.labels) {
+      ctx.font = "500 13px 'Mitr', system-ui, sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      for (const l of labs) {
+        const [x, y] = state.mode === "iso" ? P(l.x, l.y, l.z) : P(l.x, l.y);
+        const tw = ctx.measureText(l.text).width + 16;
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.beginPath();
+        ctx.roundRect(x - tw / 2, y - 11, tw, 22, 11);
+        ctx.fill();
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = "#1d2a22";
+        ctx.fillText(l.text, x, y + 1);
+      }
+      ctx.textAlign = "start";
+    }
+  }
+
+  const btnIso = document.getElementById("btn-iso");
+  const btnTop = document.getElementById("btn-top");
+  const btnLbl = document.getElementById("btn-lbl");
+  const setMode = m => {
+    state.mode = m;
+    btnIso.setAttribute("aria-pressed", String(m === "iso"));
+    btnTop.setAttribute("aria-pressed", String(m === "top"));
+    draw();
+  };
+  btnIso.addEventListener("click", () => setMode("iso"));
+  btnTop.addEventListener("click", () => setMode("top"));
+  document.getElementById("btn-rot").addEventListener("click", () => { state.rot = (state.rot + 1) % 4; draw(); });
+  btnLbl.addEventListener("click", () => {
+    state.labels = !state.labels;
+    btnLbl.setAttribute("aria-pressed", String(state.labels));
+    draw();
+  });
+  window.addEventListener("resize", draw);
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>

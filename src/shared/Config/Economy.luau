@@ -6,8 +6,31 @@ return table.freeze({
 	StartingCoins = 0, -- [Proposed] ค่าตั้งต้น รอ Economy_Designer กำหนด
 	MaxCoins = 1_000_000_000, -- [Proposed] เพดานกันค่าล้น/เงินเฟ้อ
 
-	-- ตัวอย่างรายการสินค้า:
-	-- Items = table.freeze({
-	--     Sword = table.freeze({ Price = 100 }),
-	-- }),
+	-- [Proposed] ค่าชั่วคราวของ prototype ระบบป้อม
+	Turret = table.freeze({
+		UpgradeBaseCost = 25, -- ราคาอัปจาก Lv.1 → Lv.2
+		UpgradeCostGrowth = 1.5, -- ราคาเลเวลถัดไป = ราคาเดิม × ค่านี้
+	}),
+
+	MonsterReward = 5, -- เงินต่อมอน 1 ตัว แบ่งให้ผู้ตีตามสัดส่วนดาเมจ (ขั้นต่ำ 1 ต่อคน)
+
+	Boss = table.freeze({
+		BaseReward = 50, -- ทุกคนที่มีดาเมจ > 0 ได้เท่ากัน
+		DamageRewardPool = 300, -- แบ่งตามสัดส่วนดาเมจ
+		EscapeMoneyMultiplier = 0.5, -- บอสหนี: ได้เงินตามสูตรเดียวกัน × ค่านี้ และไม่ได้ตั๋ว (IDEA.md)
+	}),
+
+	Gacha = table.freeze({
+		TicketsPerBossKill = 1, -- ทุกคนที่มีดาเมจ > 0 เมื่อชนะบอส
+		TopBonusTickets = 1, -- โบนัสเพิ่มให้อันดับดาเมจ 1..TopBonusRanks
+		TopBonusRanks = 3,
+		MaxTickets = 100_000, -- เพดานกันค่าล้น
+		RollSizes = table.freeze({ 1, 10 }), -- จำนวนครั้งที่สุ่มได้ต่อคำขอ
+	}),
+
+	-- เพดานรวมคุมไว้ที่ Max เพื่อไม่ให้ตัวคูณซ้อนกันพุ่งเกิน
+	FriendBoost = table.freeze({
+		PerFriend = 0.1, -- +10% ต่อเพื่อน 1 คนในเซิร์ฟเดียวกัน
+		Max = 0.4, -- สูงสุด +40%
+	}),
 })
