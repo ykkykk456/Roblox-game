@@ -52,6 +52,7 @@
 
 | Skill | ใช้เมื่อ |
 |---|---|
+| `/roblox-design-thinking` | ยังไม่รู้จะสร้างอะไร หาไอเดีย หรือแก้ปัญหาผู้เล่น (Empathize → Define → Ideate → Prototype → Test) ก่อนส่งต่อ Workflow อื่น |
 | `/roblox-feature` | สร้างฟีเจอร์ใหม่ตั้งแต่ต้น (มีทั้งระบบและ UI) |
 | `/roblox-ui` | สร้างหรือแก้หน้าจอ UI |
 | `/roblox-bugfix` | แก้บั๊กที่มีอยู่แล้ว |
