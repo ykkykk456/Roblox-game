@@ -1,0 +1,676 @@
+<title>Meteor Crater Concepts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg: #f1f0f4;
+    --panel: #ffffff;
+    --ink: #1f1d29;
+    --muted: #625e72;
+    --line: #dcd9e4;
+    --accent: #6a3fc4;
+    --accent-ink: #ffffff;
+    --star: #b0520f;   --star-bg: #fcecdc;
+    --base: #2f7d3a;   --base-bg: #e1f1e3;
+    --idea: #2c62a8;   --idea-bg: #e0ebf8;
+    --cut: #8a8596;    --cut-bg: #ecebef;
+    --risk: #b3261e;   --risk-bg: #fbe3e0;
+    --sky-top: #cbd9ef;
+    --sky-bottom: #eeeaf5;
+    --chip: #f4f3f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #16151c; --panel: #1f1e27; --ink: #ebe9f2; --muted: #a6a1b6; --line: #33313f;
+      --accent: #a888f0; --accent-ink: #17131f;
+      --star: #f2a766; --star-bg: #3b2a1a; --base: #86d18f; --base-bg: #1e3222;
+      --idea: #8db8f0; --idea-bg: #1b2a3d; --cut: #9a96a6; --cut-bg: #2a2932;
+      --risk: #f29a92; --risk-bg: #3c1f1c;
+      --sky-top: #212b40; --sky-bottom: #1b1a24; --chip: #282733;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #16151c; --panel: #1f1e27; --ink: #ebe9f2; --muted: #a6a1b6; --line: #33313f;
+    --accent: #a888f0; --accent-ink: #17131f;
+    --star: #f2a766; --star-bg: #3b2a1a; --base: #86d18f; --base-bg: #1e3222;
+    --idea: #8db8f0; --idea-bg: #1b2a3d; --cut: #9a96a6; --cut-bg: #2a2932;
+    --risk: #f29a92; --risk-bg: #3c1f1c;
+    --sky-top: #212b40; --sky-bottom: #1b1a24; --chip: #282733;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans Thai", system-ui, sans-serif; font-size: 15px; line-height: 1.65; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 40px; }
+  section { display: grid; gap: 14px; }
+  header { display: grid; gap: 8px; }
+  .eyebrow, .mono, th, .step { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1, h2, h3 { font-family: "Mitr", "IBM Plex Sans Thai", system-ui, sans-serif; font-weight: 500; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(26px, 4.6vw, 40px); line-height: 1.2; }
+  h2 { font-size: 22px; }
+  h3 { font-size: 16.5px; }
+  p { margin: 0; max-width: 72ch; }
+  .muted { color: var(--muted); }
+  .step { font-size: 12px; color: var(--accent); letter-spacing: .06em; }
+  .h { display: grid; gap: 2px; }
+  code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; background: var(--chip); padding: 0 4px; border-radius: 4px; }
+  .tag { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; background: var(--chip); border: 1px solid var(--line); padding: 0 6px; border-radius: 6px; color: var(--muted); white-space: nowrap; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+  .card ul, .card ol { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .problem { font-family: "Mitr", system-ui, sans-serif; font-size: 18px; line-height: 1.5; font-weight: 400; }
+
+  .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 640px) { .matrix { grid-template-columns: 1fr; } }
+  .q { border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; border: 1px solid var(--line); }
+  .q h3 { font-size: 15px; }
+  .q.star { background: var(--star-bg); } .q.star h3 { color: var(--star); }
+  .q.base { background: var(--base-bg); } .q.base h3 { color: var(--base); }
+  .q.idea { background: var(--idea-bg); } .q.idea h3 { color: var(--idea); }
+  .q.cut  { background: var(--cut-bg); }  .q.cut h3  { color: var(--cut); }
+  .q ol { margin: 0; padding-left: 20px; display: grid; gap: 5px; font-size: 14px; }
+  .q small { color: var(--muted); }
+
+  .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .tab { text-align: left; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; cursor: pointer; display: grid; gap: 2px; }
+  .tab b { font-family: "Mitr", system-ui, sans-serif; font-weight: 500; font-size: 16px; }
+  .tab span { color: var(--muted); font-size: 13px; }
+  .tab[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .tab:focus-visible, .toolbar button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .stage { background: linear-gradient(var(--sky-top), var(--sky-bottom)); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; position: relative; }
+  .stage canvas { display: block; width: 100%; }
+  .toolbar { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+  .toolbar button { pointer-events: auto; font: 500 14px "Mitr", system-ui, sans-serif; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+  .toolbar button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { font-size: 13px; padding: 2px 10px; border-radius: 999px; background: var(--chip); border: 1px solid var(--line); }
+  .pill.good { background: var(--base-bg); color: var(--base); border-color: transparent; }
+  .pill.warn { background: var(--star-bg); color: var(--star); border-color: transparent; }
+
+  .tablebox { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 620px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  pre { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; overflow-x: auto; font: 13px/1.6 "JetBrains Mono", ui-monospace, monospace; }
+  pre .c { color: var(--muted); }
+  pre .n { color: var(--base); }
+
+  .warns { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .warns li { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+  .warns .sev { grid-row: span 2; font: 600 11px "JetBrains Mono", monospace; padding: 2px 8px; border-radius: 6px; height: fit-content; letter-spacing: .04em; }
+  .sev.hi { background: var(--risk-bg); color: var(--risk); }
+  .sev.md { background: var(--star-bg); color: var(--star); }
+  .sev.ok { background: var(--base-bg); color: var(--base); }
+  .warns b { font-weight: 600; }
+  .warns span { color: var(--muted); font-size: 14px; }
+  .status { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Design Thinking · แมพใหม่ + ข้อมูลผู้เล่น</div>
+    <h1>Meteor Crater Concepts</h1>
+    <p class="muted">ผังแบบวงล้อเดิมใช้ได้ แต่หน้าตาคล้ายเกมฟาร์มที่มีอยู่แล้ว หน้านี้คิดใหม่ตาม Design Thinking 5 ขั้น โดยเอาเสาพลังออก ให้กลางแมพเป็นแค่จุดที่บอสเกิด และตอบเรื่องอัปสกิลกับอัปตัวเองในมุมฐานข้อมูล</p>
+  </header>
+
+  <section>
+    <div class="h"><span class="step">STEP 1–2 · EMPATHIZE + DEFINE</span><h2>ผู้เล่นเป็นใคร และโจทย์คืออะไร</h2></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>ผู้เล่นหลัก <span class="tag">[Assumed]</span></h3>
+        <ul>
+          <li><b>ต้น, 11 ปี, มือถือ</b> เล่นครั้งละ 15–30 นาที เข้าตามเพื่อน ต้องเข้าใจในไม่กี่วินาที ไม่ชอบอ่านเยอะ</li>
+          <li><b>มายด์, 16 ปี, PC</b> อยากติดท็อปดาเมจ ชอบมีเป้าหมายระยะยาว ยอมเติมถ้าคุ้ม</li>
+          <li><b>คนเปิด AFK</b> เปิดทิ้งไว้ อยากได้ของโดยไม่โดนคนอื่นแย่งหรือกลั่นแกล้ง</li>
+        </ul>
+        <p class="muted" style="font-size:13px">ยังไม่ได้คุยกับผู้เล่นจริง ควรยืนยันจากเพื่อนหรือน้องที่เล่น Roblox 3–5 คน</p>
+      </div>
+      <div class="card">
+        <h3>Problem Statement</h3>
+        <p class="problem">ผู้เล่นอายุ 9–25 ต้องการแมพที่ดูครั้งแรกแล้วรู้ว่าเป็นเกมตีบอสด้วยป้อม และได้ของเท่าเทียมกัน เพราะผังฐานเรียงวงดูเหมือนเกมฟาร์ม และของที่ต้องแย่งกันทำให้คน AFK หรือเด็กเล็กเสียเปรียบ</p>
+        <h3>How Might We</h3>
+        <ol>
+          <li>ทำให้การมาของบอสเป็นภาพที่คนจำได้และแชร์ต่อ</li>
+          <li>ให้ทุกฐานได้ของเท่ากันโดยไม่ต้องแย่ง</li>
+          <li>ให้ภาพปกเกม (thumbnail) ต่างจากเกมฟาร์มทันที</li>
+          <li>ให้ผู้เล่นใหม่รู้ใน 30 วินาทีว่าฐานไหนของตัวเองและต้องทำอะไร</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="h"><span class="step">STEP 3 · IDEATE</span><h2>13 ไอเดีย จัดลงตาราง 4 ช่อง</h2></div>
+    <p class="muted">แกนตั้งถามว่าผู้เล่นจะตื่นเต้นไหม แกนนอนถามว่ามีเกมอื่นทำแล้วหรือยัง ชื่อเกมตัวอย่างเป็นความจำของผม ควรค้นใน Discovery ยืนยัน <span class="tag">[Unverified]</span></p>
+    <div class="matrix">
+      <div class="q star">
+        <h3>⭐ จุดขาย · น่าสนใจ + ใหม่</h3>
+        <ol>
+          <li><b>บอสอุกกาบาต</b> บอสพุ่งลงจากฟ้าลงหลุมกลางแมพ มีวงเงาเตือนก่อน 10 วินาที</li>
+          <li><b>สวนหลังบ้านส่วนตัว</b> ของเกิดในเขตหลังฐานใครฐานมัน ไม่มีการแย่ง</li>
+          <li><b>เศษอุกกาบาต</b> ตีบอสชนะแล้วเศษตกลงทุกฐานเท่ากัน เป็นของหายาก</li>
+          <li><b>ป้อมดาว 8 แฉก</b> แมพทั้งแมพเป็นรูปดาว 1 แฉก = 1 ฐาน จำจากภาพปกได้ทันที</li>
+        </ol>
+      </div>
+      <div class="q base">
+        <h3>✅ พื้นฐาน · น่าสนใจ + มีคนทำแล้ว</h3>
+        <ol start="5">
+          <li><b>ฐานล้อมรอบบอส</b> <small>เหมือนเกมฟาร์ม/tycoon</small></li>
+          <li><b>เดินเก็บของกลับมาขาย</b> <small>แนว Simulator</small></li>
+          <li><b>มอนเดินตามทางให้ป้อมยิง</b> <small>แนว Tower Defense</small></li>
+          <li><b>ท้องฟ้ามืดลงตอนบอสมา</b> <small>event ทั่วไป ทำง่าย ได้บรรยากาศ</small></li>
+        </ol>
+      </div>
+      <div class="q idea">
+        <h3>💡 ปรับก่อน · ใหม่แต่ยังมีปัญหา</h3>
+        <ol start="9">
+          <li><b>เกาะลอย + สะพาน</b> สวยมาก แต่มือถือกระโดดพลาดตกบ่อย</li>
+          <li><b>ฐานหมุนเหมือนม้าหมุน</b> ผู้เล่นยืนบนพื้นที่เคลื่อนที่ ฟิสิกส์มีปัญหา</li>
+          <li><b>หุบก้นหอย</b> มอนเดินวนเข้าหาบอส แต่ฐานห่างบอสไม่เท่ากัน</li>
+        </ol>
+      </div>
+      <div class="q cut">
+        <h3>✖ ตัดทิ้ง</h3>
+        <ol start="12">
+          <li><b>เสาพลังกลาง</b> <small>คุณตัดสินแล้ว: ทำให้เหลื่อมล้ำ</small></li>
+          <li><b>บอสเกิดสุ่มใกล้ฐานใดฐานหนึ่ง</b> <small>ไม่ยุติธรรม และไม่ใหม่</small></li>
+        </ol>
+      </div>
+    </div>
+    <div class="card">
+      <h3>สูตรที่แนะนำ</h3>
+      <p>ใช้แกน ✅ ข้อ 5+6+7 ที่ผู้เล่นคุ้นอยู่แล้ว แล้วเติมจุดขาย ⭐ ข้อ 1+2 คือ <b>"หลุมอุกกาบาต"</b> ด้านล่าง ถ้าอยากให้ภาพปกแปลกกว่านี้ให้ใช้ข้อ 4 <b>"ป้อมดาว"</b> สองแบบนี้ใช้สวนหลังบ้านส่วนตัวได้เหมือนกัน</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="h"><span class="step">STEP 4 · PROTOTYPE</span><h2>3 แมพต้นแบบ</h2></div>
+    <div class="tabs" role="tablist" aria-label="แบบแมพ" id="tabs"></div>
+    <div class="stage">
+      <div class="toolbar" role="toolbar" aria-label="มุมมอง">
+        <button id="btn-rot" type="button">หมุน 90°</button>
+        <button id="btn-lbl" type="button" aria-pressed="true">ป้ายชื่อ</button>
+      </div>
+      <canvas id="map" aria-label="ภาพสเก็ตช์แมพ"></canvas>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3 id="v-name"></h3>
+        <p id="v-lead"></p>
+        <div class="meta" id="v-meta"></div>
+      </div>
+      <div class="card"><h3>ผู้เล่นทำอะไร (30 วินาทีแรก)</h3><ol id="v-flow"></ol></div>
+      <div class="card"><h3>ข้อควรระวัง</h3><ul id="v-cons"></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="h"><span class="step">ข้อมูลผู้เล่น</span><h2>ร้านอัปสกิล กับ อัปตัวเอง</h2></div>
+    <p>ทั้งสองอย่างต้องเก็บใน DataStore แต่ความเสี่ยงต่างกันมาก ผมแนะนำให้ <b>แยกเป็นคนละตาราง</b> และให้ <b>อัปที่ฐานตัวเอง</b> (ป้ายอัปเกรดหน้าบ้าน) แทนร้านกลางแมพ เพราะกลางแมพเหลือไว้ให้บอสอย่างเดียว และไม่มีใครไปยืนบังร้าน</p>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th></th><th>อัปตัวเอง (ซื้อด้วยเงิน)</th><th>สกิลป้อม (กาชา)</th></tr></thead>
+        <tbody>
+          <tr><td>ตัวอย่าง</td><td>ป้อม · กระเป๋า · แม็กกาซีน · บ้าน · ความเร็วเดิน</td><td>Overdrive, HeavyRounds, BossBreaker …</td></tr>
+          <tr><td>ได้มาอย่างไร</td><td>จ่ายเงินตามราคาใน <code>Economy.luau</code> ได้แน่นอน</td><td>สุ่มจากตั๋ว ได้ซ้ำได้</td></tr>
+          <tr><td>เก็บอะไร</td><td>เลขเลเวลอย่างเดียว เช่น <code>Bag = 3</code></td><td>เลเวล + จำนวนชิ้นซ้ำ ต่อสกิล (มีแล้วใน v3)</td></tr>
+          <tr><td>ความเสี่ยง</td><td>ต่ำ: ผิดพลาดก็แค่เลเวลเพี้ยน คำนวณใหม่ได้</td><td>สูง: ถ้าขายตั๋วด้วย Robux เงินจริงเกี่ยว ต้องกันได้ของซ้ำ/ไม่ได้ของ</td></tr>
+          <tr><td>อยู่ตรงไหนในแมพ</td><td>ป้ายอัปเกรดหน้าบ้านของตัวเอง</td><td>ตู้กาชาข้างบ้าน (หรือเมนูในจอ)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>โครงข้อมูลที่เสนอ (v4) <span class="tag">[Proposed]</span></h3>
+    <pre><span class="c">-- ของเดิม v3 (ห้ามเปลี่ยนชื่อ ห้ามลบ)</span>
+Version = 4,
+Coins = 0,
+TurretLevel = 1,
+GachaTickets = 0,
+Skills = { Overdrive = { Level = 1, Copies = 0 } },
+EquippedSkill = "Overdrive",
+
+<span class="c">-- ของใหม่ v4: เพิ่มใน DEFAULT + เขียน MIGRATIONS[3]</span>
+<span class="n">Upgrades</span> = { Bag = 1, Magazine = 1, House = 1, Speed = 1 },  <span class="c">-- เก็บเลเวล ไม่เก็บค่าพลัง</span>
+<span class="n">Gear</span> = { Barrel_Common = 0 },                              <span class="c">-- "ช่อง_ระดับ" = จำนวน</span>
+<span class="n">Rebirths</span> = 0,
+<span class="n">LastSeen</span> = 0,                                                <span class="c">-- os.time() ของ Server ใช้คิดเงิน idle ตอนออฟไลน์</span>
+<span class="n">Login</span> = { Day = 0, Streak = 0 },                               <span class="c">-- Day = เลขวัน UTC ไม่ใช่วันที่แบบข้อความ</span></pre>
+    <p class="muted">ป้อมมี <code>TurretLevel</code> อยู่แล้ว ให้คงไว้ที่เดิม ไม่ต้องย้ายเข้า <code>Upgrades</code> ย้ายตอนนี้ได้ประโยชน์น้อยแต่ต้องเขียน migration เพิ่มโดยไม่จำเป็น</p>
+  </section>
+
+  <section>
+    <div class="h"><span class="step">เตือนล่วงหน้า</span><h2>เรื่องข้อมูลที่มือใหม่มักพลาด</h2></div>
+    <p class="muted">เรียงจากเสียหายมากไปน้อย ติ๊กเขียว = โค้ดตอนนี้ทำถูกแล้ว ให้รักษาไว้</p>
+    <ul class="warns">
+      <li><span class="sev hi">สำคัญมาก</span><b>ขายตั๋วกาชาด้วย Robux ต้องบันทึกให้สำเร็จก่อนตอบว่า "ให้ของแล้ว"</b><span><code>ProcessReceipt</code> ต้องเพิ่มตั๋วลงข้อมูลและบันทึกผ่านก่อน จึงคืนค่า <code>PurchaseGranted</code> และต้องจำ PurchaseId ที่ให้ไปแล้วเพื่อไม่ให้ได้ซ้ำ ถ้าพลาดคือผู้เล่นจ่ายเงินแล้วไม่ได้ของ <span class="tag">[Verified]</span></span></li>
+      <li><span class="sev hi">สำคัญมาก</span><b>ยังไม่มี session lock ต้องทำก่อนเปิดแลกเปลี่ยนอุปกรณ์</b><span>ถ้าผู้เล่นย้ายเซิร์ฟเร็วๆ เซิร์ฟเก่าอาจบันทึกทับข้อมูลใหม่ ของที่ส่งให้คนอื่นแล้วจะกลับมา (ของซ้ำ) <code>PlayerData.luau</code> เขียนเตือนไว้แล้ว <span class="tag">[Inferred]</span></span></li>
+      <li><span class="sev hi">สำคัญมาก</span><b>เพิ่ม field ใหม่ทุกครั้ง ต้องครบ 3 อย่าง</b><span>เพิ่มใน <code>DEFAULT</code> · เพิ่ม <code>VERSION</code> ขึ้น 1 · เขียน <code>MIGRATIONS[เลขเดิม]</code> ห้ามเปลี่ยนชื่อหรือลบ field เดิมโดยไม่มี migration ไม่งั้นของผู้เล่นเก่าหาย</span></li>
+      <li><span class="sev md">ควรระวัง</span><b>ทดสอบใน Studio แยก DataStore จากของจริง</b><span>Studio ที่เปิด API Access ใช้ DataStore เดียวกับเกมจริง ถ้าเทสต์แจกเงินตัวเองจะไปอยู่ในเกมจริงด้วย ควรใช้ชื่อ store แยกตอนอยู่ใน Studio เช่น <code>PlayerData_Dev</code> <span class="tag">[Inferred]</span></span></li>
+      <li><span class="sev md">ควรระวัง</span><b>เงิน idle ตอนออฟไลน์ ใช้เวลาของ Server และมีเพดาน</b><span>ใช้ <code>os.time()</code> ฝั่ง Server เท่านั้น (ห้ามรับเวลาจาก Client) และจำกัดชั่วโมงสูงสุด ไม่งั้นคนหายไปเดือนเดียวกลับมารวยทันที</span></li>
+      <li><span class="sev md">ควรระวัง</span><b>Rebirth ต้องเขียนให้ชัดว่าอะไรรีเซ็ต อะไรเก็บไว้</b><span>ทำเป็นรายการใน Config เช่น รีเซ็ต Coins / TurretLevel / Upgrades · เก็บ Skills / Gear / Rebirths ทำในคำสั่ง update เดียว</span></li>
+      <li><span class="sev md">ควรระวัง</span><b>ตาราง key ต้องเป็นข้อความทั้งหมด หรือเป็นลำดับ 1,2,3 ไม่มีช่องว่าง</b><span>ตารางที่ key ผสมเลขกับข้อความ หรือเลขข้ามช่อง จะบันทึกไม่ได้หรือข้อมูลหาย เก็บ Instance/Color3/Vector3 ลงไปตรงๆ ก็ไม่ได้ <span class="tag">[Verified]</span></span></li>
+      <li><span class="sev md">ควรระวัง</span><b>ตารางคะแนนดาเมจของแต่ละบอสไม่ต้องบันทึก</b><span>เป็นข้อมูลรอบเดียว ถ้าจะมีกระดานอันดับทั้งเกมให้ใช้ OrderedDataStore แยก ไม่ยัดรวมในข้อมูลผู้เล่น</span></li>
+      <li><span class="sev ok">ทำถูกแล้ว</span><b>ซื้อของ = เช็กเงิน + หักเงิน + ให้ของ ใน update เดียว</b><span><code>TurretService.upgrade</code> ทำแบบนี้แล้ว ระบบ Upgrades ใหม่ให้เขียนแบบเดียวกัน ราคาดึงจาก Config ไม่รับราคาจาก Client</span></li>
+      <li><span class="sev ok">ทำถูกแล้ว</span><b>โหลดไม่สำเร็จไม่บันทึกทับ · ครอบ pcall + retry · ตรวจชนิดข้อมูลที่โหลดมา</b><span>มีครบใน <code>PlayerData.luau</code></span></li>
+      <li><span class="sev ok">ทำถูกแล้ว</span><b>เก็บเลเวล ไม่เก็บค่าพลัง</b><span>ดาเมจคำนวณจาก <code>TurretLevel</code> + Config ทำให้ปรับ Balance ได้โดยไม่ต้องแก้ข้อมูลผู้เล่น</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="h"><span class="step">STEP 5 · TEST</span><h2>ทดสอบแบบหลุมอุกกาบาต ก่อนเขียนโค้ด</h2></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Greybox ใน Studio (วางบล็อกเปล่า)</h3>
+        <ol>
+          <li>พื้น 362×362 · หลุมกลางรัศมี 38 ลึก 10 studs</li>
+          <li>ลานฐาน 44×44 จำนวน 8 ลาน ห่างกลาง 66 studs</li>
+          <li>บล็อกแทนป้อม 6×6 สูง 5 ที่ขอบหลุม ห่างกลาง 46 studs</li>
+          <li>สวนหลังบ้าน: เขตรูปพัด 36° หลังฐาน รัศมี 94–172</li>
+          <li>ลูกบาศก์ 14×14 ลอยกลางหลุมแทนบอส</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>สมมติฐาน + สิ่งที่ต้องดู</h3>
+        <ul>
+          <li>ผู้เล่นใหม่หาฐานตัวเองเจอใน 10 วินาที</li>
+          <li>ยืนที่ฐานแล้วมองเห็นบอสในหลุมชัดทั้ง PC และมือถือ (Device Emulator)</li>
+          <li>เดินจากสวนหลังบ้านกลับฐานไม่เกิน 10 วินาที</li>
+          <li>ผู้เล่น 8 คน (Test → Clients and Servers) ไม่เดินชนกันที่ขอบหลุม</li>
+          <li>ผ่าน → ส่งต่อ <code>/roblox-map</code> · ไม่ผ่าน → กลับไปเลือกป้อมดาว</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>สรุปที่ตกลงกันแล้ว / ยังเปิดอยู่</h2>
+    <div class="status">
+      <div class="card">
+        <h3>ตัดสินแล้ว</h3>
+        <ul>
+          <li>ผู้เล่น 8 คน คนละ 1 ฐาน มีป้อมเริ่มต้น</li>
+          <li>ผังวงกลมใช้ได้ แต่หน้าตาต้องไม่เหมือนเกมฟาร์ม</li>
+          <li>ไม่มีเสาพลัง กลางแมพเป็นจุดบอสเกิดอย่างเดียว</li>
+          <li>ทุกฐานต้องเท่าเทียมกัน</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>ยังเปิดอยู่</h3>
+        <ul>
+          <li>เลือกแมพไหน: หลุมอุกกาบาต / ป้อมดาว / เกาะลอย</li>
+          <li>ไม่มีเสาพลังแล้ว "บอสพิเศษ" ใน <code>IDEA.md</code> จะเรียกด้วยอะไร (ตัดทิ้ง หรือเกิดตามเวลา)</li>
+          <li>ของในสวนหลังบ้านส่วนตัวทั้งหมด หรือมีโซนกลางให้เก็บร่วมด้วย</li>
+          <li>ยืนยันโครงข้อมูล v4 ก่อนเริ่มเขียนโค้ด</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const C = {
+    grass: "#6bbf4e", grassDark: "#58a83f", lane: "#b08a5c", stone: "#cfc7b3", stoneDark: "#a9a08a",
+    padFloor: "#e9e3d3", wall: "#f7f1e3", pedestal: "#464a56", crate: "#9a6a3c", sell: "#f5cf45",
+    boss: "#8a3cc8", monster: "#d34a4a", item: "#7cc7ee", rare: "#f5c431", shard: "#ff8a3d",
+    trunk: "#7a5234", leaf1: "#3e8e3a", leaf2: "#4fa746", leaf3: "#5cb850",
+    pitFloor: "#9b8a72", pitWall: "#7a6a55", rock: "#8c7d68", rockDark: "#6e6152",
+    fort: "#b9b4a8", cloud: "#eef1f6", cloudDark: "#c9cfdb", board: "#6a3fc4"
+  };
+  const PLAYER = ["#e0564a", "#3f8fd9", "#4db860", "#f2c23a", "#9a6bd8", "#f28c3a", "#e86fa8", "#34b5b0"];
+  const HALF = 181;
+
+  const mix = (hex, t) => {
+    const n = parseInt(hex.slice(1), 16);
+    const f = v => Math.round(v + (255 - v) * t);
+    return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
+  };
+  const ang = (a, r) => [Math.cos(a) * r, Math.sin(a) * r];
+
+  function newWorld() {
+    let seed = 23;
+    const w = { boxes: [], flats: [], labels: [], pit: null, noGround: false };
+    w.rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    w.box = (x, y, z, sx, sy, h, c, o = {}) => w.boxes.push({ x: x - sx / 2, y: y - sy / 2, z, w: sx, d: sy, h, c, bias: 0, ...o });
+    w.flat = (pts, c, z = 0) => w.flats.push({ pts, c, z });
+    w.circle = (cx, cy, r, c, z = 0, n = 56) => w.flat(Array.from({ length: n }, (_, i) => [cx + Math.cos(i / n * 6.2832) * r, cy + Math.sin(i / n * 6.2832) * r]), c, z);
+    w.ring = (r0, r1, a0, a1, c, z = 0, n = 16) => {
+      const pts = [];
+      for (let i = 0; i <= n; i++) pts.push(ang(a0 + (a1 - a0) * i / n, r1));
+      for (let i = n; i >= 0; i--) pts.push(ang(a0 + (a1 - a0) * i / n, r0));
+      w.flat(pts, c, z);
+    };
+    w.label = (text, x, y, z, color) => w.labels.push({ text, x, y, z, color });
+    return w;
+  }
+
+  function trees(w, reach = 200) {
+    const tree = (x, y, s) => {
+      const t = (6 + w.rnd() * 4) * s;
+      w.box(x, y, 0, 3 * s, 3 * s, t, C.trunk);
+      let z = t, size = 17 * s;
+      const tiers = w.rnd() > 0.5 ? 3 : 2;
+      for (let i = 0; i < tiers; i++) {
+        const hh = (6 + w.rnd() * 2) * s;
+        w.box(x, y, z, size, size, hh, [C.leaf1, C.leaf2, C.leaf3][i]);
+        z += hh; size *= 0.65;
+      }
+    };
+    for (let a = -reach - 5; a <= reach + 5; a += 22 + w.rnd() * 8) {
+      tree(a, -reach - w.rnd() * 8, 0.8 + w.rnd() * 0.4);
+      tree(a, reach + w.rnd() * 8, 0.8 + w.rnd() * 0.4);
+    }
+    for (let a = -reach + 20; a <= reach - 20; a += 22 + w.rnd() * 8) {
+      tree(-reach - w.rnd() * 8, a, 0.8 + w.rnd() * 0.4);
+      tree(reach + w.rnd() * 8, a, 0.8 + w.rnd() * 0.4);
+    }
+  }
+
+  // Base: pad centred on (cx, cy), (ux, uy) points to the map centre, turret at (tx, ty).
+  function base(w, i, cx, cy, ux, uy, tx, ty, z = 0) {
+    const col = PLAYER[i], px = -uy, py = ux, s = 22;
+    const corner = (a, b) => [cx + ux * a + px * b, cy + uy * a + py * b];
+    w.flat([corner(s, s), corner(s, -s), corner(-s, -s), corner(-s, s)], col, z);
+    w.flat([corner(s - 2.5, s - 2.5), corner(s - 2.5, -s + 2.5), corner(-s + 2.5, -s + 2.5), corner(-s + 2.5, s - 2.5)], C.padFloor, z);
+    const sp = corner(-9, 13);
+    w.flat([[sp[0] - 4, sp[1] - 4], [sp[0] + 4, sp[1] - 4], [sp[0] + 4, sp[1] + 4], [sp[0] - 4, sp[1] + 4]], C.sell, z);
+    const h = corner(-9, -4);
+    w.box(h[0], h[1], z, 14, 14, 9, C.wall);
+    w.box(h[0], h[1], z + 9, 16, 16, 3, col);
+    w.box(h[0], h[1], z + 12, 8, 8, 2.5, mix(col, 0.25));
+    const up = corner(8, -14);
+    w.box(up[0], up[1], z, 1, 1, 5, C.pedestal);
+    w.box(up[0], up[1], z + 5, 3.5, 3.5, 3, C.board);
+    w.box(tx, ty, z, 6, 6, 5, C.pedestal);
+    w.box(tx, ty, z + 5, 3.4, 3.4, 2.5, col);
+    w.box(tx + ux * 3, ty + uy * 3, z + 5.8, 1.3, 1.3, 1.1, "#2a2d35");
+    w.box(tx - px * 7, ty - py * 7, z, 4, 4, 3, C.crate);
+    w.label("ฐาน " + (i + 1), cx - ux * 4, cy - uy * 4, z + 22, col);
+  }
+  function items(w, n, inside, z = 0) {
+    let placed = 0, guard = 0;
+    while (placed < n && guard++ < n * 80) {
+      const x = (w.rnd() * 2 - 1) * HALF, y = (w.rnd() * 2 - 1) * HALF;
+      if (!inside(x, y)) continue;
+      const rare = w.rnd() < 0.1;
+      w.box(x, y, z, rare ? 2.6 : 2, rare ? 2.6 : 2, rare ? 2.6 : 1.8, rare ? C.rare : C.item);
+      placed++;
+    }
+  }
+
+  const VARIANTS = [
+    {
+      id: "crater",
+      name: "หลุมอุกกาบาต",
+      short: "แนะนำ · บอสพุ่งลงหลุมกลางแมพ",
+      lead: "กลางแมพเป็นหลุมอุกกาบาตกว้าง 76 studs ทุกรอบบอสพุ่งลงจากฟ้าลงหลุม ป้อมทั้ง 8 ตั้งเรียงที่ขอบหลุมยิงลงไป มอนคลานวนอยู่ในก้นหลุม หลังฐานแต่ละฐานมีสวนรูปพัดสีของเจ้าของ ของเกิดเท่ากันทุกฐาน",
+      meta: [["ยาก: ปานกลาง", ""], ["ใหม่: สูง", "good"], ["ยิงถึงด้วย Range 60 เดิม", "good"], ["มอนเปลี่ยนเป็นเดินวงกลม", "warn"]],
+      flow: ["เกิดที่ฐานตัวเอง ขอบฐานเป็นสีของเรา", "เดินออกหลังบ้าน เก็บของในสวนสีเดียวกับฐาน", "กลับมาเดินทับแผ่นเหลืองเพื่อขาย หรือเติมลังกระสุน", "ฟ้ามืด วงเงาโผล่ในหลุม บอสพุ่งลงมา ป้อมยิงอัตโนมัติ"],
+      cons: ["หลุมต้องลึกพอให้มอนไม่เดินขึ้นมาในฐาน แต่ตื้นพอให้มองเห็นจากทุกฐาน", "ต้องกันผู้เล่นตกหลุม (รั้วเตี้ยหรือทางลาดเดินขึ้นได้)", "โค้ดวางป้อมเป็นวงอยู่แล้ว แต่ต้องแก้ Slots 12 → 8 และทางมอน"],
+      build(w) {
+        w.pit = { r: 38, depth: 10 };
+        w.boxes.push({ x: -222, y: -222, z: -12, w: 444, d: 444, h: 12, c: C.grassDark, bias: 0, ground: true });
+        w.flat([[-HALF, -HALF], [HALF, -HALF], [HALF, HALF], [-HALF, HALF]], C.grass, 0);
+        w.circle(0, 0, 42, C.rock, 0);
+        for (let i = 0; i < 8; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 4;
+          w.ring(94, 172, a - 0.31, a + 0.31, mix(PLAYER[i], 0.72));
+          items(w, 11, (x, y) => {
+            const r = Math.hypot(x, y); let d = Math.atan2(y, x) - a;
+            d = Math.atan2(Math.sin(d), Math.cos(d));
+            return r > 98 && r < 168 && Math.abs(d) < 0.27;
+          });
+          const [cx, cy] = ang(a, 68), [tx, ty] = ang(a, 46);
+          base(w, i, cx, cy, -Math.cos(a), -Math.sin(a), tx, ty);
+        }
+        // pit contents
+        w.circle(0, 0, 26, "#8a7a62", -10);
+        w.circle(0, 0, 20, C.pitFloor, -10);
+        w.circle(0, 0, 13, "rgba(40,20,60,.35)", -10);
+        for (let k = 0; k < 6; k++) { const [x, y] = ang(k * 1.05 + 0.3, 23); w.box(x, y, -10, 3.2, 3.2, 3.2, C.monster, { pitObj: true }); }
+        w.box(0, 0, 6, 14, 14, 14, C.boss, { bias: 400 });
+        [[34, -34, 46], [52, -52, 62], [68, -68, 78]].forEach(([x, y, z], k) => w.box(x, y, z, 6 - k * 1.5, 6 - k * 1.5, 6 - k * 1.5, k ? mix(C.shard, k * 0.3) : C.shard, { bias: 400 }));
+        w.label("บอสพุ่งลงหลุม", 0, 0, 30, C.boss);
+        w.label("สวนหลังบ้านฐาน 1", 0, -135, 3, PLAYER[0]);
+        trees(w);
+      }
+    },
+    {
+      id: "star",
+      name: "ป้อมดาว 8 แฉก",
+      short: "แมพเป็นรูปดาว 1 แฉก = 1 ฐาน",
+      lead: "ขอบแมพเป็นกำแพงรูปดาว 8 แฉก แต่ละแฉกคือเขตของผู้เล่น 1 คน ปลายแฉกเป็นสวนเก็บของส่วนตัว กลางดาวเป็นลานโล่งให้บอสเกิด มอนเข้าทางประตูที่ซอกระหว่างแฉก เดินผ่านกลางแล้วออกประตูฝั่งตรงข้าม",
+      meta: [["ยาก: ง่าย", "good"], ["ใหม่: สูง (ภาพปกจำง่าย)", "good"], ["ยิงถึงด้วย Range 60 เดิม", "good"], ["มอนเกิดที่ประตู 8 จุด", "warn"]],
+      flow: ["เกิดที่ฐานในแฉกของตัวเอง กำแพงสองข้างบอกเขตชัดเจน", "เดินไปปลายแฉก เก็บของในสวนส่วนตัว", "กลับมาขายที่ฐาน อัปป้อมที่ป้ายอัปเกรด", "บอสเกิดกลางดาว ทุกฐานห่างเท่ากัน"],
+      cons: ["กำแพงบังวิวบางมุม กล้องมือถือต้องเทสต์", "มอนเดินผ่านกลางลาน อาจบังบอสตอนสู้ (ให้มอนหยุดเกิดช่วงบอสได้)"],
+      build(w) {
+        w.boxes.push({ x: -222, y: -222, z: -3, w: 444, d: 444, h: 3, c: C.grassDark, bias: 0, ground: true });
+        w.flat([[-HALF, -HALF], [HALF, -HALF], [HALF, HALF], [-HALF, HALF]], C.grassDark, 0);
+        const outer = 176, inner = 96, pts = [];
+        for (let k = 0; k < 16; k++) pts.push(ang(-Math.PI / 2 + k * Math.PI / 8, k % 2 ? inner : outer));
+        w.flat(pts, C.grass, 0);
+        for (let i = 0; i < 8; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 4;
+          const tip = ang(a, outer - 6), l = ang(a - Math.PI / 8, inner + 4), r = ang(a + Math.PI / 8, inner + 4);
+          w.flat([tip, l, ang(a, 100), r], mix(PLAYER[i], 0.72), 0);
+          items(w, 10, (x, y) => {
+            const rr = Math.hypot(x, y); let d = Math.atan2(y, x) - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+            return rr > 106 && rr < 160 && Math.abs(d) < 0.3 * (1 - (rr - 106) / 80);
+          });
+        }
+        w.circle(0, 0, 30, C.stone, 0);
+        w.circle(0, 0, 14, "rgba(40,20,60,.25)", 0);
+        // walls along star edges, leaving a gate at each inner vertex
+        for (let k = 0; k < 16; k++) {
+          const p0 = pts[k], p1 = pts[(k + 1) % 16];
+          const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+          for (let t = 0; t < len; t += 6) {
+            const f = t / len, x = p0[0] + (p1[0] - p0[0]) * f, y = p0[1] + (p1[1] - p0[1]) * f;
+            const innerEnd = k % 2 ? f : 1 - f;
+            if (innerEnd * len < 12) continue;
+            w.box(x, y, 0, 4.5, 4.5, 7, C.fort);
+          }
+        }
+        for (let i = 0; i < 8; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 4, [cx, cy] = ang(a, 70), [tx, ty] = ang(a, 46);
+          base(w, i, cx, cy, -Math.cos(a), -Math.sin(a), tx, ty);
+          const g = ang(a + Math.PI / 8, inner);
+          w.box(g[0], g[1], 0, 3, 3, 12, C.rockDark);
+        }
+        [[1, 110], [1, 60], [5, 20], [3, 140], [6, 85]].forEach(([k, r]) => { const [x, y] = ang(-Math.PI / 2 + Math.PI / 8 + k * Math.PI / 4, r); w.box(x, y, 0, 3.2, 3.2, 3.2, C.monster); });
+        w.box(0, 0, 7, 14, 14, 14, C.boss, { bias: 400 });
+        w.label("บอสเกิดกลางดาว", 0, 0, 28, C.boss);
+        w.label("ประตูมอน", ...ang(-Math.PI / 2 + Math.PI / 8, 104), 14, C.monster);
+        w.label("สวนปลายแฉก", 0, -140, 3, PLAYER[0]);
+        trees(w, 200);
+      }
+    },
+    {
+      id: "islands",
+      name: "เกาะลอย",
+      short: "ต้องปรับก่อน · สวยแต่เล่นยากบนมือถือ",
+      lead: "ทุกฐานเป็นเกาะลอยฟ้า เชื่อมกันด้วยสะพานไม้เป็นวง กลางวงเป็นเมฆพายุที่บอสโผล่ออกมา มอนเป็นนกบินวนรอบเมฆ สวนเก็บของอยู่ครึ่งหลังของเกาะตัวเอง",
+      meta: [["ยาก: ยาก", "warn"], ["ใหม่: สูง", "good"], ["ยิงถึงด้วย Range 60 เดิม", "good"], ["ต้องมีระบบตกเกาะ + เกิดใหม่", "warn"]],
+      flow: ["เกิดบนเกาะตัวเอง", "เก็บของหลังเกาะ", "ข้ามสะพานไปเยี่ยมเพื่อนได้", "บอสโผล่จากเมฆกลาง"],
+      cons: ["มือถือกระโดดพลาดตกบ่อย เด็กเล็กหงุดหงิด", "มอนบินต้องเขียนระบบเคลื่อนที่ใหม่ทั้งหมด", "ต้องมี KillZone ใต้แมพ และส่งกลับฐาน"],
+      build(w) {
+        w.noGround = true;
+        for (let i = 0; i < 8; i++) {
+          const a = -Math.PI / 2 + i * Math.PI / 4, [cx, cy] = ang(a, 92);
+          w.boxes.push({ x: cx - 34, y: cy - 34, z: -8, w: 68, d: 68, h: 8, c: C.grass, bias: 0, ground: true });
+          w.boxes.push({ x: cx - 26, y: cy - 26, z: -20, w: 52, d: 52, h: 12, c: C.rock, bias: 0, ground: true, under: true });
+          w.boxes.push({ x: cx - 14, y: cy - 14, z: -32, w: 28, d: 28, h: 12, c: C.rockDark, bias: 0, ground: true, under: true });
+          const ux = -Math.cos(a), uy = -Math.sin(a);
+          w.flat([[cx - 32, cy - 32], [cx + 32, cy - 32], [cx + 32, cy + 32], [cx - 32, cy + 32]], mix(PLAYER[i], 0.72), 0);
+          base(w, i, cx + ux * 8, cy + uy * 8, ux, uy, cx + ux * 30, cy + uy * 30);
+          items(w, 7, (x, y) => {
+            const dx = x - cx, dy = y - cy, back = -(dx * ux + dy * uy);
+            return Math.abs(dx) < 30 && Math.abs(dy) < 30 && back > 16;
+          });
+          const b = -Math.PI / 2 + (i + 0.5) * Math.PI / 4, [bx, by] = ang(b, 96);
+          w.box(bx, by, -1.2, 14, 14, 1.2, C.crate);
+        }
+        for (let k = 0; k < 14; k++) {
+          const [x, y] = ang(k * 0.45, 12 + (k % 3) * 7);
+          w.box(x, y, -2 + (k % 2) * 3, 16 - (k % 3) * 3, 16 - (k % 3) * 3, 7, k % 2 ? C.cloud : C.cloudDark);
+        }
+        for (let k = 0; k < 7; k++) { const [x, y] = ang(k * 0.9, 50); w.box(x, y, 6 + (k % 3) * 2, 3.4, 3.4, 2, C.monster); }
+        w.box(0, 0, 10, 14, 14, 14, C.boss, { bias: 400 });
+        w.label("บอสโผล่จากเมฆ", 0, 0, 32, C.boss);
+        w.label("สะพาน", ...ang(-Math.PI / 2 + Math.PI / 8, 96), 4, C.crate);
+      }
+    }
+  ];
+
+  // Rendering ------------------------------------------------------------
+  const canvas = document.getElementById("map");
+  const ctx = canvas.getContext("2d");
+  const state = { v: 0, rot: 0, labels: true };
+  const worlds = VARIANTS.map(v => { const w = newWorld(); v.build(w); return w; });
+
+  const shade = (col, f) => {
+    let r, g, b, a = 1;
+    if (col.startsWith("rgb")) [r, g, b, a = 1] = col.match(/[\d.]+/g).map(Number);
+    else { const n = parseInt(col.slice(1), 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+    return `rgba(${Math.round(r * f)},${Math.round(g * f)},${Math.round(b * f)},${a})`;
+  };
+  const rotPt = (x, y, k) => { for (let i = 0; i < k; i++) [x, y] = [-y, x]; return [x, y]; };
+  const rotBox = (b, k) => {
+    const pts = [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.d], [b.x + b.w, b.y + b.d]].map(([x, y]) => rotPt(x, y, k));
+    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+    const x = Math.min(...xs), y = Math.min(...ys);
+    return { ...b, x, y, w: Math.max(...xs) - x, d: Math.max(...ys) - y };
+  };
+  const COS = Math.cos(Math.PI / 6), SIN = Math.sin(Math.PI / 6);
+  const depth = b => b.x + b.w / 2 + b.y + b.d / 2 + b.z * 0.01 + b.bias;
+
+  function draw() {
+    const world = worlds[state.v];
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.parentElement.clientWidth;
+    const cssH = Math.max(360, Math.min(cssW * 0.66, 780));
+    canvas.style.height = cssH + "px";
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const k = state.rot;
+    const boxes = world.boxes.map(b => rotBox(b, k));
+    const flats = world.flats.map(f => ({ ...f, pts: f.pts.map(([x, y]) => rotPt(x, y, k)) }));
+    const labs = world.labels.map(l => { const [x, y] = rotPt(l.x, l.y, k); return { ...l, x, y }; });
+    const proj = (x, y, z) => [(x - y) * COS, (x + y) * SIN - z];
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const b of boxes) for (const [x, y] of [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.d], [b.x + b.w, b.y + b.d]]) for (const z of [b.z, b.z + b.h]) {
+      const [px, py] = proj(x, y, z);
+      minX = Math.min(minX, px); maxX = Math.max(maxX, px); minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+    }
+    const padTop = 54, pad = 12;
+    const s = Math.min((cssW - pad * 2) / (maxX - minX), (cssH - padTop - pad) / (maxY - minY));
+    const ox = (cssW - (maxX - minX) * s) / 2 - minX * s;
+    const oy = padTop + (cssH - padTop - pad - (maxY - minY) * s) / 2 - minY * s;
+    const P = (x, y, z = 0) => { const [px, py] = proj(x, y, z); return [ox + px * s, oy + py * s]; };
+    const path = pts => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };
+    const poly = (pts, fill) => { path(pts); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = fill; ctx.lineWidth = 0.5; ctx.stroke(); };
+    const drawBox = b => {
+      const { x, y, z, w, d, h, c } = b, t = z + h;
+      poly([P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, t), P(x, y + d, t)], shade(c, 0.8));
+      poly([P(x + w, y, z), P(x + w, y + d, z), P(x + w, y + d, t), P(x + w, y, t)], shade(c, 0.66));
+      poly([P(x, y, t), P(x + w, y, t), P(x + w, y + d, t), P(x, y + d, t)], c);
+    };
+
+    const ground = boxes.filter(b => b.ground).sort((a, b) => depth(a) - depth(b));
+    const pitObjs = boxes.filter(b => b.pitObj);
+    const stand = boxes.filter(b => !b.ground && !b.pitObj).sort((a, b) => depth(a) - depth(b));
+    const pit = world.pit;
+
+    if (world.noGround) {
+      ground.filter(b => b.under).forEach(drawBox);
+      ground.filter(b => !b.under).forEach(drawBox);
+    } else {
+      ground.forEach(drawBox);
+    }
+
+    if (pit) {
+      // pit floor, far wall, then the ground with a hole cut out
+      const n = 64, rim = [], low = [];
+      for (let i = 0; i < n; i++) { const a = i / n * 6.2832; rim.push([Math.cos(a) * pit.r, Math.sin(a) * pit.r]); }
+      poly(rim.map(([x, y]) => P(x, y, -pit.depth)), C.pitFloor);
+      for (let i = 0; i < n; i++) {
+        const [x0, y0] = rim[i], [x1, y1] = rim[(i + 1) % n];
+        const lit = 0.75 + 0.25 * Math.cos(Math.atan2(y0, x0) + 2.3);
+        poly([P(x0, y0, 0), P(x1, y1, 0), P(x1, y1, -pit.depth), P(x0, y0, -pit.depth)], shade(C.pitWall, lit));
+      }
+      flats.filter(f => f.z < 0).forEach(f => poly(f.pts.map(([x, y]) => P(x, y, f.z)), f.c));
+      pitObjs.sort((a, b) => depth(a) - depth(b)).forEach(drawBox);
+      const g = flats.filter(f => f.z === 0);
+      const first = g[0];
+      ctx.beginPath();
+      first.pts.forEach(([x, y], i) => { const [sx, sy] = P(x, y, 0); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+      ctx.closePath();
+      rim.forEach(([x, y], i) => { const [sx, sy] = P(x, y, 0); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+      ctx.closePath();
+      ctx.fillStyle = first.c; ctx.fill("evenodd");
+      // rock rim ring
+      const outerR = 42;
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) { const a = i / n * 6.2832; const [sx, sy] = P(Math.cos(a) * outerR, Math.sin(a) * outerR, 0); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }
+      for (let i = n; i >= 0; i--) { const a = i / n * 6.2832; const [sx, sy] = P(Math.cos(a) * pit.r, Math.sin(a) * pit.r, 0); ctx.lineTo(sx, sy); }
+      ctx.closePath(); ctx.fillStyle = C.rock; ctx.fill();
+      g.slice(2).forEach(f => poly(f.pts.map(([x, y]) => P(x, y, 0)), f.c));
+    } else {
+      flats.forEach(f => poly(f.pts.map(([x, y]) => P(x, y, f.z)), f.c));
+    }
+    stand.forEach(drawBox);
+
+    if (state.labels) {
+      ctx.font = "500 12.5px 'Mitr', system-ui, sans-serif";
+      ctx.textBaseline = "middle"; ctx.textAlign = "center";
+      for (const l of labs) {
+        const [x, y] = P(l.x, l.y, l.z);
+        const tw = ctx.measureText(l.text).width + 14;
+        ctx.fillStyle = "rgba(255,255,255,.93)";
+        ctx.beginPath(); ctx.roundRect(x - tw / 2, y - 10.5, tw, 21, 10.5); ctx.fill();
+        ctx.strokeStyle = l.color; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = "#1f1d29"; ctx.fillText(l.text, x, y + 1);
+      }
+      ctx.textAlign = "start";
+    }
+  }
+
+  const $ = id => document.getElementById(id);
+  const tabs = $("tabs");
+  VARIANTS.forEach((v, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "tab"; b.id = "tab-" + v.id; b.setAttribute("role", "tab");
+    b.innerHTML = `<b>${String.fromCharCode(65 + i)} · ${v.name}</b><span>${v.short}</span>`;
+    b.addEventListener("click", () => select(i));
+    tabs.appendChild(b);
+  });
+  function select(i) {
+    state.v = i;
+    const v = VARIANTS[i];
+    [...tabs.children].forEach((t, j) => t.setAttribute("aria-selected", String(j === i)));
+    $("v-name").textContent = `${String.fromCharCode(65 + i)} · ${v.name}`;
+    $("v-lead").textContent = v.lead;
+    $("v-meta").innerHTML = v.meta.map(([t, c]) => `<span class="pill ${c}">${t}</span>`).join("");
+    $("v-flow").innerHTML = v.flow.map(t => `<li>${t}</li>`).join("");
+    $("v-cons").innerHTML = v.cons.map(t => `<li>${t}</li>`).join("");
+    draw();
+  }
+  $("btn-rot").addEventListener("click", () => { state.rot = (state.rot + 1) % 4; draw(); });
+  $("btn-lbl").addEventListener("click", () => {
+    state.labels = !state.labels;
+    $("btn-lbl").setAttribute("aria-pressed", String(state.labels));
+    draw();
+  });
+  window.addEventListener("resize", draw);
+  const fromHash = VARIANTS.findIndex(v => "#" + v.id === location.hash);
+  select(fromHash >= 0 ? fromHash : 0);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
