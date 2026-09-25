@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roblox Plan Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2F5F1; --surface:#FFFFFF; --surface-2:#E7ECE5; --ink:#141A15; --muted:#566055; --line:#D2D9CF;
+  --accent:#2E7A29; --accent-soft:#DCEFD7;
+  --coin:#9A6E00; --coin-soft:#FAEEC6;
+  --blue:#2B5FB3; --blue-soft:#DDE7F8;
+  --danger:#B23636; --danger-soft:#F6DCDA;
+  --violet:#6A4BB0; --violet-soft:#E8E1F6;
+  --shadow:0 1px 2px rgba(20,26,21,.06),0 4px 14px rgba(20,26,21,.05);
+  --display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#16181E; --surface:#1F232B; --surface-2:#2A2F3A; --ink:#F2F4F8; --muted:#A3A9B8; --line:#363C49;
+    --accent:#6CC65F; --accent-soft:#22361F;
+    --coin:#FFCC40; --coin-soft:#3A3217;
+    --blue:#86ADF2; --blue-soft:#1D2940;
+    --danger:#EE7B7B; --danger-soft:#3E2323;
+    --violet:#B39BF0; --violet-soft:#2C2442;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#16181E; --surface:#1F232B; --surface-2:#2A2F3A; --ink:#F2F4F8; --muted:#A3A9B8; --line:#363C49;
+  --accent:#6CC65F; --accent-soft:#22361F;
+  --coin:#FFCC40; --coin-soft:#3A3217;
+  --blue:#86ADF2; --blue-soft:#1D2940;
+  --danger:#EE7B7B; --danger-soft:#3E2323;
+  --violet:#B39BF0; --violet-soft:#2C2442;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.7;margin:0}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--surface-2);padding:.1em .38em;border-radius:5px;word-break:break-word}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--display);line-height:1.25;text-wrap:balance;margin:0}
+h2{font-size:1.75rem;font-weight:700}
+h3{font-size:1.12rem;font-weight:600}
+p{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:40px;max-width:1240px;margin:0 auto;padding-inline:24px;padding-block:28px 80px}
+nav.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;display:flex;flex-direction:column;gap:2px}
+.brand{font-family:var(--display);font-weight:700;font-size:1.05rem;display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.brand .cube{width:22px;height:22px;border-radius:5px;background:var(--accent);transform:rotate(12deg);box-shadow:inset -5px -5px 0 rgba(0,0,0,.18)}
+nav.side a{display:block;text-decoration:none;color:var(--muted);padding:6px 10px;border-radius:7px;font-size:.93rem}
+nav.side a:hover{color:var(--ink);background:var(--surface-2)}
+nav.side a.on{color:var(--ink);background:var(--surface);box-shadow:var(--shadow);font-weight:600}
+nav.side .group{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 10px 4px}
+
+main{display:flex;flex-direction:column;gap:72px;min-width:0}
+section{display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.lead{color:var(--muted);max-width:68ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.pill.g{background:var(--accent-soft);color:var(--accent)}
+.pill.y{background:var(--coin-soft);color:var(--coin)}
+.pill.b{background:var(--blue-soft);color:var(--blue)}
+.pill.r{background:var(--danger-soft);color:var(--danger)}
+.pill.v{background:var(--violet-soft);color:var(--violet)}
+ul.clean{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.8rem;letter-spacing:.03em;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+
+/* hero */
+.hero{display:flex;flex-direction:column;gap:18px;padding-top:8px}
+.hero h1{font-size:clamp(2rem,4.2vw,3rem);font-weight:700;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.chain{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+.chain .who{flex:1 1 180px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.chain .who b{font-family:var(--display);font-size:1.05rem}
+.chain .who span{color:var(--muted);font-size:.9rem}
+.chain .arr{align-self:center;color:var(--muted);font-family:var(--mono)}
+
+/* pipeline strip */
+.strip{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.strip a{display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 5px;font-size:.88rem;font-weight:500}
+.strip a:hover{border-color:var(--accent)}
+.strip .n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:.75rem;background:var(--ink);color:var(--bg)}
+.strip .sep{color:var(--muted);font-size:.8rem}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:.84rem;color:var(--muted);align-items:center}
+
+/* track */
+.track{position:relative;display:flex;flex-direction:column;gap:14px}
+.stage{display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px;position:relative}
+.stage .rail{display:flex;flex-direction:column;align-items:center}
+.stage .num{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:1.15rem;background:var(--surface);border:2px solid var(--ink);color:var(--ink);flex:none}
+.stage .line{flex:1;width:2px;background:var(--line);margin-top:6px;min-height:16px}
+.stage:last-child .line{display:none}
+.stage.gate .num{border-color:var(--danger);color:var(--danger)}
+.stage.studio .num{border-color:var(--blue);color:var(--blue)}
+.stage.later .num{border-style:dashed;border-color:var(--muted);color:var(--muted)}
+.stage .body{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.stage .head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.kv{display:grid;grid-template-columns:120px minmax(0,1fr);gap:6px 14px;font-size:.93rem}
+.kv dt{color:var(--muted);font-weight:500}
+.kv dd{margin:0}
+
+/* lane picker */
+.picker{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--surface)}
+.checks label:hover{border-color:var(--accent)}
+.checks input{margin-top:5px;accent-color:var(--accent);width:17px;height:17px;flex:none}
+.checks small{display:block;color:var(--muted);font-size:.84rem}
+select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:100%}
+.verdict{border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;border:2px solid var(--accent);background:var(--accent-soft)}
+.verdict.full{border-color:var(--coin);background:var(--coin-soft)}
+.verdict .big{font-family:var(--display);font-size:1.5rem;font-weight:700}
+.verdict ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:3px}
+
+/* tabs */
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font:inherit;font-size:.9rem;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:7px 14px;border-radius:999px}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.steps{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.step:last-child{border-bottom:0}
+.step .sn{font-family:var(--mono);font-weight:500;color:var(--accent);font-size:.9rem;padding-top:2px}
+.step .role{font-weight:600}
+.step .out{color:var(--muted);font-size:.92rem}
+.step .opt{font-size:.78rem;color:var(--coin);font-weight:600}
+.wfmeta{color:var(--muted);font-size:.93rem}
+
+/* architecture */
+.layers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.layer{border-radius:12px;padding:16px 18px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:10px;border-top:5px solid var(--c)}
+.layer .path{font-family:var(--mono);font-size:.85rem;color:var(--c);font-weight:500}
+.layer .to{font-size:.84rem;color:var(--muted)}
+.layer .files{font-family:var(--mono);font-size:.8rem;display:flex;flex-direction:column;gap:3px;background:var(--surface-2);border-radius:8px;padding:10px 12px}
+.layer.client{--c:var(--blue)} .layer.shared{--c:var(--coin)} .layer.server{--c:var(--accent)}
+
+.flow{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:18px}
+.flowrow{display:flex;align-items:stretch;gap:0;min-width:980px}
+.fnode{flex:1;border-radius:10px;padding:10px 12px;font-size:.84rem;display:flex;flex-direction:column;gap:3px;background:var(--surface-2);border:1px solid var(--line)}
+.fnode b{font-size:.9rem}
+.fnode .mono{color:var(--muted);font-size:.74rem}
+.fnode.c{background:var(--blue-soft);border-color:transparent}
+.fnode.s{background:var(--accent-soft);border-color:transparent}
+.fnode.d{background:var(--coin-soft);border-color:transparent}
+.fnode.x{background:var(--danger-soft);border-color:transparent}
+.farr{flex:none;width:26px;display:grid;place-items:center;color:var(--muted)}
+.flowlabel{display:flex;gap:10px;min-width:980px;margin-bottom:10px;font-size:.78rem;color:var(--muted);font-family:var(--mono)}
+.flowback{min-width:980px;margin-top:10px;font-size:.84rem;color:var(--muted);display:flex;gap:8px;align-items:center}
+
+.boot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.seq{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.88rem}
+.seq span.box{background:var(--surface-2);border-radius:8px;padding:4px 10px;font-family:var(--mono);font-size:.8rem}
+
+/* rules */
+.rule{display:flex;flex-direction:column;gap:10px}
+.rule .rn{font-family:var(--display);font-size:2.2rem;font-weight:700;line-height:1;color:var(--accent)}
+.do,.dont{font-size:.9rem;display:flex;flex-direction:column;gap:4px}
+.do li::marker{content:"✓  ";color:var(--accent)}
+.dont li::marker{content:"✕  ";color:var(--danger)}
+.do,.dont{padding-left:1.2em;margin:0}
+.example{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.example > div{border-radius:10px;padding:12px 14px;font-size:.88rem}
+.example .bad{background:var(--danger-soft)} .example .good{background:var(--accent-soft)}
+.example b{display:block;margin-bottom:4px}
+
+.dept{display:flex;flex-direction:column;gap:8px}
+.dept .code{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.dept .roles{display:flex;flex-wrap:wrap;gap:6px}
+
+.note{border-left:3px solid var(--coin);background:var(--coin-soft);padding:12px 16px;border-radius:0 10px 10px 0;font-size:.93rem}
+.cmd{display:flex;flex-direction:column;gap:6px}
+.cmd pre{margin:0;background:var(--ink);color:var(--bg);font-family:var(--mono);font-size:.84rem;padding:12px 14px;border-radius:10px;overflow-x:auto}
+footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padding-top:18px}
+
+@media (max-width:980px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:24px;padding-inline:16px;padding-block:0 60px}
+  nav.side{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;flex-direction:row;overflow-x:auto;gap:4px;background:var(--bg);padding-block:10px;margin-inline:-16px;padding-inline:16px;border-bottom:1px solid var(--line)}
+  nav.side .group,nav.side .brand{display:none}
+  nav.side a{white-space:nowrap;flex:none}
+  .g3,.g4,.layers{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .picker,.boot{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:620px){
+  .g2,.g3,.g4,.layers,.example{grid-template-columns:minmax(0,1fr)}
+  .kv{grid-template-columns:minmax(0,1fr);gap:2px}
+  .kv dd{margin-bottom:8px}
+  .stage{grid-template-columns:40px minmax(0,1fr);gap:10px}
+  .stage .num{width:36px;height:36px;font-size:1rem;border-radius:10px}
+  h2{font-size:1.45rem}
+  .chain .arr{display:none}
+}
+</style>
+
+<div class="shell">
+  <nav class="side" aria-label="สารบัญ">
+    <div class="brand"><span class="cube" aria-hidden="true"></span>Roblox Plan</div>
+    <div class="group">เริ่มที่นี่</div>
+    <a href="#overview">ภาพรวม</a>
+    <a href="#pipeline">Pipeline หลัก</a>
+    <a href="#lane">เลือกเส้นทางงาน</a>
+    <a href="#workflows">Workflow 6 แบบ</a>
+    <div class="group">ระบบ</div>
+    <a href="#architecture">โครงสร้างโค้ด</a>
+    <a href="#runtime">เส้นทางคำขอในเกม</a>
+    <a href="#map">การสร้างแมพ</a>
+    <div class="group">กติกา</div>
+    <a href="#rules">กฎเหล็ก 3 ข้อ</a>
+    <a href="#evidence">ป้ายหลักฐาน</a>
+    <a href="#org">แผนกและบทบาท</a>
+    <div class="group">อ้างอิง</div>
+    <a href="#status">สถานะตอนนี้</a>
+    <a href="#tools">คำสั่งและศัพท์</a>
+  </nav>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section id="overview" class="hero">
+      <div class="eyebrow">คู่มือทีม · Roblox Plan</div>
+      <h1>งานทุกชิ้นเดินบน <em>เส้นทางเดียวกัน</em> ตั้งแต่ไอเดียจนถึงเกมใน Studio</h1>
+      <p class="lead">หน้านี้สรุประบบที่ออกแบบไว้ใน repo ทั้งหมด: ใครตัดสินอะไร งานไหลผ่านขั้นไหน โค้ดวางไว้ที่ไหน และกฎอะไรที่ห้ามละเมิด อ่านหัวข้อ “Pipeline หลัก” ก่อน แล้วค่อยเปิดหัวข้ออื่นเมื่อต้องใช้</p>
+      <div class="chain" aria-label="ห่วงโซ่อำนาจ">
+        <div class="who"><span class="pill y">ตัดสินใจ</span><b>CEO / เจ้าของเกม</b><span>กำหนดวิสัยทัศน์ อนุมัติ Phase และคำตัดสินสุดท้ายทุกเรื่อง ไม่ต้องเขียนโค้ด</span></div>
+        <div class="arr" aria-hidden="true">→</div>
+        <div class="who"><span class="pill v">ออกแบบ / สั่งงาน</span><b>Gemini · Chief Architect</b><span>แปลงเป้าหมายเป็น Brief ที่มี Scope, Out of Scope และเกณฑ์ตรวจรับ แล้วตรวจรับงาน</span></div>
+        <div class="arr" aria-hidden="true">→</div>
+        <div class="who"><span class="pill g">สร้าง</span><b>Claude · Builder</b><span>เขียนโค้ดตามสเปกใน <code>src/</code> ห้ามขยาย Scope ถ้าข้อกำหนดขัดกันต้อง STOP and REPORT</span></div>
+        <div class="arr" aria-hidden="true">→</div>
+        <div class="who"><span class="pill b">ประกอบใน Studio</span><b>ทีมใน Roblox Studio</b><span><code>git pull</code> + <code>rojo serve</code> สร้างแมพด้วยมือ ติด tag ทดสอบ และ Publish</span></div>
+      </div>
+    </section>
+
+    <!-- PIPELINE -->
+    <section id="pipeline">
+      <div class="eyebrow">Pipeline หลัก</div>
+      <h2>9 ขั้นจากคำขอถึงเกมที่เล่นได้</h2>
+      <p class="lead">ทุกงานผ่านลำดับนี้ งานเล็ก (Fast Lane) ข้ามขั้น 4 ได้ แต่ห้ามข้ามขั้น 6 เด็ดขาด ขั้นที่ 9 ยังเป็นข้อเสนอที่รอ CEO ยืนยัน</p>
+
+      <div class="strip" aria-label="ภาพรวม 9 ขั้น">
+        <a href="#st1"><span class="n">1</span>ตั้งโจทย์</a><span class="sep">›</span>
+        <a href="#st2"><span class="n">2</span>คัดแยกงาน</a><span class="sep">›</span>
+        <a href="#st3"><span class="n">3</span>เลือก Workflow</a><span class="sep">›</span>
+        <a href="#st4"><span class="n">4</span>ออกแบบ</a><span class="sep">›</span>
+        <a href="#st5"><span class="n">5</span>เขียนโค้ด</a><span class="sep">›</span>
+        <a href="#st6"><span class="n">6</span>ตรวจ Review</a><span class="sep">›</span>
+        <a href="#st7"><span class="n">7</span>Commit + Push</a><span class="sep">›</span>
+        <a href="#st8"><span class="n">8</span>Sync + ทดสอบ</a><span class="sep">›</span>
+        <a href="#st9"><span class="n">9</span>Publish + Data</a>
+      </div>
+      <div class="legend">
+        <span class="pill">ขั้นปกติ</span>
+        <span class="pill r">ด่านบังคับ ผ่านไม่ได้ = ย้อนกลับ</span>
+        <span class="pill b">ทำใน Roblox Studio</span>
+        <span class="pill">เส้นประ = รอยืนยัน</span>
+      </div>
+
+      <div class="track">
+        <div class="stage" id="st1">
+          <div class="rail"><div class="num">1</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>ตั้งโจทย์</h3><span class="pill y">CEO</span><span class="pill v">Gemini</span></div>
+            <dl class="kv">
+              <dt>ทำอะไร</dt><dd>CEO บอกว่าอยากได้อะไร Gemini แปลงเป็น Brief ที่ Claude ทำได้ทันที</dd>
+              <dt>ผลลัพธ์</dt><dd>Brief ที่มี Scope · Out of Scope · เกณฑ์ตรวจรับที่ทดสอบได้ · ตัวเลขราคา/Balance ถ้ามี</dd>
+              <dt>ข้อควรรู้</dt><dd>ถ้าไม่ให้ตัวเลขเศรษฐกิจ Claude จะใส่ค่าชั่วคราวติดป้าย <code>[Proposed]</code> แล้วแจ้งกลับ ไม่ตัดสินเอง</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage" id="st2">
+          <div class="rail"><div class="num">2</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>คัดแยกงาน: Fast Lane หรือ Full Workflow</h3><span class="pill g">Claude</span></div>
+            <dl class="kv">
+              <dt>เกณฑ์ Fast Lane</dt><dd>ต้องครบทั้ง 4 ข้อ: แตะไม่เกิน ~3 ไฟล์ · ไม่เพิ่ม Remote ใหม่ · ไม่เปลี่ยนโครงข้อมูล DataStore · ไม่แตะเงิน/ไอเทม/การซื้อ</dd>
+              <dt>ผลลัพธ์</dt><dd>ขาดข้อใดข้อหนึ่ง = Full Workflow · ลองกดเช็กได้ที่ <a href="#lane">เลือกเส้นทางงาน</a></dd>
+              <dt>ไม่แน่ใจ</dt><dd>เปิด <code>ROUTING_GUIDE.md</code> หรือบทบาท Project_Router</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage" id="st3">
+          <div class="rail"><div class="num">3</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>เลือก Workflow ตามชนิดงาน</h3><span class="pill g">Claude</span></div>
+            <dl class="kv">
+              <dt>ตัวเลือก</dt><dd><code>/roblox-feature</code> ฟีเจอร์ใหม่ · <code>/roblox-ui</code> หน้าจอ · <code>/roblox-bugfix</code> บั๊ก · <code>/roblox-economy</code> ราคา/Balance · <code>/roblox-map</code> แมพ/ฉาก</dd>
+              <dt>หลักการโหลด</dt><dd>Progressive Context: แต่ละ Step เปิดเฉพาะไฟล์บทบาทที่ต้องใช้ ห้ามโหลดทั้ง 17 บทบาท “เผื่อไว้”</dd>
+              <dt>รายละเอียด</dt><dd>ดูขั้นตอนของแต่ละ Workflow ที่ <a href="#workflows">Workflow 6 แบบ</a></dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage" id="st4">
+          <div class="rail"><div class="num">4</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>ออกแบบ</h3><span class="pill">Full Workflow เท่านั้น</span></div>
+            <dl class="kv">
+              <dt>บทบาท</dt><dd>Systems_Designer → UX_Architect → Economy_Designer (ถ้ามีราคา) → Architecture_Lead</dd>
+              <dt>ผลลัพธ์</dt><dd>Feature Spec: กฎของระบบ · เกณฑ์ตรวจรับ · ค่าที่ต้องใส่ใน Config · รายการไฟล์ · รายชื่อ Remote · ข้อมูลที่ต้องบันทึก</dd>
+              <dt>ส่งต่อ</dt><dd>ระหว่าง Step ในเซสชันเดียวใช้ Handoff ย่อ 3 บรรทัด (<code>Context</code> · <code>Output</code> · <code>Risks</code>)</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage" id="st5">
+          <div class="rail"><div class="num">5</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>เขียนโค้ดตามลำดับชั้น</h3><span class="pill g">Claude</span></div>
+            <dl class="kv">
+              <dt>ลำดับ</dt><dd>ชื่อ Remote ใน <code>Remotes.luau</code> → Handler ใน <code>Network/</code> ผ่าน <code>Guard</code> → ตรรกะใน <code>Services/</code> → field ใหม่ใน <code>PlayerData</code> (ถ้าบันทึกถาวร) → หน้าจอใน <code>client/</code></dd>
+              <dt>รูปแบบไฟล์</dt><dd>ไฟล์ใหม่เป็น ModuleScript <code>.luau</code> คืน <code>{ Init = fn?, Start = fn? }</code> ตัวโหลดเรียกให้เอง ไม่ต้องลงทะเบียนที่ไหน</dd>
+              <dt>ห้าม</dt><dd>hard-code ราคา · เรียก DataStore นอก <code>PlayerData</code> · รับ Remote โดยไม่ผ่าน <code>Guard</code></dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage gate" id="st6">
+          <div class="rail"><div class="num">6</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>ตรวจด้วย /roblox-review</h3><span class="pill r">ด่านบังคับ</span><span class="pill">QA + Security รอบเดียว</span></div>
+            <dl class="kv">
+              <dt>หมวดตรวจ</dt><dd>1 Rojo/โครงสร้าง · 2 Server Authority/Security · 3 Data Safety · 4 QA (เฉพาะ Full Workflow)</dd>
+              <dt>ผลลัพธ์</dt><dd>ตาราง Pass/Fail พร้อมไฟล์:บรรทัด ถ้า Fail ด้าน Security หรือ Data ต้องแก้ก่อนส่ง แล้วกลับไปขั้น 5</dd>
+              <dt>เครื่องมือ</dt><dd><code>stylua --check src</code> · <code>selene src</code> · <code>rojo build</code> (ถ้าไม่ได้รันต้องระบุในรายงาน)</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage" id="st7">
+          <div class="rail"><div class="num">7</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>Commit + Push และรายงาน</h3><span class="pill g">Claude</span></div>
+            <dl class="kv">
+              <dt>ทำอะไร</dt><dd>commit บน branch ที่ได้รับมอบหมาย ข้อความชัดเจน แล้ว push</dd>
+              <dt>รายงาน</dt><dd>Fast Lane: 3 บรรทัด (ทำอะไร · ไฟล์ไหน · ความเสี่ยง) · Full: ไฟล์ที่แก้ · Remote ใหม่ · ผล review · คำถามค้าง</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage studio" id="st8">
+          <div class="rail"><div class="num">8</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>Sync เข้า Studio และเดินทดสอบ</h3><span class="pill b">ทีมใน Studio</span></div>
+            <dl class="kv">
+              <dt>ทำอะไร</dt><dd><code>git pull</code> → <code>rojo serve</code> → กด Connect ใน Rojo plugin → กด Play ทดสอบตามรายการที่ Claude ให้</dd>
+              <dt>ทิศทาง sync</dt><dd>ทางเดียว ไฟล์ → Studio แก้สคริปต์ใน Studio จะถูกทับ ให้แก้ในไฟล์เท่านั้น</dd>
+              <dt>งานมือ</dt><dd>แมพที่สร้างมือ + ติด tag/Attribute ตามรายการที่ Claude ส่งให้ (ดู <a href="#map">การสร้างแมพ</a>)</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="stage later" id="st9">
+          <div class="rail"><div class="num">9</div><div class="line"></div></div>
+          <div class="body">
+            <div class="head"><h3>Publish และ Data</h3><span class="pill y">CEO อนุมัติปล่อย</span><span class="pill">ขั้น Data: [Assumed]</span></div>
+            <dl class="kv">
+              <dt>Publish</dt><dd>ปล่อยเมื่อ QA ให้ Pass และ CEO ตัดสิน · Publish to Roblox เป็นประจำ เพราะแมพที่สร้างมือไม่อยู่ใน Git</dd>
+              <dt>Data</dt><dd>สมมติว่าหมายถึงเก็บและวิเคราะห์ข้อมูลผู้เล่นหลังปล่อย (Data_Analyst) ความหมายยังรอ Gemini/CEO ยืนยัน</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LANE PICKER -->
+    <section id="lane">
+      <div class="eyebrow">เครื่องมือ</div>
+      <h2>งานนี้เดินเส้นทางไหน</h2>
+      <p class="lead">ติ๊กข้อที่งานของคุณ “ทำ” แล้วเลือกชนิดงาน หน้านี้จะบอกเส้นทางและคำสั่งที่ควรใช้</p>
+      <div class="picker">
+        <div class="checks">
+          <label for="c-files"><input type="checkbox" id="c-files"><span>แก้หรือสร้างมากกว่า ~3 ไฟล์<small>นับทุกไฟล์ใน src/ ที่จะแตะ</small></span></label>
+          <label for="c-remote"><input type="checkbox" id="c-remote"><span>ต้องเพิ่ม Remote ใหม่<small>Client ต้องส่งคำขอแบบใหม่ไป Server</small></span></label>
+          <label for="c-data"><input type="checkbox" id="c-data"><span>เปลี่ยนโครงข้อมูลที่บันทึกใน DataStore<small>เพิ่ม/ลบ/เปลี่ยนชนิด field ใน PlayerData</small></span></label>
+          <label for="c-money"><input type="checkbox" id="c-money"><span>เกี่ยวกับเงิน ไอเทม หรือการซื้อ<small>รวมราคา Robux, Game Pass, รางวัล</small></span></label>
+          <label for="c-type" style="flex-direction:column;gap:6px;cursor:default"><span>ชนิดงาน</span>
+            <select id="c-type">
+              <option value="feature">ฟีเจอร์ใหม่ (ระบบ + UI)</option>
+              <option value="ui">สร้าง/แก้หน้าจอ UI</option>
+              <option value="bug">แก้บั๊ก</option>
+              <option value="economy">ปรับราคา/Balance</option>
+              <option value="map">สร้างแมพ/ฉาก/Level</option>
+            </select>
+          </label>
+        </div>
+        <div class="verdict" id="verdict" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- WORKFLOWS -->
+    <section id="workflows">
+      <div class="eyebrow">.claude/skills/</div>
+      <h2>Workflow 6 แบบ</h2>
+      <p class="lead">แต่ละ Workflow คือลำดับบทบาทที่ Claude สวมทีละ Step ไฟล์บทบาทเต็มอยู่ใน <code>Roblox_AI_Org_By_Function/&lt;แผนก&gt;/Skills/</code></p>
+      <div class="tabs" role="tablist" id="wf-tabs"></div>
+      <p class="wfmeta" id="wf-meta"></p>
+      <div class="steps" id="wf-steps" role="tabpanel"></div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture">
+      <div class="eyebrow">default.project.json · Rojo 7.7</div>
+      <h2>โค้ดวางไว้ที่ไหน</h2>
+      <p class="lead">มีแค่ 3 โฟลเดอร์ที่เข้าเกม ไฟล์นอกนี้ (เช่น เอกสาร หรือหน้านี้) ไม่เข้า Studio สีของแต่ละชั้นใช้แบบเดียวกันทั้งหน้า</p>
+      <div class="layers">
+        <div class="layer client">
+          <div class="path">src/client/</div>
+          <h3>Client · ฝั่งผู้เล่น</h3>
+          <div class="to">→ StarterPlayerScripts.Client</div>
+          <p>รับ Input · แสดงผล · ส่งคำขอ ผู้เล่นอ่านและแก้โค้ดนี้ได้ จึงห้ามตัดสินผลเกม</p>
+          <div class="files"><span>Controllers/ ← Input + ส่งคำขอ</span><span>UI/ ← สร้าง ScreenGui ด้วยโค้ด</span><span>init.client.luau</span></div>
+        </div>
+        <div class="layer shared">
+          <div class="path">src/shared/</div>
+          <h3>Shared · ใช้ร่วมกัน</h3>
+          <div class="to">→ ReplicatedStorage.Shared</div>
+          <p>ทะเบียนกลางที่ทั้งสองฝั่งอ่าน Client อ่านได้ทั้งหมด ห้ามมีความลับ</p>
+          <div class="files"><span>Remotes.luau ← ทะเบียน Remote</span><span>Config/Economy.luau ← ตัวเลขทั้งหมด</span><span>Config/Tags.luau ← ชื่อ tag</span><span>Util/Tagged.luau</span></div>
+        </div>
+        <div class="layer server">
+          <div class="path">src/server/</div>
+          <h3>Server · ผู้ตัดสิน</h3>
+          <div class="to">→ ServerScriptService.Server</div>
+          <p>แหล่งความจริงเดียวของเกม คำนวณผล ตรวจคำขอ และบันทึกข้อมูล</p>
+          <div class="files"><span>Network/ ← รับ Remote ผ่าน Guard</span><span>Services/ ← ตรรกะเกม</span><span>Data/ ← PlayerData + DataStore</span><span>init.server.luau</span></div>
+        </div>
+      </div>
+
+      <div class="boot">
+        <div class="card" style="display:flex;flex-direction:column;gap:10px">
+          <h3>Server เริ่มทำงานอย่างไร</h3>
+          <div class="seq"><span class="box">require Remotes</span>→<span class="box">โหลด Data/</span>→<span class="box">Network/</span>→<span class="box">Services/</span>→<span class="box">Init() ทุกตัว</span>→<span class="box">Start() ทุกตัว</span></div>
+          <p class="wfmeta">สร้าง Remote ทั้งหมดก่อนเสมอ ไม่งั้น Client จะรอค้าง · โมดูลไหน error จะ warn แล้วข้าม ไม่ล้มทั้งเซิร์ฟเวอร์</p>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;gap:10px">
+          <h3>Client เริ่มทำงานอย่างไร</h3>
+          <div class="seq"><span class="box">โหลด Controllers/</span>→<span class="box">UI/</span>→<span class="box">Init() ทุกตัว</span>→<span class="box">Start() ทุกตัว</span></div>
+          <p class="wfmeta">ไฟล์ helper ที่ไม่มี Init/Start (เช่น Theme, Components, Panels) ถูก require แล้วข้ามไป</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RUNTIME FLOW -->
+    <section id="runtime">
+      <div class="eyebrow">ตอนเกมรันจริง</div>
+      <h2>คำขอหนึ่งครั้งเดินทางอย่างไร</h2>
+      <p class="lead">ตัวอย่าง: ผู้เล่นกดซื้อของ Client ส่งแค่ “เจตนา” ส่วน Server ตรวจทุกด่าน คำนวณ บันทึก แล้วส่งค่าจริงกลับไปแสดงบนจอ</p>
+      <div class="flow">
+        <div class="flowlabel"><span style="color:var(--blue)">■ Client</span><span style="color:var(--accent)">■ Server</span><span style="color:var(--coin)">■ ข้อมูลถาวร</span><span style="color:var(--danger)">■ ด่านตรวจ</span></div>
+        <div class="flowrow">
+          <div class="fnode c"><b>ผู้เล่นกดปุ่ม</b><span>Touch / เมาส์ / Gamepad</span><span class="mono">UI/</span></div>
+          <div class="farr">→</div>
+          <div class="fnode c"><b>ส่งเจตนา</b><span>"BuyItem", "Sword"</span><span class="mono">Remotes.get()</span></div>
+          <div class="farr">→</div>
+          <div class="fnode x"><b>Guard</b><span>ชนิด · จำนวน arg · NaN/inf · string ยาว · rate limit</span><span class="mono">Network/Guard</span></div>
+          <div class="farr">→</div>
+          <div class="fnode x"><b>Handler</b><span>ช่วงค่า + สิทธิ์ เช่น มีของจริงไหม เงินพอไหม</span><span class="mono">Network/</span></div>
+          <div class="farr">→</div>
+          <div class="fnode s"><b>Service</b><span>คำนวณผลด้วยราคาจาก Config</span><span class="mono">Services/</span></div>
+          <div class="farr">→</div>
+          <div class="fnode d"><b>PlayerData.update</b><span>pcall + retry · autosave 120 วิ · บันทึกตอนออก</span><span class="mono">Data/</span></div>
+        </div>
+        <div class="flowback">↩ <span><b>ทางกลับ:</b> <code>PlayerData.Changed</code> → <code>StatsService</code> ตั้ง Player Attribute (เช่น <code>Coins</code>) → HUD อ่าน Attribute แล้วแสดง ค่าบนจอจึงเป็นค่าจาก Server เสมอ</span></div>
+      </div>
+      <div class="example">
+        <div class="bad"><b>✕ Remote แบบผิด (บั๊กความปลอดภัย)</b><code>SetCoins(999)</code> Client บอกผลลัพธ์เอง ใครแก้โค้ดฝั่งตัวเองก็ได้เงินฟรี</div>
+        <div class="good"><b>✓ Remote แบบถูก</b><code>BuyItem("Sword")</code> Client บอกแค่ความต้องการ Server เช็กราคาจาก Config และเงินจริงก่อนหัก</div>
+      </div>
+      <div class="note">ความปลอดภัยของข้อมูล: ถ้าโหลดข้อมูลผู้เล่นไม่สำเร็จ ระบบจะ <b>ไม่บันทึกทับ</b> (นอก Studio จะ kick ให้เข้าใหม่) · ข้อมูลเวอร์ชันใหม่กว่าเซิร์ฟเวอร์ก็ไม่บันทึกทับ · field ที่ขาดหรือชนิดผิดจะเติมจาก <code>DEFAULT</code></div>
+    </section>
+
+    <!-- MAP -->
+    <section id="map">
+      <div class="eyebrow">/roblox-map · CEO ตัดสินแล้ว</div>
+      <h2>แมพ: สร้างมือผสมโค้ด</h2>
+      <p class="lead">ของที่ต้องใช้สายตาทีมสร้างเองใน Studio ส่วนของที่ซ้ำหรือมีกฎ Claude เขียนเป็นโค้ด สองฝั่งคุยกันผ่าน tag และ Attribute</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>ส่วนของแมพ</th><th>ใครทำ</th><th>อยู่ที่ไหน</th></tr></thead>
+          <tbody>
+            <tr><td>รูปทรงซับซ้อน ตกแต่ง Terrain ฉาก</td><td><span class="pill b">ทีมใน Studio</span></td><td>ไฟล์ place ใน Studio (ไม่อยู่ใน Git ต้อง Publish บ่อยๆ)</td></tr>
+            <tr><td>ของที่ซ้ำเยอะ วางตามกฎ/ตาราง/สุ่ม เช่น เหรียญ แถวแพลตฟอร์ม</td><td><span class="pill g">Claude</span></td><td><code>src/server/Services/&lt;ชื่อ&gt;Service.luau</code></td></tr>
+            <tr><td>พฤติกรรมของชิ้นที่สร้างมือ เช่น จุดเกิด กับดัก ประตู</td><td><span class="pill b">ทีม</span> ติด tag · <span class="pill g">Claude</span> เขียนโค้ดอ่าน tag</td><td><code>Config/Tags.luau</code> + <code>Util/Tagged.luau</code></td></tr>
+            <tr><td>พื้นฐานที่มีตอนนี้: Baseplate 512×512 และพื้นหญ้า 362×362</td><td><span class="pill g">โค้ด</span></td><td><code>default.project.json</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="grid g3">
+        <div class="card"><h3>หาชิ้นด้วย tag เท่านั้น</h3><p class="wfmeta">ห้ามอ้างชื่อหรือตำแหน่ง เช่น <code>workspace.Map.Part27</code> เพราะทีมแก้ชิ้นในมือได้ตลอด</p></div>
+        <div class="card"><h3>ค่าต่อชิ้นใช้ Attribute</h3><p class="wfmeta">ดาเมจ เวลา respawn ฯลฯ ตั้งบนชิ้นนั้น โค้ดมีค่า default สำรอง</p></div>
+        <div class="card"><h3>เก็บของ/ชน ตรวจที่ Server</h3><p class="wfmeta"><code>Touched</code> ฝั่ง Server + เช็กระยะ/cooldown ห้ามให้ Client บอกว่า “เก็บแล้ว”</p></div>
+      </div>
+    </section>
+
+    <!-- RULES -->
+    <section id="rules">
+      <div class="eyebrow">PRINCIPLES.md</div>
+      <h2>กฎเหล็ก 3 ข้อ</h2>
+      <p class="lead">ใช้กับทุกบทบาท ทุกงาน ยกเว้นได้ก็ต่อเมื่อ CEO ตัดสินเท่านั้น</p>
+      <div class="grid g3">
+        <div class="card rule">
+          <div class="rn">1</div><h3>Server Authority</h3>
+          <p class="wfmeta">Server คือความจริงแหล่งเดียว Client ไม่น่าเชื่อถือเสมอ</p>
+          <ul class="do"><li>Client ส่งเจตนา Server คำนวณผล</li><li>ทุก Remote ผ่าน <code>Guard</code> + ตรวจช่วงค่า/สิทธิ์</li></ul>
+          <ul class="dont"><li>เก็บเงิน/ไอเทมเป็นความจริงที่ Client</li><li>วางความลับใน shared/client</li></ul>
+        </div>
+        <div class="card rule">
+          <div class="rn">2</div><h3>Data Safety</h3>
+          <p class="wfmeta">ข้อมูลต้องไม่เสีย แม้โหลดล้มเหลวหรือผิดรูปแบบ</p>
+          <ul class="do"><li>DataStore ครอบ <code>pcall</code> + retry</li><li>เปลี่ยน schema = เพิ่ม <code>VERSION</code> + migration</li></ul>
+          <ul class="dont"><li>บันทึกทับเมื่อโหลดไม่สำเร็จ</li><li>เรียก DataStore นอก <code>PlayerData</code></li></ul>
+        </div>
+        <div class="card rule">
+          <div class="rn">3</div><h3>Evidence</h3>
+          <p class="wfmeta">ข้อเท็จจริงสำคัญเรื่อง Roblox ต้องติดป้ายหลักฐาน</p>
+          <ul class="do"><li>ไม่แน่ใจ = <code>[Unverified]</code></li><li>ข้อเสนอติด <code>[Proposed]</code> รออนุมัติ</li></ul>
+          <ul class="dont"><li>ยกระดับป้ายโดยไม่มีหลักฐาน</li><li>ใช้ <code>[Assumed]</code> เป็นฐานงาน Security/Data</li></ul>
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>ข้อจำกัดบังคับ</h3><ul class="clean"><li><b>ห้ามใช้ MCP</b> ทุกรูปแบบ ถ้างานดูเหมือนต้องใช้ ให้ STOP and REPORT</li><li>พัฒนาเกม <b>Roblox เท่านั้น</b></li><li>ตัวเลขราคา/Balance ไม่ตัดสินเอง ใช้ <code>src/shared/Config/</code></li></ul></div>
+        <div class="card"><h3>STOP and REPORT</h3><p>เมื่อข้อกำหนดขัดกัน คลุมเครือ หรือต้องละเมิดกฎ Claude ต้องหยุดและรายงานขึ้นไปที่ Gemini/CEO ห้ามเดาเอง ถ้า Handoff ไม่ครบก็ใช้กฎนี้เช่นกัน</p></div>
+      </div>
+    </section>
+
+    <!-- EVIDENCE -->
+    <section id="evidence">
+      <div class="eyebrow">ป้ายที่เห็นในโค้ดและรายงาน</div>
+      <h2>ป้ายหลักฐาน 5 แบบ</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>ป้าย</th><th>ความหมาย</th><th>ใช้เป็นข้อเท็จจริงได้ไหม</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill g">[Verified]</span></td><td>ยืนยันจากเอกสาร Roblox ทางการหรือผลทดสอบจริง</td><td>ได้</td></tr>
+            <tr><td><span class="pill b">[Inferred]</span></td><td>สรุปอย่างมีเหตุผลจากหลักฐานที่ยืนยันแล้ว</td><td>ใช้ระวัง ต้องบอกเหตุผล</td></tr>
+            <tr><td><span class="pill y">[Assumed]</span></td><td>สมมติฐานชั่วคราวเพื่อไปต่อ</td><td>ไม่ได้ ต้องตรวจทีหลัง</td></tr>
+            <tr><td><span class="pill v">[Proposed]</span></td><td>ข้อเสนอที่ยังไม่อนุมัติ</td><td>ยังไม่ใช่การตัดสินใจ</td></tr>
+            <tr><td><span class="pill r">[Unverified]</span></td><td>ยังไม่มีหลักฐาน หรือไม่รู้แหล่งที่มา</td><td>ไม่ได้</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ORG -->
+    <section id="org">
+      <div class="eyebrow">Roblox_AI_Org_By_Function/</div>
+      <h2>8 แผนก 17 บทบาท</h2>
+      <p class="lead">บทบาทเหล่านี้คือ “หมวก” ที่ Claude สวมทีละ Step ไม่ใช่คนจริง ทีมใช้ตารางนี้เพื่อรู้ว่าเรื่องไหนเป็นความรับผิดชอบของส่วนไหน</p>
+      <div class="grid g4">
+        <div class="card dept"><span class="code">01_CEO</span><h3>ทิศทางเกม</h3><p class="wfmeta">เก็บวิสัยทัศน์ รับ Escalation เตรียมทางเลือกให้ CEO</p><div class="roles"><span class="pill">Game_Director</span></div></div>
+        <div class="card dept"><span class="code">02_Product_UX</span><h3>ฟีเจอร์ + UX</h3><p class="wfmeta">สเปกฟีเจอร์ user flow โครงหน้าจอ หลายอุปกรณ์</p><div class="roles"><span class="pill">Systems_Designer</span><span class="pill">UX_Architect</span></div></div>
+        <div class="card dept"><span class="code">03_Market_Data</span><h3>ตลาด + ข้อมูล</h3><p class="wfmeta">วิจัยผู้เล่น กำหนด metrics วิเคราะห์หลังปล่อย</p><div class="roles"><span class="pill">Player_Researcher</span><span class="pill">Data_Analyst</span></div></div>
+        <div class="card dept"><span class="code">04_CFO</span><h3>เศรษฐกิจ + รายได้</h3><p class="wfmeta">ราคา รางวัล เพดาน กลยุทธ์ Robux</p><div class="roles"><span class="pill">Economy_Designer</span><span class="pill">Monetization_Strategist</span></div></div>
+        <div class="card dept"><span class="code">05_CTO</span><h3>วิศวกรรม</h3><p class="wfmeta">สถาปัตยกรรมและโค้ดทั้งหมด บังคับ Server Authority</p><div class="roles"><span class="pill g">Architecture_Lead</span><span class="pill g">Gameplay_Scripter</span><span class="pill g">Networking_Specialist</span><span class="pill g">DataStore_Backend</span><span class="pill g">Client_UI_Scripter</span><span class="pill g">World_Builder</span></div></div>
+        <div class="card dept"><span class="code">06_Art_Audio</span><h3>ภาพ + เสียง</h3><p class="wfmeta">สไตล์ หน้าตา UI ทะเบียน Asset ID และสิทธิ์</p><div class="roles"><span class="pill">Visual_Director</span><span class="pill">Asset_Integrator</span></div></div>
+        <div class="card dept"><span class="code">07_QA_Security</span><h3>ตรวจรับ</h3><p class="wfmeta">ทดสอบอิสระ ให้ Pass/Fail ก่อนปล่อย ไม่แก้โค้ดเอง</p><div class="roles"><span class="pill r">QA_Tester</span><span class="pill r">Security_Analyst</span></div></div>
+        <div class="card dept"><span class="code">08_Operations</span><h3>จัดเส้นทางงาน</h3><p class="wfmeta">หาเจ้าของงาน ตรวจ Handoff ติดตามสถานะ</p><div class="roles"><span class="pill">Project_Router</span></div></div>
+      </div>
+      <p class="wfmeta">World_Builder เป็นบทบาทเพิ่มเติมในสังกัด 05_CTO ที่อยู่ใน <code>/roblox-map</code> จึงไม่นับรวมใน 17</p>
+    </section>
+
+    <!-- STATUS -->
+    <section id="status">
+      <div class="eyebrow">branch map_roblox</div>
+      <h2>ตอนนี้มีอะไรแล้ว</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>ส่วน</th><th>ไฟล์</th><th>สถานะ</th></tr></thead>
+          <tbody>
+            <tr><td>ตัวโหลดโมดูล Server/Client</td><td><code>init.server.luau</code> · <code>init.client.luau</code></td><td><span class="pill g">ใช้งานได้</span></td></tr>
+            <tr><td>ด่านตรวจ Remote</td><td><code>server/Network/Guard.luau</code></td><td><span class="pill g">ใช้งานได้</span></td></tr>
+            <tr><td>ข้อมูลผู้เล่น (Coins, VERSION 1)</td><td><code>server/Data/PlayerData.luau</code></td><td><span class="pill g">ใช้งานได้</span> <span class="pill v">ยังไม่มี session lock</span></td></tr>
+            <tr><td>ส่งค่าเหรียญไป HUD</td><td><code>server/Services/StatsService.luau</code></td><td><span class="pill g">ใช้งานได้</span></td></tr>
+            <tr><td>HUD: เหรียญ · เมนู · FPS · คำแนะนำปุ่ม</td><td><code>client/UI/HudUI.luau</code></td><td><span class="pill y">Prototype</span></td></tr>
+            <tr><td>หน้าตั้งค่า (เสียง ภาพ FOV) เปิดด้วย M / Select</td><td><code>client/UI/SettingsUI.luau</code> · <code>Controllers/SettingsController.luau</code></td><td><span class="pill y">Prototype</span> <span class="pill v">ค่าหายเมื่อออกเกม</span></td></tr>
+            <tr><td>ธีม UI โทนมืด + เขียว</td><td><code>client/UI/Theme.luau</code></td><td><span class="pill v">[Proposed]</span></td></tr>
+            <tr><td>ทะเบียน Remote</td><td><code>shared/Remotes.luau</code></td><td><span class="pill">ยังว่าง</span></td></tr>
+            <tr><td>ทะเบียน tag</td><td><code>shared/Config/Tags.luau</code></td><td><span class="pill">ยังว่าง</span></td></tr>
+            <tr><td>ตัวเลขเศรษฐกิจ (StartingCoins 0 · MaxCoins 1,000,000,000)</td><td><code>shared/Config/Economy.luau</code></td><td><span class="pill v">[Proposed]</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note"><b>เรื่องที่รอตัดสิน:</b> ค่าเศรษฐกิจจริง · จะจำค่าตั้งค่าข้ามเซสชันไหม (ต้องมี Remote + field ใหม่) · สร้าง SoundGroup “Music”/“Sfx” เพื่อให้ปรับเสียงได้ผล · session lock เมื่อมีระบบแลกเปลี่ยน · ความหมายของขั้น Data</div>
+    </section>
+
+    <!-- TOOLS -->
+    <section id="tools">
+      <div class="eyebrow">อ้างอิงเร็ว</div>
+      <h2>คำสั่งและศัพท์ที่ต้องรู้</h2>
+      <div class="grid g2">
+        <div class="cmd"><h3>ทีมใน Studio</h3>
+<pre>git pull
+rojo serve
+# Studio → Rojo plugin → Connect</pre></div>
+        <div class="cmd"><h3>ตรวจโค้ด (หลัง aftman install)</h3>
+<pre>stylua src          # จัดรูปแบบ
+selene src          # lint
+rojo build -o build.rbxlx</pre></div>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>คำ</th><th>หมายถึง</th></tr></thead>
+          <tbody>
+            <tr><td><b>Rojo</b></td><td>เครื่องมือ sync ไฟล์ใน <code>src/</code> เข้า Studio (7.7.0) ทิศทางเดียว ไฟล์ → Studio</td></tr>
+            <tr><td><b>Remote</b></td><td>ช่องทางส่งข้อความระหว่าง Client กับ Server ประกาศชื่อที่ <code>Remotes.luau</code> ที่เดียว</td></tr>
+            <tr><td><b>Guard</b></td><td>ด่านตรวจที่ทุก Remote ต้องผ่าน: ชนิดข้อมูล จำนวน argument ค่าผิดปกติ และ rate limit ต่อผู้เล่น</td></tr>
+            <tr><td><b>PlayerData</b></td><td>ประตูเดียวสู่ข้อมูลถาวร ใช้ <code>get</code> / <code>update</code> เท่านั้น</td></tr>
+            <tr><td><b>Attribute</b></td><td>ค่าที่ติดกับ Instance Server ตั้งแล้วส่งไปถึง Client เอง ใช้แสดงผล ไม่ใช่ความจริง</td></tr>
+            <tr><td><b>Tag</b></td><td>ป้ายที่ติดให้ชิ้นส่วนในแมพ เพื่อให้โค้ดหาเจอโดยไม่ต้องรู้ชื่อหรือตำแหน่ง</td></tr>
+            <tr><td><b>Fast Lane</b></td><td>ทางลัดสำหรับงานเล็ก ทำจบรอบเดียว แต่ยังต้องผ่าน review แบบย่อ</td></tr>
+            <tr><td><b>Handoff</b></td><td>รูปแบบส่งต่องาน · ย่อ 3 บรรทัดในเซสชันเดียว · เต็ม 8 หัวข้อเมื่อข้ามเซสชัน/ข้าม AI หรือ Escalation</td></tr>
+            <tr><td><b>Progressive Context</b></td><td>โหลดเอกสารเท่าที่งานตรงหน้าต้องใช้ แบ่ง Level 1–5 โดย <code>CLAUDE.md</code> เป็น Level 1 ที่โหลดทุกครั้ง</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>สรุปจาก <code>CLAUDE.md</code>, <code>.claude/skills/</code>, <code>.claude/rules/</code>, <code>Roblox_AI_Org_By_Function/</code> และโค้ดใน <code>src/</code> บน branch <code>map_roblox</code> · ถ้าเอกสารใน repo เปลี่ยน ให้ยึดเอกสารใน repo เป็นหลัก</footer>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  // ---------- Lane picker ----------
+  var WF = {
+    feature:{cmd:"/roblox-feature",name:"ฟีเจอร์ใหม่"},
+    ui:{cmd:"/roblox-ui",name:"หน้าจอ UI"},
+    bug:{cmd:"/roblox-bugfix",name:"แก้บั๊ก"},
+    economy:{cmd:"/roblox-economy",name:"ปรับ Balance"},
+    map:{cmd:"/roblox-map",name:"แมพ/ฉาก"}
+  };
+  var ids=["c-files","c-remote","c-data","c-money"];
+  var reasons={"c-files":"แตะเกิน ~3 ไฟล์","c-remote":"มี Remote ใหม่","c-data":"เปลี่ยนโครงข้อมูล DataStore","c-money":"แตะเงิน/ไอเทม/การซื้อ"};
+  function esc(s){return s.replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+  function renderVerdict(){
+    var hits=ids.filter(function(id){return document.getElementById(id).checked});
+    var type=document.getElementById("c-type").value;
+    var wf=WF[type];
+    var v=document.getElementById("verdict");
+    var extra=[];
+    if(document.getElementById("c-data").checked) extra.push("เพิ่ม field ใน <code>DEFAULT</code> + เพิ่ม <code>VERSION</code> และ migration ใน <code>PlayerData</code>");
+    if(document.getElementById("c-remote").checked) extra.push("ประกาศชื่อใน <code>Remotes.luau</code> และรับผ่าน <code>Guard.connect</code>");
+    if(document.getElementById("c-money").checked) extra.push("ตัวเลขทั้งหมดอยู่ใน <code>Config/Economy.luau</code> ถ้าไม่มีตัวเลขจาก CEO ติด <code>[Proposed]</code>");
+    if(hits.length===0 && type!=="feature" && type!=="economy"){
+      v.className="verdict";
+      v.innerHTML='<span class="pill g">ผลลัพธ์</span><div class="big">Fast Lane</div>'+
+        '<p>งานเล็ก ทำจบในรอบเดียว Claude สวมบทบาทที่ต้องใช้เอง</p>'+
+        '<ol><li>สั่งงานตรงๆ ได้เลย</li><li>เขียนโค้ดใน <code>src/</code></li><li>จบด้วย <code>/roblox-review</code> แบบย่อ (หมวด 1–3)</li><li>รายงาน 3 บรรทัด: ทำอะไร · ไฟล์ไหน · ความเสี่ยง</li></ol>';
+    } else {
+      var why = hits.length ? hits.map(function(h){return reasons[h]}).join(" · ") : (type==="economy" ? "ปรับราคา/Balance คือการแตะเงิน จึงไม่เข้า Fast Lane" : "ฟีเจอร์ใหม่มักมีทั้งระบบและ UI เกิน Fast Lane");
+      v.className="verdict full";
+      v.innerHTML='<span class="pill y">ผลลัพธ์</span><div class="big">Full Workflow · <code>'+wf.cmd+'</code></div>'+
+        '<p>เหตุผล: '+esc(why)+'</p>'+
+        '<ol><li>ใช้ Workflow <b>'+wf.name+'</b> ทีละ Step (ดูหัวข้อ Workflow 6 แบบ)</li>'+
+        extra.map(function(e){return "<li>"+e+"</li>"}).join("")+
+        '<li>ปิดด้วย <code>/roblox-review</code> เต็ม 4 หมวด</li><li>รายงาน: ไฟล์ที่แก้ · Remote ใหม่ · ผล review · คำถามค้าง</li></ol>';
+    }
+  }
+  ids.concat(["c-type"]).forEach(function(id){document.getElementById(id).addEventListener("change",renderVerdict)});
+  renderVerdict();
+
+  // ---------- Workflow tabs ----------
+  var FLOWS=[
+    {key:"feature",label:"/roblox-feature",meta:"ฟีเจอร์ใหม่ที่มีทั้งระบบ Server, Remote และ UI เช่น ภารกิจ ร้านค้า คราฟไอเทม · ฟีเจอร์มีราคา/รางวัล ให้เปิด Economy_Designer ก่อน Step 3",
+     steps:[["1","Systems_Designer","Feature Spec: กฎของระบบ + เกณฑ์ตรวจรับที่ทดสอบได้ + ค่าที่ต้องใช้ใน Config"],
+            ["2","UX_Architect","โครงหน้าจอ + flow + การควบคุมต่ออุปกรณ์","ข้ามได้ถ้าไม่มีหน้าจอ"],
+            ["3","Architecture_Lead","รายการไฟล์ที่จะสร้าง + รายชื่อ Remote + ข้อมูลที่ต้องบันทึก"],
+            ["4","Networking_Specialist","เพิ่มชื่อใน shared/Remotes.luau + server/Network/<Feature>Handler.luau ผ่าน Guard"],
+            ["5","Gameplay_Scripter","server/Services/<Feature>Service.luau"],
+            ["5b","DataStore_Backend","เพิ่ม field ใน DEFAULT + migration ใน PlayerData.luau","เฉพาะเมื่อบันทึกข้อมูลถาวร"],
+            ["6","Client_UI_Scripter","client/Controllers/ + client/UI/"],
+            ["7","ตรวจรับ /roblox-review","Pass/Fail ตามเกณฑ์จาก Step 1"]]},
+    {key:"ui",label:"/roblox-ui",meta:"สร้างหรือแก้หน้าจอ เช่น Inventory ร้านค้า เมนู HUD · UI ที่แค่แสดงผลและไม่มี Remote ใหม่มักเข้า Fast Lane",
+     steps:[["1","UX_Architect","โครงหน้าจอ + GUI hierarchy + การควบคุม Touch / คีย์บอร์ด-เมาส์ / Gamepad"],
+            ["2","Visual_Director","สี ฟอนต์ ขนาด · ถ้าต้องใช้รูปใหม่ Asset_Integrator ลงทะเบียน rbxassetid://","ข้ามได้ถ้าใช้สไตล์เดิม"],
+            ["3","Client_UI_Scripter","client/UI/<Name>UI.luau (+ Controller ถ้ามีการโต้ตอบ)"],
+            ["4","Networking_Specialist","ชื่อใน Remotes.luau + handler ผ่าน Guard","เฉพาะเมื่อ UI ต้องเรียก Remote ใหม่"],
+            ["5","ตรวจรับ /roblox-review","เช็กจอเล็ก มือถือ Gamepad และ Remote"]]},
+    {key:"bug",label:"/roblox-bugfix",meta:"ค่าเงินผิด UI ค้าง ข้อมูลผู้เล่นหาย Remote ทำงานผิด หรือช่องโหว่ · รายงาน: สาเหตุ · ไฟล์ที่แก้ · วิธีทดสอบซ้ำ",
+     steps:[["1","QA_Tester","ทำซ้ำให้ได้ก่อน: repro steps + ผลที่คาด vs ผลจริง + ความรุนแรง · ข้อมูลไม่พอให้ถาม ห้ามเดา"],
+            ["2","หาเจ้าของจากตำแหน่งไฟล์","Services/ ตรรกะ · Network/ Remote · Data/ ข้อมูลหาย · client/ UI แล้วแก้ที่ต้นเหตุ"],
+            ["3","Security_Analyst","ถ้าเป็นช่องโหว่ ค้นหา Remote อื่นที่มีรูปแบบเดียวกันแล้วแก้พร้อมกัน","เฉพาะบั๊กความปลอดภัย"],
+            ["4","ยืนยัน","ไล่ repro เดิมอีกครั้ง อธิบายวิธีทดสอบใน Studio + /roblox-review แบบย่อเฉพาะไฟล์ที่แก้"]]},
+    {key:"economy",label:"/roblox-economy",meta:"ราคาไอเทม อัตรารางวัล เพดานเงิน ราคา Robux · ตัวเลขทั้งหมดอยู่ที่ Config/Economy.luau ไฟล์เดียว · ปิดงานด้วยตาราง ค่าเดิม → ค่าใหม่",
+     steps:[["1","Data_Analyst","สรุปตัวเลขจริง (retention การใช้จ่าย) พร้อมป้าย Evidence","ถ้ามีข้อมูลจริง"],
+            ["2","Economy_Designer","แก้ Config/Economy.luau พร้อมเหตุผลเป็น comment · ราคา Robux เปิด Monetization_Strategist เพิ่ม"],
+            ["3","DataStore_Backend","ค่าใหม่ทำให้ข้อมูลเดิมผิด (เช่น เพดานต่ำกว่าเงินที่ผู้เล่นมี) → เพิ่ม migration · พบ hard-code นอก Config → ย้ายเข้า Config","เช็กเฉพาะที่เกี่ยว"],
+            ["4","ตรวจ /roblox-review","เน้นค่าติดลบ หารศูนย์ ได้เงินไม่จำกัด"]]},
+    {key:"map",label:"/roblox-map",meta:"แมพ ฉาก Level วัตถุโต้ตอบ · วิธีของโปรเจกต์: สร้างมือผสมโค้ด (CEO ตัดสินแล้ว) · บทบาท World_Builder",
+     steps:[["1","Systems_Designer","Layout: โซน จุดเกิด เส้นทาง วัตถุโต้ตอบ + ชื่อ tag ที่ใช้","ถ้าแมพมีกลไก"],
+            ["2","แบ่งงาน","ส่วนสร้างมือ → รายการ tag/Attribute ให้ทีม · ส่วนโค้ด → Service · โค้ดอ่าน tag ด้วย Tagged.each"],
+            ["3","วัตถุโต้ตอบ","ตรวจการชน/รับของที่ Server เสมอ (Touched ฝั่ง Server + ระยะ/cooldown)"],
+            ["4","ประสิทธิภาพมือถือ","Anchored ของที่ไม่ขยับ · ปิด CanCollide/CanTouch/CanQuery ของตกแต่ง · ลดจำนวน Part · StreamingEnabled [Unverified]"],
+            ["5","ตรวจ","/roblox-review + ทีมเดินทดสอบใน Studio ตามรายการจุดที่ต้องเช็ก"]]},
+    {key:"review",label:"/roblox-review",meta:"ด่านสุดท้ายของทุกงาน ตรวจเฉพาะไฟล์ที่เปลี่ยน · Fast Lane ใช้หมวด 1–3 · Fail ด้าน Security/Data ต้องแก้ก่อนส่ง",
+     steps:[["1","Rojo / โครงสร้าง","ไฟล์อยู่ใต้ src/server|shared|client · .luau · ModuleScript คืน { Init?, Start? } · stylua / selene / rojo build ผ่าน"],
+            ["2","Server Authority / Security","ทุก Remote ผ่าน Guard + ตรวจช่วงค่า/สิทธิ์ · ไม่มี Remote รับผลลัพธ์ · ปฏิเสธ NaN/inf/ติดลบ/string ยาว"],
+            ["3","Data Safety","แก้ข้อมูลผ่าน PlayerData เท่านั้น · field ใหม่มีใน DEFAULT · เปลี่ยนโครง = migration + VERSION · ไม่บันทึกทับเมื่อโหลดล้มเหลว"],
+            ["4","QA","ผ่านเกณฑ์ตรวจรับทีละข้อ · จอเล็ก/Touch/Gamepad · ออกกลางคัน เข้าหลายคน กดรัว ไม่พัง","Full Workflow เท่านั้น"]]}
+  ];
+  var tabs=document.getElementById("wf-tabs"), stepsEl=document.getElementById("wf-steps"), metaEl=document.getElementById("wf-meta");
+  function show(key){
+    FLOWS.forEach(function(f){
+      var b=document.getElementById("tab-"+f.key); b.setAttribute("aria-selected",String(f.key===key)); b.tabIndex=f.key===key?0:-1;
+      if(f.key===key){
+        metaEl.textContent=f.meta;
+        stepsEl.innerHTML=f.steps.map(function(s){
+          return '<div class="step"><div class="sn">'+esc(s[0])+'</div><div><div class="role">'+esc(s[1])+(s[3]?' <span class="opt">· '+esc(s[3])+'</span>':'')+'</div><div class="out">'+esc(s[2])+'</div></div></div>';
+        }).join("");
+        stepsEl.setAttribute("aria-labelledby","tab-"+f.key);
+      }
+    });
+    try{localStorage.setItem("wf",key)}catch(e){}
+  }
+  FLOWS.forEach(function(f,i){
+    var b=document.createElement("button"); b.type="button"; b.id="tab-"+f.key; b.setAttribute("role","tab"); b.textContent=f.label;
+    b.addEventListener("click",function(){show(f.key)});
+    b.addEventListener("keydown",function(e){
+      if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft")return;
+      var n=FLOWS[(i+(e.key==="ArrowRight"?1:FLOWS.length-1))%FLOWS.length]; show(n.key); document.getElementById("tab-"+n.key).focus();
+    });
+    tabs.appendChild(b);
+  });
+  var saved="feature"; try{saved=localStorage.getItem("wf")||"feature"}catch(e){}
+  if(!FLOWS.some(function(f){return f.key===saved}))saved="feature";
+  show(saved);
+
+  // ---------- Nav highlight ----------
+  var links=[].slice.call(document.querySelectorAll("nav.side a"));
+  var map={}; links.forEach(function(a){map[a.getAttribute("href").slice(1)]=a});
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){links.forEach(function(a){a.classList.remove("on")}); var a=map[en.target.id]; if(a){a.classList.add("on"); if(a.scrollIntoView&&window.innerWidth<=980){a.parentNode.scrollLeft=a.offsetLeft-16}}}
+      });
+    },{rootMargin:"-30% 0px -65% 0px"});
+    Object.keys(map).forEach(function(id){var s=document.getElementById(id); if(s)io.observe(s)});
+  }
+})();
+</script>
