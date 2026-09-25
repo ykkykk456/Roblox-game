@@ -1,7 +1,8 @@
--- มอนเล็ก/กลางที่เกิดในสวนหลังบ้านของแต่ละฐาน แล้วเดินตามทางมอนเข้าหาหลุม (เจ้าของ: Gameplay_Scripter)
--- เกิดเฉพาะฐานที่มีเจ้าของ และจำนวนเท่ากันทุกฐาน · เดินถึงปลายทาง = ตกหลุมหายไป ไม่มีรางวัล
+-- มอนเล็ก/กลางที่เกิดในสวนหลังบ้านของแต่ละฐาน แล้วเดินสุ่มไปมารอบฐานตัวเอง (เจ้าของ: Gameplay_Scripter)
+-- ไม่เข้าลานฐาน/บ้าน และไม่ล้ำไปฐานข้างๆ (พื้นที่: Config/Map.MonsterWander) · อยู่ครบ Lifetime แล้วหายไป ไม่มีรางวัล
+-- เกิดเฉพาะฐานที่มีเจ้าของ และจำนวนเท่ากันทุกฐาน
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
--- [Proposed] prototype: ตัวมอนเป็นลูกบอล Anchored ยังไม่มีโมเดล/อนิเมชัน
+-- หน้าตา: สัตว์บล็อกทรงกล่อง (ตัว หู ตา ปาก) สไตล์ voxel · [Proposed] ยังไม่มีอนิเมชันนอกจากเด้งตอนเดิน
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,17 +16,21 @@ local BaseService = require(script.Parent.BaseService)
 local Wallet = require(script.Parent.Wallet)
 
 export type Monster = {
-	part: BasePart,
+	model: Model,
+	part: BasePart, -- ตัวหลัก (ชิ้นอื่นเชื่อมกับชิ้นนี้)
 	bar: Frame,
 	kind: string,
 	slot: number,
 	hp: number,
 	maxHp: number,
 	speed: number,
-	points: { Vector3 }, -- เส้นทางเดิน: จุดเกิด → ปากสวน → ปลายทางมอน
-	lengths: { number }, -- ความยาวแต่ละช่วงของเส้นทาง
-	travel: number,
-	spawnedAt: number,
+	-- ช่วงเดินปัจจุบัน: จาก from ไป to เริ่มที่ legStart ใช้เวลา legTime วินาที
+	from: Vector3,
+	to: Vector3,
+	legStart: number,
+	legTime: number,
+	restUntil: number, -- 0 = ยังไม่ได้เริ่มพัก
+	expiresAt: number,
 	alive: boolean,
 	damageBy: { [Player]: number },
 }
@@ -50,24 +55,55 @@ local function pickKind(): string
 	return Combat.Monster.TypeOrder[1]
 end
 
-local function makeBody(size: number, color: Color3): (BasePart, Frame)
+local function voxel(parent: Instance, name: string, size: Vector3, color: Color3): Part
 	local part = Instance.new("Part")
-	part.Name = "Monster"
-	part.Shape = Enum.PartType.Ball
-	part.Size = Vector3.new(size, size, size)
+	part.Name = name
+	part.Size = size
 	part.Color = color
 	part.Material = Enum.Material.SmoothPlastic
-	part.Anchored = true
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.CanCollide = false
 	part.CanTouch = false
 	part.CanQuery = false
 	part.CastShadow = false
+	part.Parent = parent
+	return part
+end
+
+-- สัตว์บล็อก: ตัวกล่อง + หู 2 + ตา 2 + ปาก · หันหน้าไปทาง −Z ของตัวหลัก
+local function makeBody(size: number, color: Color3): (Model, BasePart, Frame)
+	local model = Instance.new("Model")
+	model.Name = "Monster"
+
+	local body = voxel(model, "Body", Vector3.new(size, size * 0.8, size), color)
+	body.Anchored = true
+	model.PrimaryPart = body
+
+	local function attach(name: string, partSize: Vector3, offset: Vector3, partColor: Color3)
+		local piece = voxel(model, name, partSize * size, partColor)
+		piece.Anchored = false
+		piece.Massless = true
+		piece.CFrame = body.CFrame * CFrame.new(offset * size)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = piece
+		weld.Parent = piece
+	end
+
+	local dark = Color3.fromRGB(28, 24, 24)
+	local ear = color:Lerp(Color3.new(0, 0, 0), 0.15)
+	attach("EarL", Vector3.new(0.22, 0.22, 0.16), Vector3.new(-0.32, 0.51, 0.1), ear)
+	attach("EarR", Vector3.new(0.22, 0.22, 0.16), Vector3.new(0.32, 0.51, 0.1), ear)
+	attach("EyeL", Vector3.new(0.14, 0.18, 0.04), Vector3.new(-0.2, 0.08, -0.51), dark)
+	attach("EyeR", Vector3.new(0.14, 0.18, 0.04), Vector3.new(0.2, 0.08, -0.51), dark)
+	attach("Mouth", Vector3.new(0.5, 0.14, 0.04), Vector3.new(0, -0.2, -0.51), Color3.fromRGB(245, 240, 232))
 
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(40, 6)
 	gui.StudsOffset = Vector3.new(0, size, 0)
 	gui.MaxDistance = 120
-	gui.Parent = part
+	gui.Parent = body
 
 	local back = Instance.new("Frame")
 	back.Size = UDim2.fromScale(1, 1)
@@ -81,33 +117,74 @@ local function makeBody(size: number, color: Color3): (BasePart, Frame)
 	bar.BorderSizePixel = 0
 	bar.Parent = back
 
-	return part, bar
+	return model, body, bar
+end
+
+-- จุดนี้อยู่ในลานฐานของช่องนี้ (บวกระยะกันห่าง) หรือไม่
+local function insidePad(slot: number, point: Vector3): boolean
+	local out, right = MapMath.axes(slot)
+	local flat = Vector3.new(point.X, 0, point.Z)
+	local u, v = flat:Dot(out), flat:Dot(right)
+	local half = Map.Base.Size / 2 + Map.MonsterWander.PadMargin
+	return math.abs(u - Map.Base.Distance) <= half and math.abs(v) <= half
+end
+
+-- จุดสุ่มในพื้นที่เดินของฐาน (กระจายเท่ากันทั้งพื้นที่) · minRadius ใช้บังคับให้เกิดในสวนหลังบ้าน
+local function randomPoint(slot: number, y: number, minRadius: number?): Vector3?
+	local wander = Map.MonsterWander
+	local r0 = math.max(minRadius or wander.Inner, wander.Inner)
+	for _ = 1, 20 do
+		local angle = MapMath.angle(slot) + rng:NextNumber(-1, 1) * wander.HalfAngle
+		local radius = math.sqrt(rng:NextNumber(r0 * r0, wander.Outer * wander.Outer))
+		local point = MapMath.polar(angle, radius, y)
+		if not insidePad(slot, point) then
+			return point
+		end
+	end
+	return nil
+end
+
+-- เส้นทางตรงจาก a ไป b ไม่ตัดผ่านลานฐาน
+local function clearPath(slot: number, a: Vector3, b: Vector3): boolean
+	for step = 1, 10 do
+		if insidePad(slot, a:Lerp(b, step / 10)) then
+			return false
+		end
+	end
+	return true
+end
+
+local function startLeg(monster: Monster, now: number)
+	local y = monster.from.Y
+	for _ = 1, 8 do
+		local target = randomPoint(monster.slot, y)
+		if target and clearPath(monster.slot, monster.to, target) then
+			monster.from = monster.to
+			monster.to = target
+			monster.legStart = now
+			monster.legTime = (target - monster.from).Magnitude / monster.speed
+			monster.restUntil = 0
+			return
+		end
+	end
+	-- หาทางไม่ได้รอบนี้ → ยืนพักแล้วลองใหม่
+	monster.restUntil = now + Map.MonsterWander.PauseMax
 end
 
 local function spawnMonster(slot: number)
 	local kind = pickKind()
 	local def = Combat.Monster.Types[kind]
-	local yard, lane = Map.Yard, Map.MonsterLane
-	local y = Map.GroundY + def.Size / 2
+	local y = Map.GroundY + def.Size * 0.4
+	local start = randomPoint(slot, y, Map.Yard.Inner)
+		or MapMath.point(slot, (Map.Yard.Inner + Map.Yard.Outer) / 2, 0, y)
 
-	local angle = MapMath.angle(slot) + rng:NextNumber(-0.8, 0.8) * yard.HalfAngle
-	local points = {
-		MapMath.polar(angle, rng:NextNumber(yard.Inner + 8, yard.Outer - 4), y),
-		MapMath.point(slot, yard.Inner, lane.Side, y),
-		MapMath.point(slot, lane.End, lane.Side, y),
-	}
-	local lengths, travel = {}, 0
-	for index = 2, #points do
-		local length = (points[index] - points[index - 1]).Magnitude
-		lengths[index - 1] = length
-		travel += length
-	end
+	local model, part, bar = makeBody(def.Size, def.Color)
+	part.CFrame = CFrame.new(start)
+	model.Parent = folder
 
-	local part, bar = makeBody(def.Size, def.Color)
-	part.CFrame = CFrame.new(points[1])
-	part.Parent = folder
-
-	table.insert(monsters, {
+	local now = os.clock()
+	local monster: Monster = {
+		model = model,
 		part = part,
 		bar = bar,
 		kind = kind,
@@ -115,13 +192,17 @@ local function spawnMonster(slot: number)
 		hp = def.Hp,
 		maxHp = def.Hp,
 		speed = def.Speed,
-		points = points,
-		lengths = lengths,
-		travel = travel,
-		spawnedAt = os.clock(),
+		from = start,
+		to = start,
+		legStart = now,
+		legTime = 0,
+		restUntil = 0,
+		expiresAt = now + Combat.Monster.Lifetime,
 		alive = true,
 		damageBy = {},
-	})
+	}
+	startLeg(monster, now)
+	table.insert(monsters, monster)
 end
 
 local function reward(monster: Monster)
@@ -156,14 +237,10 @@ function MonsterService.getAlive(): { Monster }
 end
 
 function MonsterService.positionOf(monster: Monster, now: number): Vector3
-	local distance = math.min(monster.speed * (now - monster.spawnedAt), monster.travel)
-	for index, length in monster.lengths do
-		if distance <= length then
-			return monster.points[index]:Lerp(monster.points[index + 1], if length > 0 then distance / length else 1)
-		end
-		distance -= length
+	if monster.legTime <= 0 then
+		return monster.to
 	end
-	return monster.points[#monster.points]
+	return monster.from:Lerp(monster.to, math.clamp((now - monster.legStart) / monster.legTime, 0, 1))
 end
 
 function MonsterService.damage(monster: Monster, player: Player, amount: number)
@@ -176,7 +253,7 @@ function MonsterService.damage(monster: Monster, player: Player, amount: number)
 	monster.bar.Size = UDim2.fromScale(math.max(monster.hp / monster.maxHp, 0), 1)
 	if monster.hp <= 0 then
 		monster.alive = false
-		monster.part:Destroy()
+		monster.model:Destroy()
 		reward(monster)
 	end
 end
@@ -188,17 +265,32 @@ function MonsterService.Init()
 
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
+		local wander = Map.MonsterWander
 		for index = #monsters, 1, -1 do
 			local monster = monsters[index]
 			if not monster.alive then
 				table.remove(monsters, index)
-			elseif monster.speed * (now - monster.spawnedAt) >= monster.travel then
-				-- เดินถึงปากหลุมแล้ว ตกหลุมหายไป ไม่มีรางวัล
+			elseif now >= monster.expiresAt then
+				-- อยู่ครบเวลาแล้ว หายไป ไม่มีรางวัล
 				monster.alive = false
-				monster.part:Destroy()
+				monster.model:Destroy()
 				table.remove(monsters, index)
 			else
-				monster.part.CFrame = CFrame.new(MonsterService.positionOf(monster, now))
+				local arrived = now >= monster.legStart + monster.legTime
+				if arrived and monster.restUntil == 0 then
+					monster.restUntil = now + rng:NextNumber(wander.PauseMin, wander.PauseMax)
+				elseif arrived and now >= monster.restUntil then
+					startLeg(monster, now)
+				end
+
+				local position = MonsterService.positionOf(monster, now)
+				local direction = Vector3.new(monster.to.X - monster.from.X, 0, monster.to.Z - monster.from.Z)
+				local moving = not arrived and direction.Magnitude > 0.1
+				local hop = if moving then math.abs(math.sin(now * monster.speed * 1.5)) * 0.4 else 0
+				local lifted = position + Vector3.new(0, hop, 0)
+				monster.part.CFrame = if direction.Magnitude > 0.1
+					then CFrame.lookAt(lifted, lifted + direction)
+					else CFrame.new(lifted) * monster.part.CFrame.Rotation
 			end
 		end
 	end)

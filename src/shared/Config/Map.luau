@@ -4,8 +4,19 @@
 -- [Proposed] ค่าชุดแรกของ prototype
 
 return table.freeze({
-	GroundY = 1, -- ผิวบนของพื้นหญ้า
-	FloorSize = 362,
+	GroundY = 1, -- ผิวบนของพื้น
+	Radius = 181, -- แมพวงกลม (ยืนยัน 2026-09-25) · ขอบนอกสุดของพื้น
+	FloorSize = 362, -- เส้นผ่านศูนย์กลาง (ใช้เฉพาะพื้นสำรองแบบสี่เหลี่ยมเมื่อสร้างวงกลมไม่สำเร็จ)
+	EdgeHeight = 3, -- กำแพงเตี้ยรอบขอบแมพ
+
+	-- สไตล์บล็อก (ยืนยัน 2026-09-25): พื้นและบ้านใช้ texture ลายบล็อกสีส้ม
+	-- TextureAssetId = 0 → ยังไม่อัปโหลดภาพ ใช้สีเรียบแทน · ภาพต้นฉบับ assets/textures/block_tile.png
+	Style = table.freeze({
+		TextureAssetId = 0,
+		StudsPerTile = 12, -- 1 แผ่นภาพ = 6 x 6 ช่อง → ช่องละ 2 studs
+		Floor = Color3.fromRGB(236, 150, 60),
+		House = Color3.fromRGB(245, 178, 96),
+	}),
 	Segments = 48, -- จำนวนชิ้นที่ใช้ต่อวงกลมหนึ่งวง (มากขึ้น = กลมขึ้นแต่ Part มากขึ้น)
 
 	Pit = table.freeze({
@@ -29,8 +40,16 @@ return table.freeze({
 	-- สวนหลังบ้าน: มอนเล็ก/กลางของฐานนั้นเกิดในพื้นที่รูปพัดนี้
 	Yard = table.freeze({ Inner = 104, Outer = 150, HalfAngle = math.rad(18) }),
 
-	-- ทางมอน: จากปากสวน (Yard.Inner) เดินเลียบข้างลานฐานเข้าหาหลุม แล้วหายไปที่ End
-	MonsterLane = table.freeze({ Side = 12, End = 58 }),
+	-- มอนเดินสุ่มในพื้นที่รูปพัดของฐานตัวเอง (ยืนยัน 2026-09-25) · ไม่เข้าลานฐาน/บ้าน ไม่เข้าฐานข้างๆ
+	-- เกิดในสวนหลังบ้าน (≥ Yard.Inner) · Outer ≈ ระยะที่ป้อมยังยิงถึงเป็นส่วนใหญ่
+	MonsterWander = table.freeze({
+		Inner = 60,
+		Outer = 124,
+		HalfAngle = math.rad(20), -- ต้องน้อยกว่าครึ่งช่องฐาน (22.5°) เพื่อไม่ล้ำฐานข้างๆ
+		PadMargin = 3, -- ระยะกันห่างจากขอบลานฐาน
+		PauseMin = 0.5, -- หยุดยืนก่อนเดินต่อ (วินาที)
+		PauseMax = 2,
+	}),
 
 	-- สีประจำฐาน 1–8
 	SlotColors = table.freeze({

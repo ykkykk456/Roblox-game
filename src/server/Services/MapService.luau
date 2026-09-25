@@ -1,7 +1,7 @@
 -- สร้างแมพหลุมอุกกาบาตจาก Config/Map ตอน Server เริ่ม (เจ้าของ: World_Builder)
 -- โค้ดสร้างเฉพาะของที่วางตามกฎ (พื้น หลุม วงแหวน ฐาน) · ของตกแต่งฉากให้สร้างมือใน Studio ได้เลย
 -- ชิ้นที่ระบบอื่นต้องหาเจอ ติด tag จาก Config/Tags + Attribute "BaseSlot"
--- [Proposed] greybox: บล็อกสีเรียบ SmoothPlastic ทั้งหมด ไม่มี texture
+-- สไตล์บล็อก (ยืนยัน 2026-09-25): แมพวงกลม · พื้นและบ้านใช้ texture ลายบล็อกจาก Map.Style (ยังไม่มี ID = สีเรียบ)
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,13 +11,13 @@ local Tags = require(ReplicatedStorage.Shared.Config.Tags)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 
 local COLORS = {
-	Grass = Color3.fromRGB(107, 191, 78),
-	Loot = Color3.fromRGB(196, 232, 164),
+	Grass = Map.Style.Floor,
+	Edge = Color3.fromRGB(196, 112, 40),
+	Loot = Color3.fromRGB(252, 208, 112), -- ทุ่งเก็บของ: เหลืองทรายให้แยกจากพื้นส้ม
 	Rim = Color3.fromRGB(140, 125, 104),
 	PitFloor = Color3.fromRGB(120, 106, 88),
 	PadFloor = Color3.fromRGB(233, 227, 211),
-	Wall = Color3.fromRGB(247, 241, 227),
-	Lane = Color3.fromRGB(176, 138, 92),
+	Wall = Map.Style.House,
 	Crate = Color3.fromRGB(154, 106, 60),
 	Sell = Color3.fromRGB(245, 207, 69),
 	Post = Color3.fromRGB(70, 74, 86),
@@ -41,6 +41,24 @@ local function block(parent: Instance, name: string, size: Vector3, cframe: CFra
 	part.Parent = parent
 	return part
 end
+
+-- ใส่ texture ลายบล็อกบนหน้าที่ระบุ (ข้ามเมื่อยังไม่ได้ตั้ง TextureAssetId)
+local function texture(part: BasePart, faces: { Enum.NormalId })
+	local style = Map.Style
+	if style.TextureAssetId == 0 then
+		return
+	end
+	for _, face in faces do
+		local decal = Instance.new("Texture")
+		decal.Texture = `rbxassetid://{style.TextureAssetId}`
+		decal.Face = face
+		decal.StudsPerTileU = style.StudsPerTile
+		decal.StudsPerTileV = style.StudsPerTile
+		decal.Parent = part
+	end
+end
+
+local ALL_SIDES = { Enum.NormalId.Top, Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
 
 local function tag(part: BasePart, tagName: string, slot: number?)
 	CollectionService:AddTag(part, tagName)
@@ -78,9 +96,9 @@ local function ring(
 	return parts
 end
 
-local function buildGround(parent: Instance)
+-- พื้นสำรองแบบสี่เหลี่ยม (โค้ด greybox เดิม) ใช้เมื่อสร้างพื้นวงกลมไม่สำเร็จ
+local function buildSquareFloor(parent: Instance)
 	local g, half = Map.GroundY, Map.FloorSize / 2
-	-- พื้นหญ้า 4 แผ่นเว้นช่องสี่เหลี่ยมตรงกลาง แล้วเติมด้วยวงแหวนหญ้าจนมุมสี่เหลี่ยม
 	local hole = Map.LootRing.Outer + 6
 	local side = half - hole
 	local y = g - 1
@@ -89,6 +107,62 @@ local function buildGround(parent: Instance)
 	block(parent, "Floor", Vector3.new(side, 2, hole * 2), CFrame.new(-(hole + side / 2), y, 0), COLORS.Grass)
 	block(parent, "Floor", Vector3.new(side, 2, hole * 2), CFrame.new(hole + side / 2, y, 0), COLORS.Grass)
 	ring(parent, "Floor", Map.LootRing.Outer, hole * math.sqrt(2) + 2, g, 2, COLORS.Grass)
+end
+
+-- พื้นวงกลมชิ้นเดียวเจาะรูหลุมบอสตรงกลาง (CSG) → ลาย texture ต่อกันทั้งแมพไม่มีรอยซ้อน
+-- [Inferred] BasePart:IntersectAsync / SubtractAsync ใช้ฝั่ง Server ตอนเกมรันได้ · ล้มเหลว = คืน nil แล้วใช้พื้นสำรอง
+local function buildRoundFloor(parent: Instance): BasePart?
+	local g, radius = Map.GroundY, Map.Radius
+	local center = CFrame.new(0, g - 1, 0)
+	local upright = CFrame.Angles(0, 0, math.pi / 2) -- แกนทรงกระบอก (X) ตั้งขึ้นเป็นแกน Y
+
+	local slab = block(workspace, "FloorSlab", Vector3.new(radius * 2, 2, radius * 2), center, COLORS.Grass)
+	local disc = block(workspace, "FloorDisc", Vector3.new(2, radius * 2, radius * 2), center * upright, COLORS.Grass)
+	disc.Shape = Enum.PartType.Cylinder
+	local holeSize = (Map.Pit.Radius + Map.Pit.RimWidth) * 2 - 1 -- ซ้อนใต้ขอบหินเล็กน้อย ไม่ให้เห็นช่อง
+	local hole = block(workspace, "FloorHole", Vector3.new(4, holeSize, holeSize), center * upright, COLORS.Grass)
+	hole.Shape = Enum.PartType.Cylinder
+
+	local ok, result = pcall(function()
+		local round = slab:IntersectAsync({ disc }, Enum.CollisionFidelity.Box)
+		local floor = round:SubtractAsync({ hole }, Enum.CollisionFidelity.PreciseConvexDecomposition)
+		round:Destroy()
+		return floor
+	end)
+	slab:Destroy()
+	disc:Destroy()
+	hole:Destroy()
+	if not ok then
+		warn(`[MapService] สร้างพื้นวงกลมไม่สำเร็จ ใช้พื้นสี่เหลี่ยมแทน: {result}`)
+		return nil
+	end
+
+	local floor = result :: BasePart
+	floor.Name = "Floor"
+	floor.Anchored = true
+	floor.CanTouch = false
+	floor.Material = Enum.Material.SmoothPlastic
+	floor.Color = COLORS.Grass
+	local union = floor :: any -- UnionOperation: ให้ใช้สีของชิ้นแทนสีต้นฉบับ
+	union.UsePartColor = true
+	texture(floor, { Enum.NormalId.Top })
+	floor.Parent = parent
+	return floor
+end
+
+local function buildGround(parent: Instance)
+	local g = Map.GroundY
+	if not buildRoundFloor(parent) then
+		buildSquareFloor(parent)
+	end
+
+	-- กำแพงเตี้ยรอบขอบแมพ + กำแพงใสสูงกันผู้เล่นเดินตกขอบ
+	ring(parent, "Edge", Map.Radius - 2, Map.Radius, g + Map.EdgeHeight, Map.EdgeHeight + 2, COLORS.Edge)
+	for _, part in ring(parent, "EdgeBarrier", Map.Radius - 1, Map.Radius, g + 30, 30, COLORS.Edge) do
+		part.Transparency = 1
+		part.CanQuery = false
+		part.CastShadow = false
+	end
 
 	for _, part in ring(parent, "LootRing", Map.LootRing.Inner, Map.LootRing.Outer, g + 0.05, 2, COLORS.Loot) do
 		tag(part, Tags.LootZone)
@@ -134,14 +208,12 @@ local function buildBase(parent: Instance, slot: number)
 
 	local padTop = g + 0.45
 	block(model, "PadEdge", Vector3.new(base.Size, 0.4, base.Size), at(base.Distance, 0, g + 0.2), color)
-	block(model, "PadFloor", Vector3.new(base.Size - 4, 0.45, base.Size - 4), at(base.Distance, 0, g + 0.225), COLORS.PadFloor)
-
-	-- ทางมอน: จากปากสวนหลังบ้านเลียบข้างลานฐานไปถึงจุดที่มอนหายไป
-	local lane = Map.MonsterLane
-	local laneLength = Map.Yard.Inner - lane.End
-	block(model, "MonsterLane", Vector3.new(8, 0.5, laneLength), at(lane.End + laneLength / 2, lane.Side, g + 0.25), COLORS.Lane)
+	local padFloor =
+		block(model, "PadFloor", Vector3.new(base.Size - 4, 0.45, base.Size - 4), at(base.Distance, 0, g + 0.225), COLORS.PadFloor)
+	texture(padFloor, { Enum.NormalId.Top })
 
 	local house = block(model, "House", Vector3.new(14, 9, 14), at(90, -10, padTop + 4.5), COLORS.Wall)
+	texture(house, ALL_SIDES)
 	local roof = block(model, "Roof", Vector3.new(16, 3, 16), house.CFrame + Vector3.new(0, 6, 0), color)
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(120, 30)

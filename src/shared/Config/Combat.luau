@@ -16,9 +16,10 @@ return table.freeze({
 	}),
 
 	Monster = table.freeze({
-		-- เกิดในสวนหลังบ้านของฐานที่มีเจ้าของ แล้วเดินตามทางมอนเข้าหาหลุม (ผัง: Config/Map)
+		-- เกิดในสวนหลังบ้านของฐานที่มีเจ้าของ แล้วเดินสุ่มรอบฐาน (ผัง: Config/Map.MonsterWander)
 		SpawnInterval = 2, -- วินาที (เกิดฐานละ 1 ตัวต่อรอบ)
 		MaxAlivePerBase = 6,
+		Lifetime = 90, -- วินาที · อยู่ครบแล้วหายไปเอง (ไม่มีรางวัล) เพื่อให้มอนใหม่เกิดแทน
 		TypeOrder = table.freeze({ "Small", "Medium" }),
 		-- Weight = โอกาสเกิดเทียบกัน · Speed = studs ต่อวินาที · Size = เส้นผ่านศูนย์กลาง · เงินอยู่ที่ Economy.MonsterRewardMultiplier
 		Types = table.freeze({
