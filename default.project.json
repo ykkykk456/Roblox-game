@@ -22,6 +22,9 @@
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
+      },
+      "MapGround": {
+        "$path": "map/ground.project.json"
       }
     },
     "Lighting": {

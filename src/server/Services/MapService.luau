@@ -1,7 +1,9 @@
--- สร้างแมพหลุมอุกกาบาตจาก Config/Map ตอน Server เริ่ม (เจ้าของ: World_Builder)
--- โค้ดสร้างเฉพาะของที่วางตามกฎ (พื้น หลุม วงแหวน ฐาน) · ของตกแต่งฉากให้สร้างมือใน Studio ได้เลย
+-- ประกอบแมพตอน Server เริ่ม (เจ้าของ: World_Builder)
+-- พื้น/แอ่ง/ถนน/ขอบ = Workspace.MapGround (Rojo sync จาก map/ground.project.json · สร้างด้วย tools/gen_map.py)
+--   → เห็นในโหมดแก้ไขของ Studio · โค้ดนี้แค่ติด tag LootZone ให้บล็อกในแอ่ง และเพิ่มกำแพงใสรอบขอบ
+-- ฐาน (ลานฐาน บ้าน ป้าย spawn สวนหลังบ้าน) = สร้างตอนเกมรันตาม Config/Map · ของตกแต่งสร้างมือใน Studio ได้
 -- ชิ้นที่ระบบอื่นต้องหาเจอ ติด tag จาก Config/Tags + Attribute "BaseSlot"
--- สไตล์บล็อก (ยืนยัน 2026-09-25): แมพวงกลม · พื้นและบ้านใช้ texture ลายบล็อกจาก Map.Style (ยังไม่มี ID = สีเรียบ)
+-- สไตล์บล็อก (ยืนยัน 2026-09-25/26): ผิวบน Studs + สีบล็อก · ใส่ texture ภาพได้ถ้าตั้ง Map.Style.TextureAssetId
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,11 +13,7 @@ local Tags = require(ReplicatedStorage.Shared.Config.Tags)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 
 local COLORS = {
-	Grass = Map.Style.Floor,
-	Edge = Color3.fromRGB(196, 112, 40),
-	Loot = Color3.fromRGB(252, 208, 112), -- ทุ่งเก็บของ: เหลืองทรายให้แยกจากพื้นส้ม
-	Rim = Color3.fromRGB(140, 125, 104),
-	PitFloor = Color3.fromRGB(120, 106, 88),
+	Floor = Map.Style.Floor,
 	PadFloor = Color3.fromRGB(233, 227, 211),
 	Wall = Map.Style.House,
 	Crate = Color3.fromRGB(154, 106, 60),
@@ -96,96 +94,42 @@ local function ring(
 	return parts
 end
 
--- พื้นสำรองแบบสี่เหลี่ยม (โค้ด greybox เดิม) ใช้เมื่อสร้างพื้นวงกลมไม่สำเร็จ
-local function buildSquareFloor(parent: Instance)
-	local g, half = Map.GroundY, Map.FloorSize / 2
-	local hole = Map.LootRing.Outer + 6
-	local side = half - hole
-	local y = g - 1
-	block(parent, "Floor", Vector3.new(Map.FloorSize, 2, side), CFrame.new(0, y, -(hole + side / 2)), COLORS.Grass)
-	block(parent, "Floor", Vector3.new(Map.FloorSize, 2, side), CFrame.new(0, y, hole + side / 2), COLORS.Grass)
-	block(parent, "Floor", Vector3.new(side, 2, hole * 2), CFrame.new(-(hole + side / 2), y, 0), COLORS.Grass)
-	block(parent, "Floor", Vector3.new(side, 2, hole * 2), CFrame.new(hole + side / 2, y, 0), COLORS.Grass)
-	ring(parent, "Floor", Map.LootRing.Outer, hole * math.sqrt(2) + 2, g, 2, COLORS.Grass)
+-- ชิ้นที่ค้างจาก Rojo รุ่นเก่า (หญ้า/Baseplate) — ลบตอนเกมรัน · ต้องลบใน Studio เองด้วยถึงจะหายถาวร
+local LEGACY = { "Grass", "Baseplate" }
+
+local function cleanupLegacy()
+	for _, name in LEGACY do
+		local old = workspace:FindFirstChild(name)
+		if old and old:IsA("BasePart") then
+			warn(`[MapService] ลบชิ้นเก่า workspace.{name} (ลบใน Studio ด้วย: Explorer → Workspace → {name} → Delete แล้ว Save)`)
+			old:Destroy()
+		end
+	end
 end
 
--- พื้นวงกลมชิ้นเดียวเจาะรูหลุมบอสตรงกลาง (CSG) → ลาย texture ต่อกันทั้งแมพไม่มีรอยซ้อน
--- [Inferred] BasePart:IntersectAsync / SubtractAsync ใช้ฝั่ง Server ตอนเกมรันได้ · ล้มเหลว = คืน nil แล้วใช้พื้นสำรอง
-local function buildRoundFloor(parent: Instance): BasePart?
-	local g, radius = Map.GroundY, Map.Radius
-	local center = CFrame.new(0, g - 1, 0)
-	local upright = CFrame.Angles(0, 0, math.pi / 2) -- แกนทรงกระบอก (X) ตั้งขึ้นเป็นแกน Y
-
-	local slab = block(workspace, "FloorSlab", Vector3.new(radius * 2, 2, radius * 2), center, COLORS.Grass)
-	local disc = block(workspace, "FloorDisc", Vector3.new(2, radius * 2, radius * 2), center * upright, COLORS.Grass)
-	disc.Shape = Enum.PartType.Cylinder
-	local holeSize = (Map.Pit.Radius + Map.Pit.RimWidth) * 2 - 1 -- ซ้อนใต้ขอบหินเล็กน้อย ไม่ให้เห็นช่อง
-	local hole = block(workspace, "FloorHole", Vector3.new(4, holeSize, holeSize), center * upright, COLORS.Grass)
-	hole.Shape = Enum.PartType.Cylinder
-
-	local ok, result = pcall(function()
-		local round = slab:IntersectAsync({ disc }, Enum.CollisionFidelity.Box)
-		local floor = round:SubtractAsync({ hole }, Enum.CollisionFidelity.PreciseConvexDecomposition)
-		round:Destroy()
-		return floor
-	end)
-	slab:Destroy()
-	disc:Destroy()
-	hole:Destroy()
-	if not ok then
-		warn(`[MapService] สร้างพื้นวงกลมไม่สำเร็จ ใช้พื้นสี่เหลี่ยมแทน: {result}`)
-		return nil
-	end
-
-	local floor = result :: BasePart
-	floor.Name = "Floor"
-	floor.Anchored = true
-	floor.CanTouch = false
-	floor.Material = Enum.Material.SmoothPlastic
-	floor.Color = COLORS.Grass
-	local union = floor :: any -- UnionOperation: ให้ใช้สีของชิ้นแทนสีต้นฉบับ
-	union.UsePartColor = true
-	texture(floor, { Enum.NormalId.Top })
-	floor.Parent = parent
-	return floor
+-- พื้นสำรองเมื่อไม่มี MapGround (เช่น ลืม sync Rojo) — แผ่นเรียบแผ่นเดียว กันผู้เล่นตก
+local function buildFallbackFloor(parent: Instance)
+	warn("[MapService] ไม่พบ workspace.MapGround — ใช้พื้นเรียบชั่วคราว (เปิด rojo serve แล้ว Connect ใหม่)")
+	local size = Map.Radius * 2
+	block(parent, "FallbackFloor", Vector3.new(size, 2, size), CFrame.new(0, Map.GroundY - 1, 0), COLORS.Floor)
 end
 
 local function buildGround(parent: Instance)
-	local g = Map.GroundY
-	if not buildRoundFloor(parent) then
-		buildSquareFloor(parent)
+	cleanupLegacy()
+	local ground = workspace:FindFirstChild("MapGround")
+	if ground then
+		-- บล็อกในแอ่งกลางแมพ = พื้นที่เก็บของ (ชื่อขึ้นต้น "Pit_" จาก tools/gen_map.py)
+		for _, part in ground:GetChildren() do
+			if part:IsA("BasePart") and string.sub(part.Name, 1, 4) == "Pit_" then
+				CollectionService:AddTag(part, Tags.LootZone)
+			end
+		end
+	else
+		buildFallbackFloor(parent)
 	end
 
-	-- กำแพงเตี้ยรอบขอบแมพ + กำแพงใสสูงกันผู้เล่นเดินตกขอบ
-	ring(parent, "Edge", Map.Radius - 2, Map.Radius, g + Map.EdgeHeight, Map.EdgeHeight + 2, COLORS.Edge)
-	for _, part in ring(parent, "EdgeBarrier", Map.Radius - 1, Map.Radius, g + 30, 30, COLORS.Edge) do
-		part.Transparency = 1
-		part.CanQuery = false
-		part.CastShadow = false
-	end
-
-	for _, part in ring(parent, "LootRing", Map.LootRing.Inner, Map.LootRing.Outer, g + 0.05, 2, COLORS.Loot) do
-		tag(part, Tags.LootZone)
-		part.CanTouch = false -- ใช้หาโซนเท่านั้น ไม่ต้องรับการชน
-	end
-
-	-- ขอบหินรอบปากหลุม ยาวลงไปถึงก้นหลุม = ผนังหลุม
-	local pit = Map.Pit
-	local rimTop = g + 0.25
-	local bottom = g - pit.Depth
-	ring(parent, "PitRim", pit.Radius, pit.Radius + pit.RimWidth, rimTop, rimTop - bottom, COLORS.Rim)
-
-	local floor = block(
-		parent,
-		"PitFloor",
-		Vector3.new(1, pit.Radius * 2 + 2, pit.Radius * 2 + 2),
-		CFrame.new(0, bottom - 0.5, 0) * CFrame.Angles(0, 0, math.pi / 2),
-		COLORS.PitFloor
-	)
-	floor.Shape = Enum.PartType.Cylinder
-
-	-- กำแพงใสกันผู้เล่นตกหลุม (ตกแล้วปีนขึ้นไม่ได้) · มอนกับบอสไม่ชนอยู่แล้ว
-	for _, part in ring(parent, "PitBarrier", pit.Radius - 1, pit.Radius, rimTop + 10, 10, COLORS.Rim) do
+	-- กำแพงใสสูงรอบขอบแมพ กันผู้เล่นกระโดดข้ามกำแพงเตี้ยตกขอบ
+	for _, part in ring(parent, "EdgeBarrier", Map.Radius - 2, Map.Radius, Map.GroundY + 30, 30, COLORS.Floor) do
 		part.Transparency = 1
 		part.CanQuery = false
 		part.CastShadow = false
@@ -210,9 +154,15 @@ local function buildBase(parent: Instance, slot: number)
 	block(model, "PadEdge", Vector3.new(base.Size, 0.4, base.Size), at(base.Distance, 0, g + 0.2), color)
 	local padFloor =
 		block(model, "PadFloor", Vector3.new(base.Size - 4, 0.45, base.Size - 4), at(base.Distance, 0, g + 0.225), COLORS.PadFloor)
+	padFloor.TopSurface = Enum.SurfaceType.Studs
 	texture(padFloor, { Enum.NormalId.Top })
 
 	local house = block(model, "House", Vector3.new(14, 9, 14), at(90, -10, padTop + 4.5), COLORS.Wall)
+	house.TopSurface = Enum.SurfaceType.Studs
+	house.FrontSurface = Enum.SurfaceType.Studs
+	house.BackSurface = Enum.SurfaceType.Studs
+	house.LeftSurface = Enum.SurfaceType.Studs
+	house.RightSurface = Enum.SurfaceType.Studs
 	texture(house, ALL_SIDES)
 	local roof = block(model, "Roof", Vector3.new(16, 3, 16), house.CFrame + Vector3.new(0, 6, 0), color)
 	local gui = Instance.new("BillboardGui")

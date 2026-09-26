@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
+local Map = require(ReplicatedStorage.Shared.Config.Map)
 local Skills = require(ReplicatedStorage.Shared.Config.Skills)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local Components = require(script.Parent.Components)
@@ -75,7 +76,10 @@ local function renderBoss()
 	end
 	bossBarBack.Visible = false
 	local result = bossState:GetAttribute("Result")
-	if type(result) == "string" and result ~= "" and os.clock() - lastResultAt < RESULT_SHOW_TIME then
+	local incoming = numberAttr(bossState, "NextAt", math.huge) - serverNow
+	if incoming > 0 and incoming <= Map.Pit.WarnSeconds then
+		bossTitle.Text = `⚠️ บอสกำลังมา! ออกจากแอ่งกลางแมพใน {math.ceil(incoming)} วิ`
+	elseif type(result) == "string" and result ~= "" and os.clock() - lastResultAt < RESULT_SHOW_TIME then
 		bossTitle.Text = result
 	else
 		bossTitle.Text =

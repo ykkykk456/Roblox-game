@@ -5,7 +5,7 @@
 
 return table.freeze({
 	-- สร้างโดย MapService (ยังไม่มีระบบอ่าน · รอ /roblox-feature)
-	LootZone = "LootZone", -- ทุ่งเก็บของร่วมรอบหลุมบอส
+	LootZone = "LootZone", -- บล็อกในแอ่งกลางแมพ = ที่เก็บของ (MapService ติดให้บล็อก Pit_* ของ MapGround)
 	MonsterYard = "MonsterYard", -- สวนหลังบ้านที่มอนเกิด
 	SellPad = "SellPad", -- แผ่นขายของ
 	AmmoCrate = "AmmoCrate", -- ลังเติมกระสุนพิเศษ
