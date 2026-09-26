@@ -16,9 +16,9 @@ spec: `art/models/boss_slambot/spec.json`
 | ✅ | Material ด้าน ไม่มีโลหะ/texture |  |
 | ✅ | ขนาดตรง Brief ±1 voxel (42×15×48 studs) | ได้ 42.00×15.00×48.00 |
 | ✅ | Pivot ที่ฐานกลาง (ฐาน z = 0, กลาง x/y ≈ 0) | ฐาน z = 0.000 · กลาง (0.00, 0.00) |
-| ✅ | Triangle รวม ≤ 6000 | 654 tris |
+| ✅ | Triangle รวม ≤ 6000 | 680 tris |
 | ✅ | Triangle ต่อชิ้น ≤ 20000 |  |
 | ✅ | Geometry สะอาด (ไม่มี vertex ลอย/หน้าซ้อน, normal ชี้ออก) |  |
 | ✅ | Scale = 1 และ Rotation = 0 ทุก object |  |
 
-Triangle ต่อชิ้น: FistL 52, FistR 52, FootL 40, FootR 40, ForearmL 36, ForearmR 36, Head 132, Pelvis 12, ShinL 36, ShinR 36, ThighL 24, ThighR 24, Torso 82, UpperArmL 26, UpperArmR 26
+Triangle ต่อชิ้น: FistL 60, FistR 60, FootL 40, FootR 40, ForearmL 36, ForearmR 36, Head 130, Pelvis 20, ShinL 36, ShinR 36, ThighL 24, ThighR 24, Torso 86, UpperArmL 26, UpperArmR 26

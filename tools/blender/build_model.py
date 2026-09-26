@@ -306,6 +306,7 @@ def render_preview(size, out_path):
     scene.display.shading.color_type = "MATERIAL"
     scene.display.shading.show_object_outline = True
     scene.view_settings.view_transform = "Standard"  # สีตรง palette (ค่าเริ่มต้น AgX ทำให้สีซีด)
+    scene.view_settings.exposure = 0.45  # ไฟ Studio ทำให้สีขาวดูเป็นเทา → ยกแสงให้ขาวยังเป็นขาว
     scene.render.film_transparent = True
     scene.render.filter_size = 0.0  # ขอบคมแบบพิกเซล
     scene.render.resolution_x = 512
