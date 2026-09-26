@@ -46,6 +46,16 @@ local boss: Boss? = nil
 local dirty = false
 local slammedEvent = Instance.new("BindableEvent")
 
+-- มุมทั้ง 8 ของกล่อง (ใช้หาจุดต่ำสุดของชิ้นส่วน)
+local CORNERS = {}
+for _, x in { -1, 1 } do
+	for _, y in { -1, 1 } do
+		for _, z in { -1, 1 } do
+			table.insert(CORNERS, Vector3.new(x, y, z))
+		end
+	end
+end
+
 -- ความสูงผิวพื้นที่รัศมี r จากกลางแมพ (แอ่งลึกเป็นขั้น)
 local function floorAt(r: number): number
 	local depth = 0
@@ -214,16 +224,38 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 		humanoid.RequiresNeck = false -- ริกจากภายนอกอาจไม่มีข้อต่อคอ → ไม่ให้ Humanoid ถือว่าตาย
 	end
 
-	-- วางให้เท้าแตะพื้นกลางแอ่ง: หาความสูงจากราก ถึงก้นกล่องครอบโมเดล
-	local boxCFrame, boxSize = model:GetBoundingBox()
-	local rootToBottom = model:GetPivot().Y - (boxCFrame.Y - boxSize.Y / 2)
-	local start = Vector3.new(0, floorAt(Combat.Boss.EntranceFrom) + rootToBottom, -Combat.Boss.EntranceFrom)
+	-- วางให้เท้าแตะพื้นที่ขอบแอ่ง: หันหน้าเข้ากลางก่อน แล้ววัดจุดต่ำสุดของตัวจริงในโลก
+	-- (ไม่ใช้ GetBoundingBox เพราะกล่องหมุนตามตัวราก ถ้าโมเดลจาก Blender หมุนแกนมา ความสูงจะผิด → จม/ลอย)
+	local startXZ = Vector3.new(0, 0, -Combat.Boss.EntranceFrom)
+	model:PivotTo(CFrame.lookAt(startXZ, Vector3.new(0, 0, 0)))
+	local lowest, highest = math.huge, -math.huge
+	for _, item in model:GetDescendants() do
+		-- ข้ามชิ้นล่องหน (HumanoidRootPart / ชิ้นช่วย) ที่อาจยื่นเลยเท้า
+		if item:IsA("BasePart") and item.Transparency < 1 then
+			local half = item.Size / 2
+			for _, corner in CORNERS do
+				local y = (item.CFrame * (half * corner)).Y
+				lowest = math.min(lowest, y)
+				highest = math.max(highest, y)
+			end
+		end
+	end
+	if lowest == math.huge then
+		lowest, highest = root.Position.Y, root.Position.Y
+	end
+	local rootToBottom = model:GetPivot().Y - lowest + Combat.Boss.GroundOffset
+	local floor = floorAt(Combat.Boss.EntranceFrom)
 	model:SetAttribute("RootToBottom", rootToBottom)
-	model:PivotTo(CFrame.lookAt(start, Vector3.new(0, start.Y, 0)))
+	model:PivotTo(model:GetPivot() + Vector3.new(0, floor + rootToBottom - model:GetPivot().Y, 0))
+	print(
+		`[BossService] วาง {model.Name}: ตัวสูง {math.floor(highest - lowest + 0.5)} studs · เท้าห่างจุดหมุน {string.format("%.1f", rootToBottom)} · พื้นขอบแอ่ง Y={floor}`
+			.. ` (ยังจม/ลอย → ปรับ Boss.GroundOffset ใน Config/Combat.luau)`
+	)
+	local height = highest - lowest
 
 	local aim = model:FindFirstChild("UpperTorso", true)
 	local target = if aim and aim:IsA("BasePart") then aim else root
-	addLabel(target, boxSize.Y * 0.6)
+	addLabel(target, height * 0.6)
 	model.Parent = workspace
 	return model, target, root
 end
