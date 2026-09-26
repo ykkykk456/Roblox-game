@@ -61,7 +61,7 @@ function HudUI.Init()
 	menu.BackgroundTransparency = 1
 	menu.AnchorPoint = Vector2.new(1, 0.5)
 	menu.Position = UDim2.new(1, -12, 0.5, 0)
-	menu.Size = UDim2.fromOffset(170, Theme.ButtonHeight * 3 + 16)
+	menu.Size = UDim2.fromOffset(170, Theme.ButtonHeight * 4 + 24)
 	menu.Parent = gui
 	Components.list(menu, 8)
 	Components.button(menu, "⚙  ตั้งค่า", { order = 1 }, function()
@@ -72,6 +72,9 @@ function HudUI.Init()
 	end)
 	Components.button(menu, "🎒  กระเป๋า", { order = 3 }, function()
 		Panels.toggle("Bag")
+	end)
+	Components.button(menu, "🎰  กาชา", { order = 4 }, function()
+		Panels.toggle("Gacha") -- แผงสร้างใน GachaUI
 	end)
 
 	placeholderPanel(gui, "Shop", "ร้านค้า", "ร้านค้ากำลังพัฒนา\nจะเปิดเมื่อมีระบบเงินและไอเทม")

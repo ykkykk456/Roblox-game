@@ -14,7 +14,7 @@
 - [ ] Done
 
 ## Required Workflow & Skills
-- Workflow ที่ใช้: [Fast Lane / /roblox-feature / /roblox-ui / /roblox-bugfix / /roblox-economy / /roblox-map]
+- Workflow ที่ใช้: [Fast Lane / /roblox-design-thinking / /roblox-feature / /roblox-ui / /roblox-bugfix / /roblox-economy / /roblox-map]
 - ไฟล์ Skill ที่ต้องหยิบให้ AI อ่าน:
   - [<แผนก>/Skills/<Skill_Name>.md]
   - [<แผนก>/Skills/<Skill_Name>.md]

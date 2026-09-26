@@ -136,10 +136,14 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 - ของที่ซ้ำหรือวางตามกฎ → สร้างด้วยโค้ดใน `src/server/Services/`
 - เชื่อมของที่สร้างมือกับโค้ดผ่าน CollectionService tag (`src/shared/Config/Tags.luau`) + Attribute และ `src/shared/Util/Tagged.luau` · ห้ามอ้างชื่อหรือตำแหน่งชิ้นส่วน
 
-**ขนาดแมพปัจจุบัน** (กำหนดใน `default.project.json` → Workspace)
-| ชิ้น | ขนาด (stud) | ตำแหน่ง | หมายเหตุ |
-|---|---|---|---|
-| `Baseplate` | 512 × 20 × 512 | ศูนย์กลาง (0, -10, 0) · ผิวบนที่ Y = 0 | ขอบเขตทั้งแมพ |
-| `Grass` | 362 × 1 × 362 | ศูนย์กลาง (0, 0.5, 0) · ผิวบนที่ Y = 1 | พื้นหญ้า = 50% ของพื้นที่ Baseplate (362 ≈ 512 × √0.5) · Locked กันลากโดยไม่ตั้งใจ |
+**แมพปัจจุบัน: หลุมอุกกาบาต v2** (`design/crater-map.md`) — พื้นเป็น `Workspace.MapGround` (Rojo sync จาก `map/ground.project.json` · สร้างด้วย `python3 tools/gen_map.py` → เห็นในโหมดแก้ไข) · ฐานสร้างด้วยโค้ดใน `MapService` จาก `src/shared/Config/Map.luau`
+| ส่วน | ขนาด (stud) | หมายเหตุ |
+|---|---|---|
+| พื้น | วงกลมรัศมี 400 (`Map.Radius`) บล็อก 16×16 · ผิวบนที่ Y = 1 | `Map.GroundY` · ระบบอื่นอ้างความสูงพื้นจากค่านี้ |
+| แอ่งกลาง | รัศมี 100 · ลึก 1–3 ขั้น | จุดบอสเกิด + ที่เก็บของ · tag `LootZone` · `PitService` ปิดตอนบอสมา |
+| ถนนวงแหวน | รัศมี 100–130 | จุดที่ผู้เล่นถูกย้ายไปเมื่อบอสมา |
+| ฐาน | 110 × 110 ห่างกลาง 200 · ป้อมห่างกลาง 140 | `Map.BaseCount` ฐาน (สูงสุด 8) · ชิ้นในฐานติด tag + Attribute `BaseSlot` |
+| สวนหลังบ้าน | รูปพัด ±18° รัศมี 260–350 | tag `MonsterYard` (มอนไม่เกิดที่นี่แล้ว) |
+| เลนมอน | 8 เลนตามแนวฐาน รัศมี 12–134 กว้าง 20 | มอนเกิดกลางแอ่งเป็น wave เดินไปหาป้อม (`Config/Map.Lane`) |
 
-แก้ขนาด/สีของชิ้นเหล่านี้ที่ `default.project.json` เท่านั้น (แก้ใน Studio จะถูก Rojo ทับ)
+แก้ขนาดพื้น/แอ่ง/ถนน = แก้ `tools/gen_map.py` + `Config/Map.luau` ให้ตรงกัน แล้วรัน `python3 tools/gen_map.py` · แก้ฐาน = `Config/Map.luau` (ของใน Folder `Map` ถูกสร้างใหม่ทุกครั้งที่ Server เริ่ม แก้ใน Studio จะหายตอนกด Play)

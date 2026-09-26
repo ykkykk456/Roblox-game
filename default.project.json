@@ -23,50 +23,8 @@
       "$properties": {
         "FilteringEnabled": true
       },
-      "Baseplate": {
-        "$className": "Part",
-        "$properties": {
-          "Anchored": true,
-          "Color": [
-            0.38823,
-            0.37254,
-            0.38823
-          ],
-          "Locked": true,
-          "Position": [
-            0,
-            -10,
-            0
-          ],
-          "Size": [
-            512,
-            20,
-            512
-          ]
-        }
-      },
-      "Grass": {
-        "$className": "Part",
-        "$properties": {
-          "Anchored": true,
-          "Locked": true,
-          "Material": "Grass",
-          "Color": [
-            0.34902,
-            0.60784,
-            0.23922
-          ],
-          "Position": [
-            0,
-            0.5,
-            0
-          ],
-          "Size": [
-            362,
-            1,
-            362
-          ]
-        }
+      "MapGround": {
+        "$path": "map/ground.project.json"
       }
     },
     "Lighting": {

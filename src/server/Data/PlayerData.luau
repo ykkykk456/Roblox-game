@@ -14,19 +14,51 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
+local Skills = require(ReplicatedStorage.Shared.Config.Skills)
 
 local STORE_NAME = "PlayerData"
-local VERSION = 1
+local VERSION = 4
 local MAX_ATTEMPTS = 3
 local AUTOSAVE_INTERVAL = 120
 
 local DEFAULT = {
 	Version = VERSION,
 	Coins = Economy.StartingCoins,
+	TurretLevel = 1, -- v2
+	GachaTickets = 0, -- v3
+	Skills = { [Skills.StarterSkill] = { Level = 1, Copies = 0 } }, -- v3: [skillId] = { Level, Copies }
+	EquippedSkill = Skills.StarterSkill, -- v3
+	Upgrades = { Bag = 1, Magazine = 1, House = 1, Speed = 1 }, -- v4: เลเวลอัปตัวเอง (ค่าพลังคำนวณจาก Config)
+	Gear = {}, -- v4: ["<ช่อง>_<ระดับ>"] = จำนวน เช่น Barrel_Rare = 2
+	Rebirths = 0, -- v4
+	LastSeen = 0, -- v4: os.time() ฝั่ง Server ตอนออกเกม (คิดเงิน idle ตอนออฟไลน์)
+	Login = { Day = 0, Streak = 0 }, -- v4: Day = เลขวัน UTC ที่รับรางวัลล่าสุด
 }
 
 -- MIGRATIONS[n] แปลงข้อมูลจากเวอร์ชัน n เป็น n + 1
-local MIGRATIONS: { [number]: (any) -> any } = {}
+local MIGRATIONS: { [number]: (any) -> any } = {
+	-- v1 → v2: เพิ่มเลเวลป้อม
+	[1] = function(data)
+		data.TurretLevel = 1
+		return data
+	end,
+	-- v2 → v3: เพิ่มตั๋วกาชาและคลังสกิล (ทุกคนได้สกิลเริ่มต้น)
+	[2] = function(data)
+		data.GachaTickets = 0
+		data.Skills = { [Skills.StarterSkill] = { Level = 1, Copies = 0 } }
+		data.EquippedSkill = Skills.StarterSkill
+		return data
+	end,
+	-- v3 → v4: อัปตัวเอง · อุปกรณ์แต่ง · Rebirth · เวลาออกเกม · รางวัล Login (design/crater-map.md)
+	[3] = function(data)
+		data.Upgrades = { Bag = 1, Magazine = 1, House = 1, Speed = 1 }
+		data.Gear = {}
+		data.Rebirths = 0
+		data.LastSeen = 0
+		data.Login = { Day = 0, Streak = 0 }
+		return data
+	end,
+}
 
 type Profile = { data: any, loaded: boolean }
 

@@ -5,7 +5,7 @@ description: Workflow สร้างฟีเจอร์เกม Roblox ใ�
 
 # NEW FEATURE WORKFLOW
 
-ก่อนเริ่ม: ถ้างานผ่านเกณฑ์ **Fast Lane** ใน `CLAUDE.md` → ไม่ต้องใช้ workflow นี้
+ก่อนเริ่ม: ถ้างานผ่านเกณฑ์ **Fast Lane** ใน `CLAUDE.md` → ไม่ต้องใช้ workflow นี้ · ถ้ามี **Design Brief** จาก `/roblox-design-thinking` → ใช้เป็น input ของ Step 1 ไม่ต้องคิดใหม่
 แต่ละ Step **เปิดเฉพาะไฟล์ในช่อง "โหลด"** (path นับจาก `Roblox_AI_Org_By_Function/`) · ผลของแต่ละ Step เขียนสั้นๆ ต่อท้ายใน Feature Spec ไม่ต้องทำ Handoff 8 หัวข้อ
 
 | Step | บทบาท | โหลด | ผลลัพธ์ |

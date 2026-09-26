@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="th">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ภาพใหญ่เกมป้อมตีบอส</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F1F4EF; --surface:#FFFFFF; --surface-2:#E6EBE3; --ink:#141A15; --muted:#566055; --line:#D1D8CE;
+  --accent:#2E7A29; --accent-soft:#DCEFD7;
+  --coin:#946A00; --coin-soft:#FAEEC6;
+  --boss:#C0392B; --boss-soft:#F7DEDA;
+  --blue:#2B5FB3; --blue-soft:#DDE7F8;
+  --violet:#6A4BB0; --violet-soft:#E8E1F6;
+  --grass:#8CCB6E; --lane:#B98B5E; --loot:#E7D98F; --plaza:#DCD5C3; --mapink:#1F2A1F;
+  --shadow:0 1px 2px rgba(20,26,21,.06),0 4px 14px rgba(20,26,21,.05);
+  --display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#15181D; --surface:#1E2229; --surface-2:#292E38; --ink:#F1F3F7; --muted:#A2A8B6; --line:#353B47;
+    --accent:#6CC65F; --accent-soft:#21351E;
+    --coin:#FFCC40; --coin-soft:#3A3217;
+    --boss:#F07A6C; --boss-soft:#402320;
+    --blue:#86ADF2; --blue-soft:#1D2940;
+    --violet:#B39BF0; --violet-soft:#2C2442;
+    --grass:#3F6E34; --lane:#8A6743; --loot:#6E6536; --plaza:#4A4A42; --mapink:#E9EEE6;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#15181D; --surface:#1E2229; --surface-2:#292E38; --ink:#F1F3F7; --muted:#A2A8B6; --line:#353B47;
+  --accent:#6CC65F; --accent-soft:#21351E;
+  --coin:#FFCC40; --coin-soft:#3A3217;
+  --boss:#F07A6C; --boss-soft:#402320;
+  --blue:#86ADF2; --blue-soft:#1D2940;
+  --violet:#B39BF0; --violet-soft:#2C2442;
+  --grass:#3F6E34; --lane:#8A6743; --loot:#6E6536; --plaza:#4A4A42; --mapink:#E9EEE6;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.7;margin:0}
+code{font-family:var(--mono);font-size:.84em;background:var(--surface-2);padding:.1em .38em;border-radius:5px;word-break:break-word}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--display);line-height:1.25;text-wrap:balance;margin:0}
+h2{font-size:1.8rem;font-weight:700}
+h3{font-size:1.1rem;font-weight:600}
+p{margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+.shell{display:grid;grid-template-columns:210px minmax(0,1fr);gap:40px;max-width:1240px;margin:0 auto;padding-inline:24px;padding-block:28px 80px}
+nav.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;display:flex;flex-direction:column;gap:2px}
+.brand{font-family:var(--display);font-weight:700;font-size:1rem;display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.brand .dot{width:20px;height:20px;border-radius:50%;background:var(--boss);box-shadow:inset -4px -4px 0 rgba(0,0,0,.2)}
+nav.side a{display:block;text-decoration:none;color:var(--muted);padding:6px 10px;border-radius:7px;font-size:.93rem}
+nav.side a:hover{color:var(--ink);background:var(--surface-2)}
+nav.side a.on{color:var(--ink);background:var(--surface);box-shadow:var(--shadow);font-weight:600}
+
+main{display:flex;flex-direction:column;gap:76px;min-width:0}
+section{display:flex;flex-direction:column;gap:20px}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.lead{color:var(--muted);max-width:68ch}
+.muted{color:var(--muted);font-size:.92rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.pill.done{background:var(--accent-soft);color:var(--accent)}
+.pill.next{background:var(--coin-soft);color:var(--coin)}
+.pill.later{background:var(--blue-soft);color:var(--blue)}
+.pill.no{background:var(--boss-soft);color:var(--boss)}
+.pill.prop{background:var(--violet-soft);color:var(--violet)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.8rem;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+.stat b{display:block;font-family:var(--display);font-size:1.3rem;font-variant-numeric:tabular-nums}
+
+/* hero */
+.hero{gap:22px;padding-top:6px}
+.hero h1{font-size:clamp(2rem,4.4vw,3.1rem);font-weight:700;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;color:var(--boss)}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.facts div{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.facts b{font-family:var(--display);font-size:1.08rem}
+.facts span{color:var(--muted);font-size:.82rem}
+.pillars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.pillar{border-top:3px solid var(--ink);padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.pillar b{font-family:var(--display);font-size:1rem}
+.pillar span{color:var(--muted);font-size:.88rem}
+
+/* FAQ */
+.faq{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.faq .card{display:flex;flex-direction:column;gap:8px}
+.faq .q{font-family:var(--display);font-weight:600;font-size:1.05rem}
+.faq .q span{color:var(--muted);font-weight:500}
+.faq a{font-size:.86rem}
+
+/* loop ring */
+.loopwrap{display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:28px;align-items:center}
+.ring{position:relative;width:100%;aspect-ratio:1;max-width:560px}
+.ring svg{position:absolute;inset:0;width:100%;height:100%}
+.ring .node{position:absolute;width:31%;transform:translate(-50%,-50%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 11px;font-size:.79rem;line-height:1.45;box-shadow:var(--shadow)}
+.ring .node b{display:block;font-family:var(--display);font-size:.92rem}
+.ring .node .n{font-family:var(--mono);color:var(--muted);font-size:.72rem}
+.ring .node.boss{border:2px solid var(--boss)}
+.ring .node.boss b{color:var(--boss)}
+.ring .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;width:30%;display:flex;flex-direction:column;gap:2px}
+.ring .center b{font-family:var(--display);font-size:1.2rem}
+.ring .center span{color:var(--muted);font-size:.78rem}
+.side-notes{display:flex;flex-direction:column;gap:12px}
+.side-notes .card{display:flex;flex-direction:column;gap:6px}
+.looplist{display:none}
+
+/* timeline */
+.tl{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:20px 20px 14px;overflow-x:auto}
+.tlin{min-width:640px;display:flex;flex-direction:column;gap:8px}
+.lane{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:center;font-size:.84rem}
+.bar{position:relative;height:28px;background:var(--surface-2);border-radius:6px}
+.seg{position:absolute;top:0;bottom:0;border-radius:6px;display:flex;align-items:center;padding-inline:8px;font-size:.75rem;font-weight:600;white-space:nowrap;overflow:hidden}
+.seg.m{background:repeating-linear-gradient(90deg,var(--lane) 0 6px,transparent 6px 14px);opacity:.6}
+.seg.b{background:var(--boss);color:#fff}
+.seg.w{background:var(--coin-soft);color:var(--coin)}
+.ticks{position:relative;height:18px;margin-left:122px;font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+
+/* map */
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:24px;align-items:start}
+.mapbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.mapbox svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-direction:column;gap:9px}
+.lg{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:start;font-size:.9rem}
+.sw{width:18px;height:18px;border-radius:4px;margin-top:3px}
+.lg b{display:block}
+.lg span{color:var(--muted);font-size:.85rem}
+.layouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.layout{display:flex;flex-direction:column;gap:6px}
+.layout.pick{border:2px solid var(--accent)}
+.layout ul{margin:0;padding-left:1.1em;font-size:.86rem;color:var(--muted)}
+
+/* economy */
+.econ{display:flex;flex-direction:column;gap:14px}
+.erow{display:grid;grid-template-columns:minmax(0,1fr) 34px minmax(0,180px) 34px minmax(0,1fr);align-items:center}
+.col{display:flex;flex-direction:column;gap:6px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:.86rem;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.cur{border-radius:12px;padding:14px;text-align:center;font-family:var(--display);font-weight:700;font-size:1.05rem;display:flex;flex-direction:column;gap:2px}
+.cur span{font-family:var(--body);font-weight:400;font-size:.78rem}
+.cur.coin{background:var(--coin-soft);color:var(--coin)}
+.cur.tix{background:var(--violet-soft);color:var(--violet)}
+.cur.gear{background:var(--blue-soft);color:var(--blue)}
+.cur.loot{background:var(--accent-soft);color:var(--accent)}
+.arrow{text-align:center;color:var(--muted);font-size:1.1rem}
+.econ-key{display:flex;flex-wrap:wrap;gap:8px;font-size:.84rem;color:var(--muted);align-items:center}
+
+/* systems */
+.sys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.sys .card{display:flex;flex-direction:column;gap:8px}
+.sys .top{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.sys ul{margin:0;padding-left:1.1em;font-size:.88rem;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters button{font:inherit;font-size:.86rem;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:6px 13px;border-radius:999px}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* roadmap */
+.road{display:flex;flex-direction:column}
+.ph{display:grid;grid-template-columns:52px minmax(0,1fr);gap:16px}
+.ph .rail{display:flex;flex-direction:column;align-items:center}
+.ph .dot{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:700;background:var(--surface);border:2px solid var(--muted);color:var(--muted);flex:none}
+.ph.done .dot{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.ph.now .dot{border-color:var(--coin);color:var(--coin);border-width:3px}
+.ph .ln{flex:1;width:2px;background:var(--line);min-height:18px}
+.ph:last-child .ln{display:none}
+.ph .body{padding-bottom:22px;display:flex;flex-direction:column;gap:4px}
+.ph .head{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ph ul{margin:0;padding-left:1.1em;color:var(--muted);font-size:.9rem}
+.flowsteps{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.9rem}
+.flowsteps span{background:var(--surface-2);border-radius:999px;padding:5px 12px}
+
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rules div{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:.92rem}
+.rules i{font-style:normal;font-weight:700;color:var(--accent)}
+.rules .x i{color:var(--boss)}
+footer{color:var(--muted);font-size:.85rem;border-top:1px solid var(--line);padding-top:18px}
+
+@media (max-width:1020px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:24px;padding-inline:16px;padding-block:0 60px}
+  nav.side{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;flex-direction:row;overflow-x:auto;gap:4px;background:var(--bg);padding-block:10px;margin-inline:-16px;padding-inline:16px;border-bottom:1px solid var(--line)}
+  nav.side .brand{display:none}
+  nav.side a{white-space:nowrap;flex:none}
+  .loopwrap,.mapwrap{grid-template-columns:minmax(0,1fr)}
+  .ring{margin-inline:auto}
+  .layouts,.g4,.pillars,.sys{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .faq,.g2,.g4,.sys,.layouts,.pillars,.rules{grid-template-columns:minmax(0,1fr)}
+  .ring{display:none}
+  .looplist{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+  .looplist li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:.9rem}
+  .looplist li.boss{border:2px solid var(--boss)}
+  .looplist b{font-family:var(--display)}
+  .erow{grid-template-columns:minmax(0,1fr);gap:6px}
+  .erow .arrow{transform:rotate(90deg)}
+  h2{font-size:1.5rem}
+}
+</style>
+
+<div class="shell">
+  <nav class="side" aria-label="สารบัญ">
+    <div class="brand"><span class="dot" aria-hidden="true"></span>เกมป้อมตีบอส</div>
+    <a href="#top">เกมนี้คืออะไร</a>
+    <a href="#faq">ตอบคำถามเร็ว</a>
+    <a href="#loop">ผู้เล่นทำอะไร</a>
+    <a href="#rhythm">จังหวะเกม</a>
+    <a href="#map">แมพ</a>
+    <a href="#economy">ของและเงินไหลยังไง</a>
+    <a href="#systems">ระบบทั้งหมด</a>
+    <a href="#roadmap">ทิศทาง</a>
+    <a href="#guard">กติกาการออกแบบ</a>
+    <a href="#open">รอตัดสิน</a>
+  </nav>
+
+  <main>
+    <section id="top" class="hero">
+      <div class="eyebrow">ภาพรวมเกม · อ้างอิง IDEA.md ที่เจ้าของเกมยืนยันแล้ว</div>
+      <h1>ทั้งเซิร์ฟช่วยกัน<em>ตีบอส</em>ด้วยป้อมของตัวเอง แล้วแข่งกันเป็นท็อปดาเมจ</h1>
+      <p class="lead">เกมแนว Tycoon / Idle บน Roblox ผู้เล่นแต่ละคนมีฐานกับป้อม 1 ตัว ออกไปเก็บของ กลับมาขายหรือเอาไปทำกระสุนพิเศษ อัปบ้านและป้อม แล้วทุกไม่กี่นาทีบอสจะมากลางแมพให้ทั้งเซิร์ฟรุมตี ทุกคนที่ช่วยได้รางวัล คนที่ตีแรงได้มากกว่า</p>
+      <div class="facts">
+        <div><span>แนวเกม</span><b>Tycoon / Idle + บอสรวมเซิร์ฟ</b></div>
+        <div><span>ผู้เล่นเป้าหมาย</span><b>อายุ 9–25 ปี</b></div>
+        <div><span>ต่อเซิร์ฟ (ตามผังแมพ)</span><b>8 ฐาน <span class="pill prop">[Proposed]</span></b></div>
+        <div><span>สิ่งที่ไม่ทำ</span><b>ไม่มี PvP ขโมย/ทำลายฐาน</b></div>
+      </div>
+      <div class="pillars" aria-label="เสาหลักของเกม">
+        <div class="pillar"><b>ร่วมมือ + แข่งกัน</b><span>ช่วยกันตีบอส แต่มีตารางดาเมจให้แย่งอันดับ</span></div>
+        <div class="pillar"><b>AFK ได้</b><span>ป้อมยิงเอง บ้านผลิตเงินเอง แต่คนอยู่หน้าจอได้เปรียบด้วยสกิลและกระสุนพิเศษ</span></div>
+        <div class="pillar"><b>เข้าใจใน 30 วินาที</b><span>เห็นป้อม เห็นบอส รู้ทันทีว่าต้องทำอะไร</span></div>
+        <div class="pillar"><b>ตื่นเต้นเป็นรอบ</b><span>บอสมาทุกไม่กี่นาที ทุกคนหยุดทำอย่างอื่นมารุมตี</span></div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="eyebrow">เมื่อมีคนถาม</div>
+      <h2>ตอบคำถามเร็ว</h2>
+      <div class="faq">
+        <div class="card"><div class="q"><span>ถาม · </span>เกมนี้แนวอะไร</div><p>Tycoon/Idle ที่มีจุดขายคือบอสรวมเซิร์ฟ ผู้เล่นไม่ได้เล็งยิงเอง ป้อมยิงอัตโนมัติ งานของผู้เล่นคือหาของ อัปของ และกดสกิลตอนบอสมา</p></div>
+        <div class="card"><div class="q"><span>ถาม · </span>แมพออกแบบแนวไหน</div><p>หลุมอุกกาบาตกลางแมพเป็นจุดบอสเกิด รอบปากหลุมเป็นทุ่งเก็บของร่วม ฐาน 8 ฐานล้อมรอบ หลังฐานเป็นสวนที่มอนเกิด ทุกชิ้นเป็นบล็อกสีเรียบ ไม่ใช้ texture</p><a href="#map">ดูผังแมพ →</a></div>
+        <div class="card"><div class="q"><span>ถาม · </span>ผู้เล่นทำอะไรบ้าง</div><p>เดินเก็บของ → ขนกลับฐาน → ขายเป็นเงินหรือใส่ป้อมเป็นกระสุนพิเศษ → อัปบ้านและป้อม → บอสมาแล้วช่วยกันตี → ได้เงิน ตั๋วกาชา อุปกรณ์แต่งปืน แล้ววนใหม่</p><a href="#loop">ดู Core Loop →</a></div>
+        <div class="card"><div class="q"><span>ถาม · </span>ระบบหลักมีอะไร</div><p>ป้อม · มอนเล็ก · บอสตามเวลา · ตารางดาเมจ · สกิลป้อมจากกาชา · Friend Boost · บ้าน idle · กระสุนพิเศษ · อุปกรณ์แต่งปืน · Login/ภารกิจรายวัน/Rebirth</p><a href="#systems">ดูสถานะแต่ละระบบ →</a></div>
+        <div class="card"><div class="q"><span>ถาม · </span>ตอนนี้ทำถึงไหนแล้ว</div><p>ส่วนต่อสู้เล่นได้แล้วใน Studio: ป้อมยิงมอนและบอส ตารางดาเมจ อัปป้อม กาชาสกิล Friend Boost ส่วนที่กำลังทำคือผังแมพจริง แล้วต่อด้วยวงจรเก็บของ</p><a href="#roadmap">ดูทิศทาง →</a></div>
+        <div class="card"><div class="q"><span>ถาม · </span>ต่างจาก Tycoon ทั่วไปยังไง</div><p>Tycoon ทั่วไปเล่นคนเดียวในฐานตัวเอง เกมนี้ดึงทุกคนมาเจอกันทุกรอบบอส มีทั้งเหตุผลให้ช่วยกัน (รางวัลขั้นต่ำ) และแข่งกัน (อันดับดาเมจ)</p></div>
+      </div>
+    </section>
+
+    <section id="loop">
+      <div class="eyebrow">Core Loop</div>
+      <h2>ผู้เล่นทำอะไรในแต่ละรอบ</h2>
+      <p class="lead">วงนี้คือหัวใจของเกม ฟีเจอร์ใหม่ทุกอันต้องตอบได้ว่าช่วยเสริมขั้นไหนในวงนี้</p>
+      <div class="loopwrap">
+        <div class="ring">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <defs><marker id="ah" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
+            <circle cx="50" cy="50" r="38" fill="none" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="2 2"/>
+            <path d="M 66 15.5 A 38 38 0 0 1 80 26" fill="none" stroke="var(--muted)" stroke-width=".8" marker-end="url(#ah)"/>
+            <path d="M 88 47 A 38 38 0 0 1 88 53" fill="none" stroke="var(--muted)" stroke-width=".8" marker-end="url(#ah)"/>
+            <path d="M 80 74 A 38 38 0 0 1 66 84.5" fill="none" stroke="var(--muted)" stroke-width=".8" marker-end="url(#ah)"/>
+            <path d="M 34 84.5 A 38 38 0 0 1 20 74" fill="none" stroke="var(--muted)" stroke-width=".8" marker-end="url(#ah)"/>
+            <path d="M 12 53 A 38 38 0 0 1 12 47" fill="none" stroke="var(--muted)" stroke-width=".8" marker-end="url(#ah)"/>
+            <path d="M 20 26 A 38 38 0 0 1 34 15.5" fill="none" stroke="var(--muted)" stroke-width=".8" marker-end="url(#ah)"/>
+          </svg>
+          <div class="center"><b>วนทุก ~3 นาที</b><span>ระยะห่างบอสแต่ละตัว (ค่าทดสอบ)</span></div>
+          <div class="node" style="left:50%;top:10%"><span class="n">1</span><b>เดินเก็บของ</b>ทุ่งรอบแมพ ถือได้ตามขนาดกระเป๋า มีของหายากสุ่มเกิด</div>
+          <div class="node" style="left:83%;top:31%"><span class="n">2</span><b>ขนกลับฐาน</b>เลือก: ขายเป็นเงิน หรือใส่ลังเป็นกระสุนพิเศษ</div>
+          <div class="node" style="left:83%;top:69%"><span class="n">3</span><b>อัปของ</b>บ้าน = เงิน idle · ป้อม = ค่าสถานะ · กระเป๋า · แม็กกาซีน</div>
+          <div class="node" style="left:50%;top:90%"><span class="n">4</span><b>ป้อมยิงมอนเล็ก</b>มอนเดินผ่านตลอด ได้เงินตั้งแต่นาทีแรก แม้ AFK</div>
+          <div class="node boss" style="left:17%;top:69%"><span class="n">5</span><b>บอสมา!</b>ทั้งเซิร์ฟรุมตี กดสกิล ยิงกระสุนพิเศษ แย่งท็อปดาเมจ</div>
+          <div class="node" style="left:17%;top:31%"><span class="n">6</span><b>รับรางวัล</b>ขั้นต่ำทุกคน + ตามดาเมจ · ตั๋วกาชา · อุปกรณ์แต่งปืน</div>
+        </div>
+        <ol class="looplist">
+          <li><b>1 เดินเก็บของ</b> · ถือได้ตามขนาดกระเป๋า มีของหายากสุ่มเกิด</li>
+          <li><b>2 ขนกลับฐาน</b> · ขายเป็นเงิน หรือใส่ลังเป็นกระสุนพิเศษ</li>
+          <li><b>3 อัปของ</b> · บ้าน (เงิน idle) · ป้อม · กระเป๋า · แม็กกาซีน</li>
+          <li><b>4 ป้อมยิงมอนเล็ก</b> · ได้เงินตลอด แม้ AFK</li>
+          <li class="boss"><b>5 บอสมา!</b> · ทั้งเซิร์ฟรุมตี กดสกิล แย่งท็อปดาเมจ</li>
+          <li><b>6 รับรางวัล</b> · ขั้นต่ำทุกคน + ตามดาเมจ · ตั๋ว · อุปกรณ์ แล้ววนกลับข้อ 1</li>
+        </ol>
+        <div class="side-notes">
+          <div class="card"><h3>ทางแยกสำคัญ: ขาย หรือ ทำกระสุน</h3><p class="muted">ของชิ้นเดียวกันใช้ได้สองทาง ขายได้เงินไว้อัประยะยาว ใส่ป้อมได้ดาเมจบอสเพิ่มในรอบนี้ ของต่างชนิดให้ผลต่างกัน เช่น ไฟ น้ำแข็ง ระเบิด แม็กกาซีนมีจำกัดและอัปได้</p></div>
+          <div class="card"><h3>บอสพิเศษ</h3><p class="muted">ทั้งเซิร์ฟช่วยกันส่งของที่แท่นในฐานตัวเองจนครบเป้า จะเรียกบอสพิเศษได้ (ไม่มีเสาพลังกลางแมพ) คนไม่ส่งได้ของน้อยกว่าคนส่ง คน AFK ได้แค่ขั้นต่ำ แต่ไม่ขัดขวางใคร</p></div>
+          <div class="card"><h3>ระยะยาว</h3><p class="muted">รางวัล Login รายวัน · ภารกิจรายวัน · Rebirth รีเซ็ตความก้าวหน้าเพื่อแลกตัวคูณถาวร</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="rhythm">
+      <div class="eyebrow">10 นาทีแรกในเซิร์ฟ</div>
+      <h2>จังหวะเกม</h2>
+      <p class="lead">บอสตัวแรกมาเร็วเพื่อให้ผู้เล่นใหม่เจอจุดขายทันที จากนั้นมาเป็นรอบ ตัวเลขด้านล่างเป็นค่าทดสอบใน prototype ที่ตั้งสั้นไว้ให้ทดสอบได้เร็ว ค่าจริงยังไม่ได้ตัดสิน <span class="pill prop">[Proposed]</span></p>
+      <div class="tl">
+        <div class="tlin">
+          <div class="lane"><span>มอนเล็ก</span><div class="bar"><div class="seg m" style="left:0;width:100%"></div></div></div>
+          <div class="lane"><span>บอส</span><div class="bar" id="bossbar"></div></div>
+          <div class="lane"><span>เก็บของ / อัป</span><div class="bar" id="farmbar"></div></div>
+          <div class="ticks" id="ticks"></div>
+        </div>
+      </div>
+      <div class="grid g4">
+        <div class="card stat"><span class="muted">บอสตัวแรก</span><b>45 วินาที</b><span class="muted">หลังเซิร์ฟเริ่ม</span></div>
+        <div class="card stat"><span class="muted">เวลาตีบอส</span><b>60 วินาที</b><span class="muted">ตีไม่ตาย = บอสหนี</span></div>
+        <div class="card stat"><span class="muted">พักระหว่างบอส</span><b>3 นาที</b><span class="muted">นับจากบอสตัวก่อนจบ</span></div>
+        <div class="card stat"><span class="muted">HP บอส</span><b>300 + 400/คน</b><span class="muted">โตตามจำนวนคนในเซิร์ฟ</span></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3 style="color:var(--accent)">ตีบอสตาย</h3><p class="muted">ทุกคนที่มีดาเมจได้เงินขั้นต่ำเท่ากัน + แบ่งเงินก้อนตามสัดส่วนดาเมจ + ตั๋วกาชา (ท็อป 3 ได้ตั๋วโบนัส) + โอกาสได้อุปกรณ์แต่งปืน (ดาเมจมาก = โอกาสได้ระดับสูง)</p></div>
+        <div class="card"><h3 style="color:var(--boss)">บอสหนี</h3><p class="muted">ได้แค่เงิน (ลดลงครึ่งหนึ่งในค่าทดสอบ) กับของอัปบ้าน ไม่มีตั๋วกาชา การตีให้ทันเวลาจึงยังมีความหมาย</p></div>
+      </div>
+    </section>
+
+    <section id="map">
+      <div class="eyebrow">docs/map-sketch/crater-concepts.html · src/shared/Config/Map.luau</div>
+      <h2>แมพ: หลุมอุกกาบาต 8 ฐาน</h2>
+      <p class="lead">หลุมกลางแมพเป็นจุดบอสเกิดอย่างเดียว บอสพุ่งลงจากฟ้าลงหลุมทุกรอบ รอบปากหลุมเป็นทุ่งเก็บของที่ทุกคนแย่งกันเก็บ ฐานเรียงรอบวงห่างบอสเท่ากัน หลังฐานเป็นสวนที่มอนของฐานนั้นเกิด ทุกชิ้นเป็นบล็อกสี SmoothPlastic ไม่ใช้ texture ตอนนี้ prototype สร้างฐาน 1 ฐานก่อน</p>
+      <div class="mapwrap">
+        <div class="mapbox"><svg id="mapsvg" viewBox="-190 -190 380 380" role="img" aria-label="ผังแมพหลุมอุกกาบาต มองจากด้านบน"></svg></div>
+        <div class="legend">
+          <div class="lg"><span class="sw" style="background:var(--boss)"></span><div><b>หลุมบอส รัศมี 38</b><span>ลึก 10 studs มีกำแพงใสกันตก บอสลอยสูง 14 studs เหนือหลุม</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--loot)"></span><div><b>ทุ่งเก็บของร่วม</b><span>วงแหวนรัศมี 42–54 รอบหลุม แย่งกันเก็บ ของหายากให้สิทธิพิเศษ</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--mapink);border-radius:50%"></span><div><b>ป้อมเริ่มต้น</b><span>ห่างกลาง 56 หน้าฐาน ยิงถึงบอสด้วย Range 60 เดิม</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--plaza);box-shadow:inset 0 0 0 3px #e0564a"></span><div><b>ฐาน 44×44 ห่างกลาง 80</b><span>บ้าน · แผ่นขาย · ลังกระสุน · ป้ายอัปเกรด · แท่นส่งของเรียกบอสพิเศษ · จุดเกิด</span></div></div>
+          <div class="lg"><span class="sw" style="background:var(--lane)"></span><div><b>สวนหลังบ้าน + ทางมอน</b><span>มอนเล็ก/กลางเกิดในสวนรูปพัด 104–150 เดินเลียบข้างฐานเข้าหาหลุม</span></div></div>
+          <p class="muted">ฐานสีเข้ม = ฐาน 1 ที่สร้างใน prototype · ฐานจางคือที่ที่จะเพิ่มทีหลัง</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="economy">
+      <div class="eyebrow">ได้มาจาก → ของที่สะสม → ใช้ไปกับ</div>
+      <h2>ของและเงินไหลยังไง</h2>
+      <p class="lead">ผู้เล่นสะสมของ 4 อย่าง แต่ละอย่างต้องมีทางได้มาและทางใช้ไปที่ชัดเจน ใช้ภาพนี้เช็กว่าฟีเจอร์ใหม่จะไม่ทำให้เงินล้นหรือไม่มีอะไรให้ใช้</p>
+      <div class="econ-key"><span class="pill done">มีแล้ว</span><span class="pill next">ถัดไป</span><span class="pill later">ภายหลัง</span></div>
+      <div class="econ">
+        <div class="erow">
+          <div class="col"><div class="chip">ป้อมยิงมอน <span class="pill done">มีแล้ว</span></div><div class="chip">ตีบอส <span class="pill done">มีแล้ว</span></div><div class="chip">ขายของที่เก็บมา <span class="pill next">ถัดไป</span></div><div class="chip">บ้านผลิตเอง (idle) <span class="pill next">ถัดไป</span></div></div>
+          <div class="arrow">→</div>
+          <div class="cur coin">เงิน<span>คูณ Friend Boost · มีเพดาน</span></div>
+          <div class="arrow">→</div>
+          <div class="col"><div class="chip">อัปป้อม (สูงสุด Lv.50) <span class="pill done">มีแล้ว</span></div><div class="chip">อัปบ้าน <span class="pill next">ถัดไป</span></div><div class="chip">อัปกระเป๋า / แม็กกาซีน <span class="pill next">ถัดไป</span></div></div>
+        </div>
+        <div class="erow">
+          <div class="col"><div class="chip">ทุ่งเก็บของ (มีของหายากสุ่ม) <span class="pill next">ถัดไป</span></div></div>
+          <div class="arrow">→</div>
+          <div class="cur loot">ของที่เก็บ<span>ถือได้จำกัดตามกระเป๋า</span></div>
+          <div class="arrow">→</div>
+          <div class="col"><div class="chip">ขาย → เงิน <span class="pill next">ถัดไป</span></div><div class="chip">กระสุนพิเศษ ไฟ/น้ำแข็ง/ระเบิด <span class="pill next">ถัดไป</span></div><div class="chip">ส่งที่แท่นในฐาน → บอสพิเศษ <span class="pill later">ภายหลัง</span></div></div>
+        </div>
+        <div class="erow">
+          <div class="col"><div class="chip">ชนะบอส (ท็อป 3 ได้โบนัส) <span class="pill done">มีแล้ว</span></div><div class="chip">ซื้อด้วย Robux <span class="pill later">ภายหลัง</span></div></div>
+          <div class="arrow">→</div>
+          <div class="cur tix">ตั๋วกาชา<span>บอสหนี = ไม่ได้ตั๋ว</span></div>
+          <div class="arrow">→</div>
+          <div class="col"><div class="chip">สุ่มสกิลป้อม ครั้งละ 1 หรือ 10 <span class="pill done">มีแล้ว</span></div><div class="chip">สกิลซ้ำ → วัตถุดิบอัปขั้น <span class="pill done">มีแล้ว</span></div></div>
+        </div>
+        <div class="erow">
+          <div class="col"><div class="chip">ดรอปจากบอส (ดาเมจมาก = โอกาสระดับสูง) <span class="pill later">ภายหลัง</span></div></div>
+          <div class="arrow">→</div>
+          <div class="cur gear">อุปกรณ์แต่งปืน<span>4 ช่อง · 5 ระดับ</span></div>
+          <div class="arrow">→</div>
+          <div class="col"><div class="chip">ใส่ป้อม + เปลี่ยนหน้าตาป้อม <span class="pill later">ภายหลัง</span></div><div class="chip">รวม 3 → 1 ระดับถัดไป <span class="pill later">ภายหลัง</span></div><div class="chip">แลกเปลี่ยน/ให้คนอื่น <span class="pill later">เฟสหลัง</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="systems">
+      <div class="eyebrow">ทุกระบบในเกม</div>
+      <h2>ระบบทั้งหมดและสถานะ</h2>
+      <div class="filters" id="filters" role="group" aria-label="กรองตามสถานะ">
+        <button type="button" data-f="all" aria-pressed="true">ทั้งหมด</button>
+        <button type="button" data-f="done" aria-pressed="false">มีแล้ว</button>
+        <button type="button" data-f="next" aria-pressed="false">ถัดไป</button>
+        <button type="button" data-f="later" aria-pressed="false">ภายหลัง</button>
+      </div>
+      <div class="sys" id="sys">
+        <div class="card" data-s="done"><div class="top"><h3>ป้อม</h3><span class="pill done">มีแล้ว</span></div><ul><li>คนละ 1 ป้อม วางรอบวงกลางแมพให้อัตโนมัติ</li><li>ยิงเอง: บอสก่อน ถ้าไม่มีบอสยิงมอนที่ใกล้สุด</li><li>อัปเลเวลด้วยเงิน ดาเมจและอัตรายิงเพิ่ม หน้าตาไม่เปลี่ยน</li></ul></div>
+        <div class="card" data-s="done"><div class="top"><h3>มอนเล็ก</h3><span class="pill done">มีแล้ว</span></div><ul><li>เกิดที่ขอบแมพ เดินผ่านกลางไปอีกฝั่งตลอดเวลา</li><li>ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ</li><li>ตอนนี้เป็นลูกบอล ยังไม่มีโมเดล</li></ul></div>
+        <div class="card" data-s="done"><div class="top"><h3>บอสตามเวลา + ตารางดาเมจ</h3><span class="pill done">มีแล้ว</span></div><ul><li>แถบ HP และเวลาถอยหลังบนจอ</li><li>ตาราง 5 อันดับดาเมจ</li><li>รางวัล = ขั้นต่ำทุกคน + ตามดาเมจ · หนี = เงินลด ไม่มีตั๋ว</li></ul></div>
+        <div class="card" data-s="done"><div class="top"><h3>สกิลป้อม + กาชา</h3><span class="pill done">มีแล้ว</span></div><ul><li>5 สกิล 4 ระดับความหายาก โอกาส 60 / 28 / 10 / 2% แสดงบนหน้ากาชา</li><li>ได้ถาวร ซ้ำ = วัตถุดิบอัปขั้น (สูงสุดขั้น 5)</li><li>ใส่ได้ 1 สกิล กดใช้เองตอนสู้</li></ul></div>
+        <div class="card" data-s="done"><div class="top"><h3>Friend Boost</h3><span class="pill done">มีแล้ว</span></div><ul><li>+10% รายได้และดาเมจบอสต่อเพื่อน 1 คน</li><li>สูงสุด +40% นับเฉพาะเพื่อนในเซิร์ฟเดียวกัน</li></ul></div>
+        <div class="card" data-s="done"><div class="top"><h3>HUD + ตั้งค่า + เซฟข้อมูล</h3><span class="pill done">มีแล้ว</span></div><ul><li>เหรียญ เมนู FPS · หน้าตั้งค่าเสียง ภาพ มุมกล้อง</li><li>เซฟเงิน เลเวลป้อม ตั๋ว สกิล และไม่เซฟทับเมื่อโหลดพลาด</li></ul></div>
+        <div class="card" data-s="next"><div class="top"><h3>เก็บของ + กระเป๋า</h3><span class="pill next">ถัดไป</span></div><ul><li>เดินชนเก็บในทุ่ง ถือได้จำกัด อัปกระเป๋าได้</li><li>ของหายากเกิดสุ่ม</li></ul></div>
+        <div class="card" data-s="next"><div class="top"><h3>ขายของ</h3><span class="pill next">ถัดไป</span></div><ul><li>เดินทับจุดขายที่ฐาน ได้เงิน</li></ul></div>
+        <div class="card" data-s="next"><div class="top"><h3>บ้าน idle</h3><span class="pill next">ถัดไป</span></div><ul><li>ผลิตเงินอัตโนมัติ อัปด้วยเงินและของอัปบ้านจากบอส</li></ul></div>
+        <div class="card" data-s="next"><div class="top"><h3>กระสุนพิเศษ</h3><span class="pill next">ถัดไป</span></div><ul><li>เอาของใส่ลังข้างป้อม ยิงตอนบอสมา</li><li>ไฟ / น้ำแข็ง / ระเบิด ผลต่างกัน · แม็กกาซีนอัปได้</li></ul></div>
+        <div class="card" data-s="later"><div class="top"><h3>อุปกรณ์แต่งปืน</h3><span class="pill later">ภายหลัง</span></div><ul><li>4 ช่อง: ลำกล้อง (ดาเมจ) · กลไกยิง (อัตรายิง) · ศูนย์เล็ง (คริ) · แกนพลัง (ผลพิเศษ)</li><li>5 ระดับ ธรรมดา → ตำนาน และเปลี่ยนหน้าตาป้อม</li></ul></div>
+        <div class="card" data-s="later"><div class="top"><h3>แท่นส่งของ + บอสพิเศษ</h3><span class="pill later">ภายหลัง</span></div><ul><li>ทั้งเซิร์ฟส่งของครบเป้า เรียกบอสพิเศษ</li><li>โบนัสเฉพาะคนที่ส่ง ตามสัดส่วน</li></ul></div>
+        <div class="card" data-s="later"><div class="top"><h3>Login · ภารกิจรายวัน · Rebirth</h3><span class="pill later">ภายหลัง</span></div><ul><li>เหตุผลให้กลับมาเล่นทุกวัน</li><li>Rebirth: รีเซ็ตแลกตัวคูณถาวร</li></ul></div>
+        <div class="card" data-s="later"><div class="top"><h3>ตั๋วกาชาด้วย Robux</h3><span class="pill later">ภายหลัง</span></div><ul><li>ต้องแสดงโอกาสได้ทุกชิ้น</li><li>เช็กนโยบาย Roblox เรื่องผู้เล่นอายุต่ำกว่า 13 ปีก่อนเปิด</li></ul></div>
+        <div class="card" data-s="later"><div class="top"><h3>แลกเปลี่ยนไอเทม</h3><span class="pill later">เฟสหลัง</span></div><ul><li>เสี่ยงเกิดของซ้ำ ต้องออกแบบการเซฟข้อมูลให้รัดกุมก่อน</li></ul></div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="eyebrow">ทิศทางการพัฒนา</div>
+      <h2>เรากำลังไปทางไหน</h2>
+      <p class="lead">3 เฟสแรกเสร็จแล้ว ลำดับตั้งแต่เฟส 4 เป็นข้อเสนอที่เรียงตาม Core Loop: ทำให้วงเล่นครบก่อน แล้วค่อยเพิ่มรางวัลและของระยะยาว รอเจ้าของเกมยืนยัน <span class="pill prop">[Proposed]</span></p>
+      <div class="road">
+        <div class="ph done"><div class="rail"><div class="dot">✓</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 1 · รากฐาน</h3><span class="pill done">เสร็จ</span></div><ul><li>โครงโปรเจกต์ ระบบเซฟข้อมูล ด่านกันโกง HUD หน้าตั้งค่า</li></ul></div></div>
+        <div class="ph done"><div class="rail"><div class="dot">✓</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 2 · ต่อสู้ prototype</h3><span class="pill done">เสร็จ</span></div><ul><li>ป้อม มอนเล็ก บอสตามเวลา ตารางดาเมจ อัปป้อม Friend Boost</li></ul></div></div>
+        <div class="ph done"><div class="rail"><div class="dot">✓</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 3 · สกิลป้อม + กาชา</h3><span class="pill done">เสร็จ</span></div><ul><li>5 สกิล ตั๋วจากบอส สกิลซ้ำใช้อัปขั้น</li></ul></div></div>
+        <div class="ph now"><div class="rail"><div class="dot">4</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 4 · แมพจริง</h3><span class="pill next">กำลังทำ</span></div><ul><li>เลือกแล้ว: หลุมอุกกาบาต · prototype สร้างฐาน 1 ฐานด้วยโค้ด (MapService) เพื่อดูระบบก่อน</li><li>มอนเล็ก/กลางเกิดในสวนหลังบ้าน · ต่อไป: เพิ่มเป็น 8 ฐาน + ออกแบบระยะยิงป้อม</li></ul></div></div>
+        <div class="ph"><div class="rail"><div class="dot">5</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 5 · วงจรเก็บของครบ</h3></div><ul><li>เก็บของ + กระเป๋า · จุดขาย · บ้าน idle · กระสุนพิเศษ</li><li>จบเฟสนี้ Core Loop ครบทั้งวงเป็นครั้งแรก</li></ul></div></div>
+        <div class="ph"><div class="rail"><div class="dot">6</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 6 · รางวัลบอสเต็มรูปแบบ</h3></div><ul><li>อุปกรณ์แต่งปืน 4 ช่อง 5 ระดับ + รวม 3→1 · แท่นส่งของและบอสพิเศษ</li></ul></div></div>
+        <div class="ph"><div class="rail"><div class="dot">7</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 7 · เหตุผลให้กลับมาทุกวัน</h3></div><ul><li>รางวัล Login · ภารกิจรายวัน · Rebirth</li></ul></div></div>
+        <div class="ph"><div class="rail"><div class="dot">8</div><div class="ln"></div></div><div class="body"><div class="head"><h3>เฟส 8 · รายได้ + แลกเปลี่ยน</h3></div><ul><li>ตั๋ว Robux (หลังเช็กนโยบาย) · ระบบแลกเปลี่ยนอุปกรณ์</li></ul></div></div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <h3>เวลาจะออกแบบรายละเอียดของระบบไหน ให้เดินตามนี้</h3>
+        <div class="flowsteps"><span>ระบบนี้เสริมขั้นไหนใน Core Loop</span>→<span>ขัดกับกติกาการออกแบบไหม</span>→<span>เขียนสเปก + ตัวเลข</span>→<span>เจ้าของเกมอนุมัติ</span>→<span>สร้าง + ทดสอบใน Studio</span></div>
+      </div>
+    </section>
+
+    <section id="guard">
+      <div class="eyebrow">ใช้ตรวจไอเดียก่อนออกแบบ</div>
+      <h2>กติกาการออกแบบ</h2>
+      <p class="lead">ข้อเหล่านี้มาจากวิสัยทัศน์ที่ยืนยันแล้ว ไอเดียใหม่ที่ขัดกับข้อใดข้อหนึ่งต้องถามเจ้าของเกมก่อน</p>
+      <div class="rules">
+        <div><i>✓</i><span>คนเล่นใหม่ต้องเข้าใจภายใน 30 วินาที และเจอบอสตัวแรกเร็ว</span></div>
+        <div><i>✓</i><span>ป้อมต้องมีประโยชน์ตั้งแต่นาทีแรก (ยิงมอนได้เงินทันที)</span></div>
+        <div><i>✓</i><span>AFK ยังได้ของ แต่คนอยู่หน้าจอต้องได้มากกว่า</span></div>
+        <div><i>✓</i><span>ทุกคนที่ช่วยตีบอสได้รางวัลขั้นต่ำ คนตีแรงได้เพิ่ม</span></div>
+        <div><i>✓</i><span>คนไม่เติมเงินต้องแข็งแกร่งขึ้นได้ด้วยเวลา คนเติมต้องรู้สึกคุ้ม</span></div>
+        <div><i>✓</i><span>กาชาต้องแสดงโอกาสได้ของแต่ละชิ้นเสมอ</span></div>
+        <div class="x"><i>✕</i><span>ไม่มี PvP ขโมยหรือทำลายฐานคนอื่น</span></div>
+        <div class="x"><i>✕</i><span>หน้าตาป้อมไม่เปลี่ยนตามเลเวล เปลี่ยนตามอุปกรณ์แต่งเท่านั้น</span></div>
+        <div class="x"><i>✕</i><span>บอสหนีต้องไม่ให้ตั๋วกาชา</span></div>
+        <div class="x"><i>✕</i><span>คน AFK ไม่ได้โบนัสบอสพิเศษ (แต่ไม่ถูกลงโทษ)</span></div>
+      </div>
+    </section>
+
+    <section id="open">
+      <div class="eyebrow">ต้องการคำตัดสิน</div>
+      <h2>เรื่องที่ยังไม่ตัดสิน</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>เรื่อง</th><th>ตอนนี้</th><th>ใครตัดสิน</th></tr></thead>
+          <tbody>
+            <tr><td>ระยะยิงป้อม</td><td>ใช้ 60 เดิมไปก่อน · ถ้าเป็นวงกลมจะยิงมอนฐานข้างๆ ได้ ต้องออกแบบใหม่</td><td>เจ้าของเกม</td></tr>
+                        <tr><td>จำนวนผู้เล่นต่อเซิร์ฟ</td><td>ผังแมพออกแบบไว้ 8 ฐาน · prototype เปิดใช้ 1 ฐาน (Map.BaseCount)</td><td>เจ้าของเกม</td></tr>
+            <tr><td>ตัวเลขทั้งหมด (เวลาบอส รางวัล ราคา โอกาสดรอป)</td><td>ใช้ค่าทดสอบ ติดป้าย [Proposed] ทุกค่า</td><td>ฝ่ายเศรษฐกิจ + เจ้าของเกม</td></tr>
+            <tr><td>ลำดับเฟส 4–8</td><td>ข้อเสนอในหน้านี้</td><td>เจ้าของเกม</td></tr>
+            <tr><td>กาชา Robux กับผู้เล่นอายุต่ำกว่า 13 ปี</td><td>ต้องเช็กนโยบาย Roblox ล่าสุดก่อน <span class="pill no">[Unverified]</span></td><td>ตรวจก่อนออกแบบฟีเจอร์</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <footer>สรุปจาก <code>IDEA.md</code>, ตัวเลขใน <code>src/shared/Config/</code>, ระบบใน <code>src/server/Services/</code> และสเก็ตช์ใน <code>docs/map-sketch/</code> บน branch <code>map_roblox</code> · ถ้าขัดกับ <code>IDEA.md</code> ให้ยึด <code>IDEA.md</code></footer>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  var NS="http://www.w3.org/2000/svg";
+  function el(tag,attrs,parent){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e}
+
+  // Map: crater layout in studs (numbers from src/shared/Config/Map.luau)
+  var svg=document.getElementById("mapsvg");
+  var PLAYER=["#e0564a","#3f8fd9","#4db860","#f2c23a","#9a6bd8","#f28c3a","#e86fa8","#34b5b0"];
+  el("rect",{x:-181,y:-181,width:362,height:362,rx:6,fill:"var(--grass)"},svg);
+  el("circle",{cx:0,cy:0,r:48,fill:"none",stroke:"var(--loot)","stroke-width":12},svg);
+  var seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+  for(var i=0;i<46;i++){var a=rnd()*Math.PI*2,r=44+rnd()*8,rare=rnd()<.12;
+    el("rect",{x:(Math.cos(a)*r-1.8).toFixed(1),y:(Math.sin(a)*r-1.8).toFixed(1),width:3.6,height:3.6,rx:.8,fill:rare?"#f2b61f":"#5aa7e6"},svg)}
+  function arc(r0,r1,a0,a1){var p=[],n=12,k;for(k=0;k<=n;k++){var t=a0+(a1-a0)*k/n;p.push((Math.cos(t)*r1).toFixed(1)+","+(Math.sin(t)*r1).toFixed(1))}
+    for(k=n;k>=0;k--){var u=a0+(a1-a0)*k/n;p.push((Math.cos(u)*r0).toFixed(1)+","+(Math.sin(u)*r0).toFixed(1))}return p.join(" ")}
+  for(var b=0;b<8;b++){
+    var ang=-Math.PI/2+b*Math.PI/4,c=PLAYER[b],op=b===0?1:.3;
+    el("polygon",{points:arc(104,150,ang-.31,ang+.31),fill:c,opacity:.25*op+.05},svg);
+    var g=el("g",{transform:"rotate("+(b*45)+")",opacity:op},svg);
+    el("rect",{x:8,y:-104,width:8,height:46,fill:"var(--lane)"},g);
+    el("rect",{x:-22,y:-102,width:44,height:44,rx:3,fill:"var(--plaza)",stroke:c,"stroke-width":3},g);
+    el("rect",{x:-17,y:-97,width:14,height:14,rx:2,fill:c},g);
+    el("rect",{x:-16,y:-76,width:8,height:8,rx:1,fill:"var(--coin)"},g);
+    el("rect",{x:0,y:-99,width:6,height:6,rx:1,fill:"var(--violet)"},g);
+    el("circle",{cx:0,cy:-56,r:4.5,fill:"var(--mapink)",stroke:c,"stroke-width":2},g);
+  }
+  [[0,112,3],[0,128,5],[0,84,3]].forEach(function(m){var a=-Math.PI/2+(m[0]?0:0),x=Math.cos(a)*m[1]+(m[1]<100?12:(rnd()-.5)*20),y=Math.sin(a)*m[1];
+    el("circle",{cx:x.toFixed(1),cy:y.toFixed(1),r:m[2]/1.5+1,fill:m[2]>4?"#f08a3a":"var(--boss)"},svg)});
+  el("circle",{cx:0,cy:0,r:42,fill:"#8c7d68"},svg);
+  el("circle",{cx:0,cy:0,r:38,fill:"#6e6152"},svg);
+  el("circle",{cx:0,cy:0,r:12,fill:"var(--violet)"},svg);
+  function label(x,y,txt,size,weight){var t=el("text",{x:x,y:y,"text-anchor":"middle","font-size":size,"font-weight":weight||500,fill:"var(--mapink)","font-family":"Chakra Petch, IBM Plex Sans Thai, sans-serif"},svg);t.textContent=txt}
+  label(0,24,"บอส",11,700);
+  label(0,-162,"สวนหลังบ้าน ฐาน 1",9);
+  label(0,-64,"ป้อม",8);
+
+  // Timeline: prototype values from Config/Combat (seconds)
+  var TOTAL=600,FIRST=45,DUR=60,GAP=180;
+  var bossbar=document.getElementById("bossbar"),farm=document.getElementById("farmbar"),ticks=document.getElementById("ticks");
+  function pct(s){return (s/TOTAL*100).toFixed(2)+"%"}
+  function seg(parent,cls,from,to,txt){var s=document.createElement("div");s.className="seg "+cls;s.style.left=pct(from);s.style.width=pct(to-from);if(txt)s.textContent=txt;parent.appendChild(s)}
+  var t=FIRST,prev=0,n=1;
+  while(t<TOTAL){
+    seg(farm,"w",prev,t,n===1?"เรียนรู้":"เก็บของ อัป เติมกระสุน");
+    var e=Math.min(t+DUR,TOTAL);seg(bossbar,"b",t,e,"บอส "+n);
+    prev=e;t=e+GAP;n++;
+  }
+  if(prev<TOTAL)seg(farm,"w",prev,TOTAL,"");
+  for(var k=0;k<=TOTAL;k+=60){var sp=document.createElement("span");sp.style.left=pct(k);sp.textContent=(k/60)+":00";ticks.appendChild(sp)}
+
+  // System filter
+  var btns=[].slice.call(document.querySelectorAll("#filters button")),cards=[].slice.call(document.querySelectorAll("#sys .card"));
+  btns.forEach(function(b){b.addEventListener("click",function(){var f=b.dataset.f;
+    btns.forEach(function(x){x.setAttribute("aria-pressed",String(x===b))});
+    cards.forEach(function(c){c.hidden=!(f==="all"||c.dataset.s===f)})})});
+
+  // Nav highlight
+  var links=[].slice.call(document.querySelectorAll("nav.side a")),map={};
+  links.forEach(function(a){map[a.getAttribute("href").slice(1)]=a});
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(en){if(!en.isIntersecting)return;links.forEach(function(a){a.classList.remove("on")});var a=map[en.target.id];if(a){a.classList.add("on");if(window.innerWidth<=1020)a.parentNode.scrollLeft=a.offsetLeft-16}})},{rootMargin:"-30% 0px -65% 0px"});
+    Object.keys(map).forEach(function(id){var s=document.getElementById(id);if(s)io.observe(s)});
+  }
+})();
+</script>
