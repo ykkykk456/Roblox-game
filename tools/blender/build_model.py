@@ -4,7 +4,9 @@
   python3 tools/blender/build_model.py art/models/<name>/spec.json         (ต้อง pip install bpy ก่อน)
   blender -b -P tools/blender/build_model.py -- art/models/<name>/spec.json (ใช้โปรแกรม Blender)
 
-ผลลัพธ์: <name>.blend · <name>.fbx · <name>.obj · preview.png · report.md
+ขั้นแรกตรวจการเชื่อมต่อ Blender (blender_status.py) · ไม่เชื่อมต่อ = หยุดทันที exit code 1
+ผลลัพธ์อยู่ใน Blender เท่านั้น: <name>.blend · preview.png · preview_<ท่า>.png · report.md
+(ไม่ส่งออก FBX/OBJ และห้ามนำเข้า Roblox — ข้อตกลงกับผู้ใช้ 2026-09-26)
 จบด้วยการตรวจ build (check_model.py) อัตโนมัติ · ไม่ผ่าน = exit code 1
 
 รูปแบบ spec (ดูตัวอย่างที่ art/models/example_slime/spec.json):
@@ -30,10 +32,18 @@ import json
 import sys
 from pathlib import Path
 
-import bpy
-from mathutils import Vector
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import blender_status  # noqa: E402
+
+_connected, _status = blender_status.connect()
+print(_status)
+if not _connected:
+    print(blender_status.HOW_TO_FIX)
+    sys.exit(1)
+
+import bpy  # noqa: E402
+from mathutils import Vector  # noqa: E402
+
 import check_model  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -353,8 +363,6 @@ def main():
 
     blend_path = out_dir / f"{name}.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
-    bpy.ops.export_scene.fbx(filepath=str(out_dir / f"{name}.fbx"), object_types={"EMPTY", "MESH"})
-    bpy.ops.wm.obj_export(filepath=str(out_dir / f"{name}.obj"), export_materials=True)
     render_preview(size, out_dir / "preview.png")
     render_poses(spec.get("poses", {}), size, out_dir)
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))

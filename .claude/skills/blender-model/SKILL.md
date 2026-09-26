@@ -5,17 +5,21 @@ description: Workflow รับความต้องการโมเดล 
 
 # BLENDER MODEL WORKFLOW (16-bit)
 
-**ข้อตกลงกับผู้ใช้:** Claude ส่งความต้องการไปสร้างใน **Blender** เท่านั้น · **ไม่นำโมเดลเข้า Roblox** (ไม่แตะ `src/`, ไม่แตะ Studio, ไม่อัปโหลด asset) · การนำเข้า Roblox เป็นงานแยกเมื่อผู้ใช้สั่งเอง
+**ข้อตกลงกับผู้ใช้ (2026-09-26 — กฎเด็ดขาด):**
+1. โมเดล **ลงที่ Blender เสมอ** · **ห้ามนำเข้า Roblox** ทุกรูปแบบ: ไม่แตะ `src/`, ไม่แตะ Studio, ไม่อัปโหลด asset, ไม่ส่งออก FBX/OBJ
+2. เจอโค้ด/ไฟล์ที่พาโมเดลเข้า Roblox (เช่น service โหลดโมเดล/อนิเมชันใน `src/`, ไฟล์ .fbx/.obj/.rbxm ของโมเดล) → **ลบทิ้ง** แล้วแจ้งผู้ใช้ว่าลบอะไร
+3. **เช็กการเชื่อมต่อ Blender ทุกครั้งก่อนปั้น** (Step 0) · ไม่เชื่อมต่อ = ห้ามปั้น
 
 ทำตามลำดับ Step ห้ามข้าม · แต่ละ Step เปิดเฉพาะไฟล์ในช่อง "โหลด" (path นับจาก `Roblox_AI_Org_By_Function/`)
 
 | Step | บทบาท | โหลด | ผลลัพธ์ |
 |---|---|---|---|
+| 0 เช็กการเชื่อมต่อ Blender | Tech Artist (Claude) | — | รัน `tools/blender/blender_status.py` ต้องได้ `🔌 ✅ เชื่อมต่อ Blender …` · ได้ ❌ → ทำตามวิธีแก้ที่สคริปต์พิมพ์ แล้วเช็กใหม่ · รายงานบรรทัดสถานะนี้ให้ผู้ใช้เห็นทุกครั้ง |
 | 1 รับความต้องการ | Visual_Director | `06_Art_Audio/Skills/Visual_Director.md` | **Model Brief** ครบทุกช่อง (ตารางด้านล่าง) · ช่องไหนผู้ใช้ไม่ได้บอกและเดาไม่ได้จากบริบท → **ถามก่อน ห้ามเดา** |
 | 2 เขียน Spec | Visual_Director | `tools/blender/palette16.json` | `art/models/<name>/spec.json` — Brief + grid + สี + คำสั่งวาดแยกตามชิ้น |
-| 3 Build ใน Blender | Tech Artist (Claude) | `tools/blender/build_model.py` (อ่าน docstring รูปแบบ spec) | รัน build → `out/<name>.blend` `.fbx` `.obj` `preview.png` `report.md` |
+| 3 Build ใน Blender | Tech Artist (Claude) | `tools/blender/build_model.py` (อ่าน docstring รูปแบบ spec) | รัน build (เช็กการเชื่อมต่อซ้ำให้เองก่อนเริ่ม) → `out/<name>.blend` `preview.png` `preview_<ท่า>.png` `report.md` |
 | 4 ตรวจ build (Gate) | QA | — | Checklist อัตโนมัติผ่าน **ทุกข้อ** + Claude เปิดดู `preview.png` เองว่าตรง Brief · ไม่ผ่าน → กลับ Step 2 (แก้ spec ไม่แก้ไฟล์ .blend มือ) |
-| 5 ส่งมอบ | — | — | ส่ง `preview.png` ให้ผู้ใช้ดู + รายงาน 4 บรรทัด → commit `art/models/<name>/` → push · **หยุดที่นี่** |
+| 5 ส่งมอบ | — | — | ส่ง `preview.png` ให้ผู้ใช้ดู + รายงาน 5 บรรทัด → commit `art/models/<name>/` → push · **หยุดที่นี่** |
 
 ## Step 1 — Model Brief (ต้องครบก่อนเริ่ม Step 2)
 
@@ -49,6 +53,12 @@ description: Workflow รับความต้องการโมเดล 
   - แกน X: ค่าลบ = ยกแขน/ขาไปข้างหน้า-ขึ้น · ค่าบวก = ลำตัว/หัวก้มไปข้างหน้า · แกน Y: กางขา (R ใช้ค่าบวก, L ใช้ค่าลบ)
 - ออกแบบรูปทรงจากสกิล: ชิ้นที่ "ทำงาน" ในสกิลต้องใหญ่/เด่นที่สุด (เช่น หมัดทุบพื้น, เลนส์ยิงเลเซอร์)
 
+## Step 0 — เช็กการเชื่อมต่อ Blender
+```
+<scratchpad>/bvenv/bin/python tools/blender/blender_status.py
+```
+ตรวจ 3 อย่าง: เรียก Blender ได้ · สร้าง/บันทึก `.blend` ได้ · เรนเดอร์ภาพได้ · session ใหม่ใน cloud มักยังไม่มี `bpy` → ติดตั้งตาม Step 3 แล้วเช็กใหม่
+
 ## Step 3 — คำสั่ง Build
 ใน cloud (ไม่มีโปรแกรม Blender): ติดตั้งครั้งแรก `python3 -m venv <scratchpad>/bvenv && <scratchpad>/bvenv/bin/pip install -r tools/blender/requirements.txt`
 - ถ้าเรนเดอร์พรีวิวแล้ว error เรื่อง `libEGL` → `apt-get install -y libegl1 libegl-mesa0 libgl1-mesa-dri` `[Verified: 2026-09-26]`
@@ -74,7 +84,8 @@ description: Workflow รับความต้องการโมเดล 
 ## Step 5 — รายงานส่งมอบ
 ```
 โมเดล: <name> — <purpose>
-ไฟล์: art/models/<name>/out/ (.blend · .fbx · .obj · preview.png · report.md)
+Blender: 🔌 ✅ เชื่อมต่อ Blender <version>
+ไฟล์: art/models/<name>/out/ (.blend · preview*.png · report.md)
 สเปก: <X×Y×Z studs> · <tris> tris · <n> สี · ชิ้น: <parts>
 ผลตรวจ: ✅ ผ่านครบทุกข้อใน report.md · ข้อสังเกต: <ถ้ามี>
 ```
@@ -82,4 +93,5 @@ description: Workflow รับความต้องการโมเดล 
 ## STOP and REPORT เมื่อ
 - ผู้ใช้ขอสีที่ไม่มีใน palette → เสนอสีใกล้สุด หรือขอให้ Visual_Director เพิ่มใน `palette16.json` (ห้ามใส่ hex ตรงใน spec)
 - งบ triangle ไม่พอกับรายละเอียดที่ขอ → เสนอลด grid หรือเพิ่มงบ ให้ผู้ใช้เลือก
-- ผู้ใช้ขอให้นำเข้า Roblox → อยู่นอกข้อตกลงของ skill นี้ ถามก่อนว่าจะเปิดงานใหม่หรือไม่
+- ผู้ใช้หรืองานอื่นขอให้นำโมเดลเข้า Roblox / ส่งออก FBX → ขัดข้อตกลง · ไม่ทำ แจ้งผู้ใช้ก่อน
+- เชื่อมต่อ Blender ไม่ได้หลังทำตามวิธีแก้แล้ว → หยุด รายงานข้อความ error ให้ผู้ใช้

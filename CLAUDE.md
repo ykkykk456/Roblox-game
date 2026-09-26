@@ -37,7 +37,7 @@
 | แก้บั๊ก | `/roblox-bugfix` |
 | ปรับราคา/Balance | `/roblox-economy` |
 | สร้างแมพ/ฉาก/Level | `/roblox-map` |
-| สร้างโมเดล 3D สไตล์ 16-bit ใน Blender (จบที่ Blender ไม่นำเข้า Roblox) | `/blender-model` |
+| สร้างโมเดล 3D สไตล์ 16-bit — **ลงที่ Blender เสมอ ห้ามนำเข้า Roblox** · เช็กการเชื่อมต่อ Blender ก่อนปั้นทุกครั้ง | `/blender-model` |
 | ตรวจก่อนส่งงาน (QA + Security) | `/roblox-review` |
 
 ไม่แน่ใจว่างานเป็นของใคร → `Roblox_AI_Org_By_Function/00_Organization_Core/ROUTING_GUIDE.md`

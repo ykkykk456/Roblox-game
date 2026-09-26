@@ -11,7 +11,4 @@ return table.freeze({
 	AmmoCrate = "AmmoCrate", -- ลังเติมกระสุนพิเศษ
 	UpgradeBoard = "UpgradeBoard", -- ป้ายอัปเกรดตัวเอง
 	SummonAltar = "SummonAltar", -- จุดส่งของเรียกบอสพิเศษ
-
-	-- ติดมือใน Studio (BossAnimationService อ่าน)
-	Boss = "Boss", -- Model บอส · ต้องมี Attribute BossId ตรงกับชื่อใน Config/BossAnimations.luau
 })

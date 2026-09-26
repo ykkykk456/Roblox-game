@@ -10,12 +10,22 @@ import json
 import sys
 from pathlib import Path
 
-import bpy
-from mathutils import Vector
+if __name__ == "__main__":  # รันตรวจเดี่ยว → เช็กการเชื่อมต่อ Blender ก่อน (build_model.py เช็กให้แล้ว)
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import blender_status
+
+    _connected, _status = blender_status.connect()
+    print(_status)
+    if not _connected:
+        print(blender_status.HOW_TO_FIX)
+        sys.exit(1)
+
+import bpy  # noqa: E402
+from mathutils import Vector  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PALETTE_PATH = Path(__file__).resolve().parent / "palette16.json"
-MAX_TRIS_PER_MESH = 20000  # [Inferred] เพดาน triangle ต่อ MeshPart ของ Roblox — เผื่อไว้ใช้ภายหลัง
+MAX_TRIS_PER_MESH = 20000  # เพดาน triangle ต่อชิ้น ให้ไฟล์เบาและแก้ใน Blender ได้ลื่น
 COLOR_TOLERANCE = 0.002
 
 
