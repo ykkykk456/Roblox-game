@@ -4,13 +4,25 @@
 --   Active: boolean · Hp / MaxHp: number · EndsAt / NextAt: เวลา workspace:GetServerTimeNow()
 --   Top: JSON [{ n = ชื่อ, d = ดาเมจ }] 5 อันดับ · Result: ข้อความผลรอบล่าสุด
 -- ดาเมจของตัวเองส่งผ่าน Player Attribute "BossDamage"
+--
+-- หน้าตา/ท่าทาง (ยืนยัน 2026-09-26):
+--   • โมเดลจริงวางเองใน Studio ที่ ServerStorage > Bosses > <Combat.Boss.Model> (ริก R15 มี Humanoid)
+--     ไม่มีโมเดล → ใช้ลูกบอลสำรอง · clone แล้วลบสคริปต์ที่ติดมากับโมเดล (กันสคริปต์แฝง)
+--   • เปิดตัว: ท่า Walk เดินจากขอบแอ่งเข้ากลาง → ยืน Idle วน · ทุก SlamInterval วินาทีเล่นท่า Slam
+--   • จังหวะกระแทก: เอฟเฟกต์พื้นแตก + ยิงสัญญาณ BossService.Slammed (TurretService ลดเลือดป้อม)
+--   • เล่นอนิเมชันที่ Server ผ่าน Animator → ผู้เล่นทุกคนเห็นท่าเดียวกัน
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
+local TweenService = game:GetService("TweenService")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
+local Map = require(ReplicatedStorage.Shared.Config.Map)
 local SkillService = require(script.Parent.SkillService)
 local Wallet = require(script.Parent.Wallet)
 
@@ -19,7 +31,10 @@ local TOP_COUNT = 5
 
 type Entry = { userId: number, name: string, damage: number }
 type Boss = {
-	part: BasePart,
+	body: Instance, -- ของที่ลบทิ้งตอนบอสจบ (Model หรือลูกบอล)
+	part: BasePart, -- จุดที่ป้อมเล็ง
+	root: BasePart?, -- HumanoidRootPart (มีเฉพาะโมเดลจริง ใช้ขยับตอนเปิดตัว)
+	tracks: { [string]: AnimationTrack },
 	hp: number,
 	maxHp: number,
 	endsAt: number,
@@ -29,12 +44,40 @@ type Boss = {
 local state: Folder
 local boss: Boss? = nil
 local dirty = false
+local slammedEvent = Instance.new("BindableEvent")
+
+-- ความลึกของพื้นกลางแอ่ง (ขั้นในสุด)
+local function pitFloorY(): number
+	local deepest = 0
+	for _, step in Map.Pit.Steps do
+		deepest = math.max(deepest, step.Depth)
+	end
+	return Map.GroundY - deepest
+end
 
 local function now(): number
 	return workspace:GetServerTimeNow()
 end
 
-local function makeBody(): BasePart
+local function addLabel(parent: BasePart, height: number)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(200, 40)
+	gui.StudsOffset = Vector3.new(0, height, 0)
+	gui.AlwaysOnTop = true
+	gui.Parent = parent
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.4
+	label.Text = "👹 BOSS"
+	label.Parent = gui
+end
+
+-- บอสสำรอง: ลูกบอลลอยกลางแมพ (ใช้เมื่อยังไม่ได้วางโมเดลใน ServerStorage)
+local function makeBall(): (Instance, BasePart)
 	local part = Instance.new("Part")
 	part.Name = "Boss"
 	part.Shape = Enum.PartType.Ball
@@ -46,21 +89,202 @@ local function makeBody(): BasePart
 	part.CanTouch = false
 	part.CanQuery = false
 	part.CFrame = CFrame.new(0, Combat.Boss.Height, 0)
+	addLabel(part, 10)
+	part.Parent = workspace
+	return part, part
+end
 
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(200, 40)
-	gui.StudsOffset = Vector3.new(0, 10, 0)
-	gui.Parent = part
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.4
-	label.Text = "👹 BOSS"
-	label.Parent = gui
-	return part
+-- โหลดท่าที่มี ID (ข้ามท่าที่ยังเป็น 0) · คืนตาราง ชื่อท่า → AnimationTrack
+local function loadTracks(model: Model): { [string]: AnimationTrack }
+	local tracks = {}
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local controller: Instance? = humanoid or model:FindFirstChildOfClass("AnimationController")
+	if not controller then
+		warn(`[BossService] โมเดล {model.Name} ไม่มี Humanoid หรือ AnimationController — เล่นท่าไม่ได้`)
+		return tracks
+	end
+	local animator = controller:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = controller
+	end
+	for name, id in Combat.Boss.Animations do
+		if type(id) == "number" and id > 0 then
+			local animation = Instance.new("Animation")
+			animation.Name = name
+			animation.AnimationId = `rbxassetid://{id}`
+			local ok, result = pcall(function()
+				return (animator :: Animator):LoadAnimation(animation)
+			end)
+			if ok then
+				result.Looped = name ~= "Slam"
+				result.Priority = if name == "Slam" then Enum.AnimationPriority.Action else Enum.AnimationPriority.Idle
+				tracks[name] = result
+			else
+				warn(`[BossService] โหลดท่า {name} (ID {id}) ไม่สำเร็จ: {result}`)
+			end
+		end
+	end
+	return tracks
+end
+
+-- บอสจริงจาก ServerStorage > Bosses > <Model> · คืน nil ถ้าไม่มีโมเดล
+local function makeModel(): (Model?, BasePart?, BasePart?)
+	local folder = ServerStorage:FindFirstChild("Bosses")
+	local template = folder and folder:FindFirstChild(Combat.Boss.Model)
+	if not template then
+		return nil, nil, nil
+	end
+	if not template:IsA("Model") then
+		warn(`[BossService] ServerStorage.Bosses.{Combat.Boss.Model} ต้องเป็น Model — ใช้ลูกบอลแทน`)
+		return nil, nil, nil
+	end
+
+	local model = template:Clone()
+	local root: BasePart? = nil
+	for _, item in model:GetDescendants() do
+		if item:IsA("BaseScript") then
+			item:Destroy() -- โมเดลจากภายนอกห้ามพาสคริปต์เข้ามา
+		elseif item:IsA("BasePart") then
+			item.CanCollide = false
+			item.CanTouch = false
+			item.Anchored = false
+			if item.Name == "HumanoidRootPart" then
+				root = item
+			end
+		end
+	end
+	root = root or model.PrimaryPart
+	if not root then
+		warn(`[BossService] โมเดล {model.Name} ไม่มี HumanoidRootPart — ใช้ลูกบอลแทน`)
+		model:Destroy()
+		return nil, nil, nil
+	end
+	-- ยึดแค่ตัวราก ชิ้นอื่นขยับตาม Motor6D ตามท่า
+	root.Anchored = true
+	model.PrimaryPart = root
+
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		humanoid.BreakJointsOnDeath = false
+	end
+
+	-- วางให้เท้าแตะพื้นกลางแอ่ง: หาความสูงจากราก ถึงก้นกล่องครอบโมเดล
+	local boxCFrame, boxSize = model:GetBoundingBox()
+	local rootToBottom = model:GetPivot().Y - (boxCFrame.Y - boxSize.Y / 2)
+	local start = Vector3.new(0, pitFloorY() + rootToBottom, -Combat.Boss.EntranceFrom)
+	model:PivotTo(CFrame.lookAt(start, Vector3.new(0, start.Y, 0)))
+
+	local aim = model:FindFirstChild("UpperTorso", true)
+	local target = if aim and aim:IsA("BasePart") then aim else root
+	addLabel(target, boxSize.Y * 0.6)
+	model.Parent = workspace
+	return model, target, root
+end
+
+-- เอฟเฟกต์ทุบพื้น: วงคลื่นกระแทก + ก้อนบล็อกกระเด็น (ลบเองอัตโนมัติ)
+local function slamEffect(center: Vector3)
+	local y = pitFloorY()
+	local ring = Instance.new("Part")
+	ring.Name = "SlamWave"
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanTouch = false
+	ring.CanQuery = false
+	ring.Material = Enum.Material.Neon
+	ring.Color = Color3.fromRGB(255, 196, 92)
+	ring.Size = Vector3.new(0.6, 8, 8)
+	ring.CFrame = CFrame.new(center.X, y + 0.4, center.Z) * CFrame.Angles(0, 0, math.pi / 2)
+	ring.Parent = workspace
+	local reach = Map.Base.TurretDistance * 2
+	TweenService:Create(ring, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.6, reach, reach),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(ring, 1)
+
+	local rng = Random.new()
+	for _ = 1, 12 do
+		local chunk = Instance.new("Part")
+		chunk.Name = "SlamDebris"
+		chunk.Size = Vector3.one * rng:NextNumber(1.5, 3)
+		chunk.Color = Color3.fromRGB(255, 214, 110):Lerp(Color3.fromRGB(200, 116, 42), rng:NextNumber())
+		chunk.Material = Enum.Material.Plastic
+		chunk.CanCollide = false
+		chunk.CanTouch = false
+		chunk.CanQuery = false
+		local angle = rng:NextNumber(0, 2 * math.pi)
+		local offset = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		chunk.CFrame = CFrame.new(Vector3.new(center.X, y + 1, center.Z) + offset * rng:NextNumber(4, 10))
+		chunk.AssemblyLinearVelocity = offset * rng:NextNumber(20, 45) + Vector3.new(0, rng:NextNumber(30, 55), 0)
+		chunk.Parent = workspace
+		Debris:AddItem(chunk, 1.5)
+	end
+end
+
+-- จังหวะกระแทกของท่า Slam ครั้งเดียว (ลบเอฟเฟกต์เองถ้าบอสจบกลางท่า)
+local function slam(current: Boss)
+	local track = current.tracks.Slam
+	local hit = false
+	local function onHit()
+		if hit or boss ~= current then
+			return
+		end
+		hit = true
+		slamEffect(current.part.Position)
+		slammedEvent:Fire(Combat.Boss.SlamDamage)
+	end
+	if track then
+		local connection = track:GetMarkerReachedSignal("Hit"):Connect(onHit)
+		track:Play()
+		task.delay(track.Length > 0 and track.Length or 3, function()
+			connection:Disconnect()
+		end)
+	end
+	-- ไม่มี Marker "Hit" (หรือไม่มีท่า) → ใช้เวลาใน Config แทน
+	task.delay(Combat.Boss.SlamHitDelay, onHit)
+end
+
+-- เปิดตัว (เดินเข้ากลาง) → Idle → วนทุบทุก SlamInterval จนบอสจบ
+local function runBehaviour(current: Boss)
+	local tracks = current.tracks
+	local root = current.root
+	if root then
+		if tracks.Walk then
+			tracks.Walk:Play()
+		end
+		local model = current.body :: Model
+		local from = model:GetPivot().Position
+		local to = Vector3.new(0, from.Y, 0)
+		local started = os.clock()
+		while boss == current do
+			local t = math.min((os.clock() - started) / Combat.Boss.EntranceSeconds, 1)
+			local position = from:Lerp(to, t)
+			model:PivotTo(CFrame.lookAt(position, position + (to - from)))
+			if t >= 1 then
+				break
+			end
+			RunService.Heartbeat:Wait()
+		end
+		if tracks.Walk then
+			tracks.Walk:Stop(0.3)
+		end
+	end
+	if boss ~= current then
+		return
+	end
+	if tracks.Idle then
+		tracks.Idle:Play(0.3)
+	end
+	while boss == current do
+		task.wait(Combat.Boss.SlamInterval)
+		if boss ~= current then
+			break
+		end
+		slam(current)
+	end
 end
 
 local function sortedEntries(current: Boss): { Entry }
@@ -94,9 +318,27 @@ end
 
 local function spawnBoss()
 	local maxHp = Combat.Boss.BaseHp + Combat.Boss.HpPerPlayer * #Players:GetPlayers()
-	local part = makeBody()
-	part.Parent = workspace
-	boss = { part = part, hp = maxHp, maxHp = maxHp, endsAt = now() + Combat.Boss.Duration, damageBy = {} }
+	local body: Instance, part: BasePart
+	local tracks = {}
+	local model, target, root = makeModel()
+	if model and target then
+		body, part = model, target
+		tracks = loadTracks(model)
+	else
+		body, part = makeBall()
+	end
+	local current: Boss = {
+		body = body,
+		part = part,
+		root = root,
+		tracks = tracks,
+		hp = maxHp,
+		maxHp = maxHp,
+		endsAt = now() + Combat.Boss.Duration,
+		damageBy = {},
+	}
+	boss = current
+	task.spawn(runBehaviour, current)
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("BossDamage", 0)
 	end
@@ -110,7 +352,7 @@ end
 
 local function finish(current: Boss, killed: boolean)
 	boss = nil
-	current.part:Destroy()
+	current.body:Destroy()
 	publish(current)
 
 	local ranking = sortedEntries(current)
@@ -149,6 +391,9 @@ local function finish(current: Boss, killed: boolean)
 end
 
 local BossService = {}
+
+-- ยิงเมื่อบอสทุบพื้นถึงจังหวะกระแทก: (ดาเมจต่อป้อม)
+BossService.Slammed = slammedEvent.Event
 
 -- มีบอสอยู่ในแมพตอนนี้หรือไม่ (ตั้งแต่เกิดจนตาย/หนี)
 function BossService.isActive(): boolean

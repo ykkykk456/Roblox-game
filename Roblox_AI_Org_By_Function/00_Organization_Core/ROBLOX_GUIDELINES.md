@@ -147,3 +147,9 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 | เลนมอน | 8 เลนตามแนวฐาน รัศมี 12–134 กว้าง 20 | มอนเกิดกลางแอ่งเป็น wave เดินไปหาป้อม (`Config/Map.Lane`) |
 
 แก้ขนาดพื้น/แอ่ง/ถนน = แก้ `tools/gen_map.py` + `Config/Map.luau` ให้ตรงกัน แล้วรัน `python3 tools/gen_map.py` · แก้ฐาน = `Config/Map.luau` (ของใน Folder `Map` ถูกสร้างใหม่ทุกครั้งที่ Server เริ่ม แก้ใน Studio จะหายตอนกด Play)
+
+## 8. โมเดล/อนิเมชันที่เจ้าของเกมนำเข้าเองใน Studio
+- โมเดลที่ต้อง Clone ตอนเกมรัน (เช่นบอส) → วางใน **ServerStorage** (Rojo ไม่ยุ่ง ไม่ลบ/ไม่เขียนทับ) · บอส: `ServerStorage/Bosses/<Combat.Boss.Model>`
+- โค้ดที่ Clone ต้องลบ `Script`/`LocalScript` ที่ติดมากับโมเดลเสมอ (กันสคริปต์แฝง) · ไม่มีโมเดล = มีตัวสำรองจากโค้ด เกมไม่พัง
+- อนิเมชัน: Publish ให้ **เจ้าของเดียวกับเกม** (เกมเป็นของ Group → Publish เข้า Group) `[Inferred]` · ใส่เลข Animation ID ใน `src/shared/Config/` (เช่น `Combat.Boss.Animations`) ไม่ hard-code ในสคริปต์
+- ความละเอียด: < 10,000 สามเหลี่ยมต่อชิ้นสำหรับมือถือ (สูงสุด ~20,000) `[Unverified]`

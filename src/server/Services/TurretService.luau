@@ -2,6 +2,8 @@
 -- คลังสกิล/กาชา/คูลดาวน์อยู่ที่ SkillService · ที่นี่แค่นำผลสกิลมาใช้ตอนยิง
 -- Server เลือกเป้าและคำนวณดาเมจเองทั้งหมด · Client ส่งได้แค่ "ขออัป" / "ขอใช้สกิล" (ผ่าน TurretHandler)
 -- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ
+-- เลือดป้อม: บอสทุบพื้น (BossService.Slammed) → ลดเลือดทุกป้อม · หมด = ช็อต หยุดยิง Combat.Turret.StunSeconds แล้วฟื้นเต็ม
+--   บอสจบ = เลือดเต็มทันที · ไม่บันทึกลง DataStore (ยืนยัน 2026-09-26)
 -- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางหน้าฐานของตัวเอง (BaseService) · หน้าตาเป็น Part ธรรมดา
 -- (ตาม IDEA.md หน้าตาไม่เปลี่ยนตามเลเวล — จะเปลี่ยนตามอุปกรณ์แต่งปืนในเฟสหลัง)
 
@@ -24,6 +26,8 @@ local GROUND_Y = Map.GroundY
 local HEAD_HEIGHT = 5
 local BARREL_LENGTH = 4
 local MAX_SHOTS_PER_TICK = 5 -- กันอัตรายิงสูงเกินรอบคำนวณ: รวมหลายนัดเป็นครั้งเดียว
+local HEAD_COLOR = Color3.fromRGB(60, 160, 170)
+local STUNNED_COLOR = Color3.fromRGB(110, 110, 116)
 
 type Turret = {
 	owner: Player,
@@ -34,6 +38,8 @@ type Turret = {
 	label: TextLabel,
 	headPosition: Vector3,
 	nextFireAt: number,
+	hp: number,
+	stunnedUntil: number, -- os.clock() · 0 = ไม่ช็อต
 }
 
 local turrets: { [Player]: Turret } = {}
@@ -67,7 +73,8 @@ local function aim(turret: Turret, target: Vector3)
 end
 
 local function refreshLabel(turret: Turret)
-	turret.label.Text = `{turret.owner.DisplayName} · Lv.{levelOf(turret.owner)}`
+	local status = if turret.stunnedUntil > 0 then "⚡ ช็อต!" else `❤ {math.ceil(turret.hp)}`
+	turret.label.Text = `{turret.owner.DisplayName} · Lv.{levelOf(turret.owner)} · {status}`
 end
 
 local function build(owner: Player, slot: number): Turret
@@ -83,7 +90,7 @@ local function build(owner: Player, slot: number): Turret
 	pedestal.CFrame = CFrame.new(base + Vector3.new(0, GROUND_Y + (HEAD_HEIGHT - 1) / 2, 0))
 		* CFrame.Angles(0, 0, math.pi / 2)
 
-	local head = newPart("Head", Vector3.new(3, 2.5, 3), Color3.fromRGB(60, 160, 170), model)
+	local head = newPart("Head", Vector3.new(3, 2.5, 3), HEAD_COLOR, model)
 	head.CanCollide = false
 	local barrel = newPart("Barrel", Vector3.new(0.8, 0.8, BARREL_LENGTH), Color3.fromRGB(40, 42, 50), model)
 	barrel.CanCollide = false
@@ -115,6 +122,8 @@ local function build(owner: Player, slot: number): Turret
 		label = label,
 		headPosition = headPosition,
 		nextFireAt = 0,
+		hp = Combat.Turret.MaxHp,
+		stunnedUntil = 0,
 	}
 	aim(turret, Vector3.new(0, headPosition.Y, 0)) -- หันเข้ากลางแมพ
 	refreshLabel(turret)
@@ -130,6 +139,40 @@ local function onBaseChanged(player: Player, slot: number?)
 	end
 	if slot and not turrets[player] then
 		turrets[player] = build(player, slot)
+	end
+end
+
+local function setHealthy(turret: Turret)
+	turret.hp = Combat.Turret.MaxHp
+	turret.stunnedUntil = 0
+	turret.head.Color = HEAD_COLOR
+	refreshLabel(turret)
+end
+
+-- บอสทุบพื้น: ลดเลือดทุกป้อม · หมดเลือด = ช็อต
+local function onSlammed(damage: number)
+	local now = os.clock()
+	for _, turret in turrets do
+		if turret.stunnedUntil == 0 then
+			turret.hp = math.max(turret.hp - damage, 0)
+			if turret.hp <= 0 then
+				turret.stunnedUntil = now + Combat.Turret.StunSeconds
+				turret.head.Color = STUNNED_COLOR
+			end
+			refreshLabel(turret)
+		end
+	end
+end
+
+-- ฟื้นป้อมที่ช็อตครบเวลา · บอสจบแล้ว = เลือดเต็มทุกป้อม
+local function updateHealth(now: number)
+	local bossActive = BossService.isActive()
+	for _, turret in turrets do
+		local stunOver = turret.stunnedUntil > 0 and now >= turret.stunnedUntil
+		local bossOver = not bossActive and (turret.stunnedUntil > 0 or turret.hp < Combat.Turret.MaxHp)
+		if stunOver or bossOver then
+			setHealthy(turret)
+		end
 	end
 end
 
@@ -170,8 +213,13 @@ local function tick(firedRemote: RemoteEvent)
 	local serverNow = workspace:GetServerTimeNow()
 	local bossPosition = BossService.getTarget()
 	local shots = {}
+	updateHealth(now)
 
 	for owner, turret in turrets do
+		if turret.stunnedUntil > 0 then
+			turret.nextFireAt = now -- ช็อต: ไม่ยิง และไม่สะสมนัดค้างไว้ยิงทีเดียวหลังฟื้น
+			continue
+		end
 		if now < turret.nextFireAt then
 			continue
 		end
@@ -230,7 +278,7 @@ end
 function TurretService.useSkill(player: Player): boolean
 	local turret = turrets[player]
 	local id, def, level = SkillService.equipped(player)
-	if not turret or not id or not def or not level then
+	if not turret or turret.stunnedUntil > 0 or not id or not def or not level then
 		return false
 	end
 	local serverNow = workspace:GetServerTimeNow()
@@ -267,6 +315,7 @@ function TurretService.Init()
 	folder.Parent = workspace
 
 	BaseService.Changed:Connect(onBaseChanged)
+	BossService.Slammed:Connect(onSlammed)
 	for slot, player in BaseService.owners() do
 		onBaseChanged(player, slot)
 	end
