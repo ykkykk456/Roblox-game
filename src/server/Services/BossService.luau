@@ -7,7 +7,8 @@
 --
 -- หน้าตา/ท่าทาง (ยืนยัน 2026-09-26):
 --   • โมเดลจริงวางเองใน Studio ที่ ServerStorage > Bosses > <Combat.Boss.Model> (ริก R15 มี Humanoid)
---     วางไว้ใน Workspace ก็ได้ → ตอนเซิร์ฟเริ่มจะย้ายไปเก็บให้ · ชื่อยืดหยุ่น (Slambot / Slam-Bot / boss_slambot)
+--     ตอนนี้ชื่อ boss_slambot (Import จาก boss_slambot.fbx) · วางไว้ใน Workspace ก็ได้ → ตอนเซิร์ฟเริ่มจะย้ายไปเก็บให้
+--     ชื่อยืดหยุ่น (boss_slambot / Slambot / Slam-Bot) · ชิ้นส่วนซ้อนอยู่ในโมเดลย่อยก็หาเจอ
 --     ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะถูกซ่อมข้อต่อให้ (กันร่วงทะลุแมพ) · ตัวรากถูกซ่อน
 --     ไม่มีโมเดล → ใช้ลูกบอลสำรอง · clone แล้วลบสคริปต์ที่ติดมากับโมเดล (กันสคริปต์แฝง)
 --   • เปิดตัว: ท่า Walk เดินจากขอบแอ่งเข้ากลาง → ยืน Idle วน · ทุก SlamInterval วินาทีเล่นท่า Slam
@@ -139,7 +140,7 @@ end
 -- โหลดท่าที่มี ID (ข้ามท่าที่ยังไม่มี) · คืนตาราง ชื่อท่า → AnimationTrack
 local function loadTracks(model: Model): { [string]: AnimationTrack }
 	local tracks = {}
-	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local humanoid = model:FindFirstChildWhichIsA("Humanoid", true)
 	local controller: Instance? = humanoid or model:FindFirstChildOfClass("AnimationController")
 	if not controller then
 		controller = Instance.new("AnimationController")
@@ -187,7 +188,7 @@ end
 local function isBossModel(item: Instance): boolean
 	return item:IsA("Model")
 		and normalizeName(item.Name) == normalizeName(Combat.Boss.Model)
-		and (item:FindFirstChildOfClass("Humanoid") ~= nil or item:FindFirstChild("HumanoidRootPart") ~= nil)
+		and item:FindFirstChild("HumanoidRootPart", true) ~= nil -- FBX อาจซ้อนชิ้นส่วนไว้ในโมเดลย่อย
 end
 
 -- หาโมเดลต้นแบบ: ServerStorage > Bosses ก่อน แล้วค่อยใน Workspace (ผู้ใช้อาจวางไว้ในแมพ)
@@ -271,9 +272,9 @@ local function repairJoints(model: Model, root: BasePart): number
 	local repaired = 0
 	local connected = connectedToRoot(model, root)
 	for _, childName in R15_ORDER do
-		local child = model:FindFirstChild(childName)
+		local child = model:FindFirstChild(childName, true)
 		local info = R15_JOINTS[childName]
-		local parent = model:FindFirstChild(info[1])
+		local parent = model:FindFirstChild(info[1], true)
 		if child and child:IsA("BasePart") and not connected[child] and parent and parent:IsA("BasePart") and connected[parent] then
 			-- จุดหมุนข้อต่อ: ใช้ Bone ชื่อเดียวกันถ้ามี (มาจากโครงกระดูก FBX) ไม่งั้นใช้กลางชิ้นลูก
 			local pivot = child.Position
@@ -362,7 +363,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 		print(`[BossService] ซ่อมข้อต่อในตัวบอส {repaired} จุด (ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะร่วงทะลุแมพ)`)
 	end
 
-	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local humanoid = model:FindFirstChildWhichIsA("Humanoid", true)
 	if humanoid then
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.BreakJointsOnDeath = false

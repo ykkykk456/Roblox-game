@@ -10,7 +10,7 @@
 local ServerStorage = game:GetService("ServerStorage")
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
-local MODEL_NAME = "Slambot"
+local MODEL_NAME = "boss_slambot" -- ชื่อโมเดลที่ Import จาก boss_slambot.fbx
 local PARTS = {
 	"HumanoidRootPart", "LowerTorso", "UpperTorso", "Head",
 	"LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand",
@@ -53,7 +53,7 @@ end
 local function findIn(container)
 	for _, item in container:GetDescendants() do
 		if item:IsA("Model") and simple(item.Name) == simple(MODEL_NAME)
-			and (item:FindFirstChildOfClass("Humanoid") or item:FindFirstChild("HumanoidRootPart")) then
+			and item:FindFirstChild("HumanoidRootPart", true) then
 			return item
 		end
 	end
@@ -70,33 +70,33 @@ elseif model and inWorkspace then
 	bad("มีโมเดลบอสทั้งใน Workspace (" .. inWorkspace:GetFullName() .. ") และใน Bosses — ลบตัวใน Workspace ทิ้ง")
 end
 if model and model.Name ~= MODEL_NAME then
-	ok("เปลี่ยนชื่อ " .. model.Name .. " → " .. MODEL_NAME)
+	ok("ตั้งชื่อ " .. model.Name .. " → " .. MODEL_NAME .. " ให้ตรงกับ Config")
 	model.Name = MODEL_NAME
 end
 
 if not model then
-	bad("ไม่เจอโมเดลชื่อ " .. MODEL_NAME .. " (เช็กตัวสะกด ตัวพิมพ์ใหญ่เล็ก)")
+	bad("ไม่เจอโมเดลชื่อ " .. MODEL_NAME .. " ที่มี HumanoidRootPart ทั้งใน Workspace และ ServerStorage > Bosses")
 elseif not model:IsA("Model") then
 	bad(MODEL_NAME .. " ต้องเป็น Model (ตอนนี้เป็น " .. model.ClassName .. ")")
 else
 	ok("เจอโมเดล " .. model:GetFullName())
 
-	if model:FindFirstChildOfClass("Humanoid") then
+	if model:FindFirstChildWhichIsA("Humanoid", true) then
 		ok("มี Humanoid")
 	else
-		bad("ไม่มี Humanoid ใต้โมเดลโดยตรง")
+		print("ℹ️ ไม่มี Humanoid — ไม่เป็นไร เกมใช้ AnimationController เล่นท่าแทน")
 	end
 
 	for _, name in PARTS do
-		local part = model:FindFirstChild(name)
+		local part = model:FindFirstChild(name, true)
 		if not part or not part:IsA("BasePart") then
-			bad("ไม่เจอชิ้นส่วน " .. name .. " (ชื่อต้องตรงตัวอักษรทุกตัว และอยู่ใต้โมเดลโดยตรง)")
+			bad("ไม่เจอชิ้นส่วน " .. name .. " (ชื่อต้องตรงตัวอักษรทุกตัว)")
 		end
 	end
 
 	local missingJoints = 0
 	for joint, partName in JOINTS do
-		local part = model:FindFirstChild(partName)
+		local part = model:FindFirstChild(partName, true)
 		local motor = part and part:FindFirstChild(joint)
 		if part and not (motor and motor:IsA("Motor6D")) then
 			missingJoints += 1
@@ -107,7 +107,7 @@ else
 		print("ℹ️ ขาดข้อต่อ " .. missingJoints .. " จุด — ไม่ต้องแก้เอง เกมจะซ่อมให้ตอนบอสเกิด (ถ้าไม่ซ่อม ตัวจะร่วงทะลุแมพ)")
 	end
 
-	local root = model:FindFirstChild("HumanoidRootPart")
+	local root = model:FindFirstChild("HumanoidRootPart", true)
 	if root and root:IsA("BasePart") then
 		root.Transparency = 1
 		root.Anchored = true
