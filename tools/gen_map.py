@@ -106,7 +106,7 @@ def write_project(tiles):
                 "Anchored": True,
                 "Locked": True,
                 "CanTouch": False,
-                "Material": "SmoothPlastic",
+                "Material": "Plastic",
                 "TopSurface": "Studs",
                 "BottomSurface": "Smooth",
                 "Color": [round(c / 255, 5) for c in t["color"]],

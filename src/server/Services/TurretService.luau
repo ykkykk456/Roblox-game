@@ -49,7 +49,7 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 	part.Name = name
 	part.Size = size
 	part.Color = color
-	part.Material = Enum.Material.Metal
+	part.Material = Enum.Material.Plastic
 	part.Anchored = true
 	part.CanTouch = false
 	part.TopSurface = Enum.SurfaceType.Smooth

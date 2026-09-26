@@ -60,7 +60,7 @@ local function voxel(parent: Instance, name: string, size: Vector3, color: Color
 	part.Name = name
 	part.Size = size
 	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
+	part.Material = Enum.Material.Plastic
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.CanCollide = false

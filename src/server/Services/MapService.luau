@@ -32,7 +32,7 @@ local function block(parent: Instance, name: string, size: Vector3, cframe: CFra
 	part.Size = size
 	part.CFrame = cframe
 	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
+	part.Material = Enum.Material.Plastic
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.CanTouch = false
@@ -208,7 +208,7 @@ local function buildBase(parent: Instance, slot: number)
 	spawnPad.Size = Vector3.new(6, 1, 6)
 	spawnPad.CFrame = atPad(-6, 3, padTop + 0.5)
 	spawnPad.Color = color:Lerp(Color3.new(1, 1, 1), 0.4)
-	spawnPad.Material = Enum.Material.SmoothPlastic
+	spawnPad.Material = Enum.Material.Plastic
 	spawnPad.TopSurface = Enum.SurfaceType.Smooth
 	spawnPad.Duration = 0
 	spawnPad.Neutral = true
