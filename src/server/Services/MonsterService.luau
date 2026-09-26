@@ -2,6 +2,7 @@
 -- 8 เลนตามแนวฐาน: เกิดกลางแอ่ง (จุดบอส) → เดินตรงออกไปหาป้อมหน้าฐาน (ผัง: Config/Map.Lane)
 -- ปล่อยเป็น wave: เลนละ Combat.Monster.WaveSize ตัว ทยอยออกทีละตัว · ทั้ง wave ตาย/ถึงปลายทางหมด → พัก WaveDelay → wave ถัดไป
 -- ถึงปลายเลนแล้วหายไป ไม่มีรางวัล · ปล่อยเฉพาะเลนของฐานที่มีเจ้าของ
+-- ระหว่างตีบอส: หยุดปล่อยมอนทุกเลน (ตัวที่เดินอยู่แล้วเดินต่อ) · บอสจบ → wave เดิมปล่อยต่อจากที่ค้างไว้ (ยืนยัน 2026-09-26)
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
 -- หน้าตา: สัตว์บล็อกทรงกล่อง (ตัว หู ตา ปาก) สไตล์ voxel · [Proposed] ยังไม่มีอนิเมชันนอกจากเด้งตอนเดิน
 
@@ -13,6 +14,7 @@ local Economy = require(ReplicatedStorage.Shared.Config.Economy)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 local BaseService = require(script.Parent.BaseService)
+local BossService = require(script.Parent.BossService)
 local Wallet = require(script.Parent.Wallet)
 
 export type Monster = {
@@ -286,6 +288,16 @@ function MonsterService.Start()
 				-- เจ้าของออกจากเกม → หยุดเลนนี้ (มอนที่เดินอยู่เดินต่อจนถึงปลายทาง) · คนใหม่เริ่ม wave 1
 				waves[slot] = nil
 			end
+		end
+		if BossService.isActive() then
+			-- พักทุกเลนระหว่างตีบอส · เลื่อนเวลานัดออกไปเรื่อยๆ ให้เริ่มนับใหม่หลังบอสจบ
+			for _, wave in waves do
+				wave.nextSpawnAt = now + Combat.Monster.SpawnGap
+				if wave.restUntil then
+					wave.restUntil = now + Combat.Monster.WaveDelay
+				end
+			end
+			continue
 		end
 		for slot in owners do
 			stepWave(slot, now)

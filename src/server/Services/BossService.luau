@@ -150,6 +150,11 @@ end
 
 local BossService = {}
 
+-- มีบอสอยู่ในแมพตอนนี้หรือไม่ (ตั้งแต่เกิดจนตาย/หนี)
+function BossService.isActive(): boolean
+	return boss ~= nil
+end
+
 -- บอสที่ตีได้ตอนนี้ (nil ถ้าไม่มี)
 function BossService.getTarget(): Vector3?
 	if boss and boss.hp > 0 then
