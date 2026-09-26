@@ -179,7 +179,9 @@ local function spawnMonster(slot: number)
 		or MapMath.point(slot, (Map.Yard.Inner + Map.Yard.Outer) / 2, 0, y)
 
 	local model, part, bar = makeBody(def.Size, def.Color)
-	part.CFrame = CFrame.new(start)
+	-- ย้ายทั้งโมเดล (ทุกชิ้นพร้อมกัน) ก่อนเข้า workspace · ถ้าย้ายแค่ตัวหลัก WeldConstraint จะจำระยะผิด
+	-- แล้วหู/ตา/ปากลอยแยกจากตัว (บั๊กที่เจอ 2026-09-26)
+	model:PivotTo(CFrame.new(start))
 	model.Parent = folder
 
 	local now = os.clock()
