@@ -7,7 +7,7 @@ return table.freeze({
 
 	Turret = table.freeze({
 		-- ตำแหน่ง/จำนวนป้อมมาจากฐาน (Config/Map: BaseCount, Base.TurretDistance)
-		Range = 60, -- ระยะยิง (studs) ต้องมากกว่า Map.Base.TurretDistance เพื่อให้ถึงบอสกลางหลุม · ยังไม่ได้ออกแบบใหม่ (ป้อมอาจยิงมอนฐานข้างๆ ได้)
+		Range = 150, -- ระยะยิง (studs) ต้องมากกว่า Map.Base.TurretDistance เพื่อให้ถึงบอสกลางหลุม · ×2.5 ตามแมพ (2026-09-26) · ยังไม่ได้ออกแบบใหม่ (ป้อมอาจยิงมอนฐานข้างๆ ได้)
 		MaxLevel = 50,
 		BaseDamage = 10,
 		DamagePerLevel = 5,

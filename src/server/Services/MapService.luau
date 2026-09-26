@@ -150,6 +150,12 @@ local function buildBase(parent: Instance, slot: number)
 		return CFrame.lookAt(position, position - out)
 	end
 
+	-- ตำแหน่งของในฐาน วัดจากกลางลานฐาน (du = ไปทางหลุม −/ออกนอก + · dv = ขวา) · ระยะขยายตามขนาดลาน (ออกแบบไว้ที่ลาน 44)
+	local layoutScale = base.Size / 44
+	local function atPad(du: number, dv: number, y: number): CFrame
+		return at(base.Distance + du * layoutScale, dv * layoutScale, y)
+	end
+
 	local padTop = g + 0.45
 	block(model, "PadEdge", Vector3.new(base.Size, 0.4, base.Size), at(base.Distance, 0, g + 0.2), color)
 	local padFloor =
@@ -157,7 +163,7 @@ local function buildBase(parent: Instance, slot: number)
 	padFloor.TopSurface = Enum.SurfaceType.Studs
 	texture(padFloor, { Enum.NormalId.Top })
 
-	local house = block(model, "House", Vector3.new(14, 9, 14), at(90, -10, padTop + 4.5), COLORS.Wall)
+	local house = block(model, "House", Vector3.new(14, 9, 14), atPad(10, -10, padTop + 4.5), COLORS.Wall)
 	house.TopSurface = Enum.SurfaceType.Studs
 	house.FrontSurface = Enum.SurfaceType.Studs
 	house.BackSurface = Enum.SurfaceType.Studs
@@ -180,17 +186,17 @@ local function buildBase(parent: Instance, slot: number)
 	label.Text = `ฐาน {slot}`
 	label.Parent = gui
 
-	tag(block(model, "SellPad", Vector3.new(8, 0.3, 8), at(72, -12, padTop + 0.15), COLORS.Sell), Tags.SellPad, slot)
-	tag(block(model, "AmmoCrate", Vector3.new(4, 3, 4), at(61, -8, padTop + 1.5), COLORS.Crate), Tags.AmmoCrate, slot)
-	block(model, "UpgradePost", Vector3.new(1, 5, 1), at(64, -17, padTop + 2.5), COLORS.Post)
-	tag(block(model, "UpgradeBoard", Vector3.new(5, 3.5, 0.6), at(64, -17, padTop + 5.5), color), Tags.UpgradeBoard, slot)
-	tag(block(model, "SummonAltar", Vector3.new(6, 2, 6), at(96, 3, padTop + 1), COLORS.Altar), Tags.SummonAltar, slot)
+	tag(block(model, "SellPad", Vector3.new(8, 0.3, 8), atPad(-8, -12, padTop + 0.15), COLORS.Sell), Tags.SellPad, slot)
+	tag(block(model, "AmmoCrate", Vector3.new(4, 3, 4), atPad(-19, -8, padTop + 1.5), COLORS.Crate), Tags.AmmoCrate, slot)
+	block(model, "UpgradePost", Vector3.new(1, 5, 1), atPad(-16, -17, padTop + 2.5), COLORS.Post)
+	tag(block(model, "UpgradeBoard", Vector3.new(5, 3.5, 0.6), atPad(-16, -17, padTop + 5.5), color), Tags.UpgradeBoard, slot)
+	tag(block(model, "SummonAltar", Vector3.new(6, 2, 6), atPad(16, 3, padTop + 1), COLORS.Altar), Tags.SummonAltar, slot)
 
 	local spawnPad = Instance.new("SpawnLocation")
 	spawnPad.Name = "Spawn"
 	spawnPad.Anchored = true
 	spawnPad.Size = Vector3.new(6, 1, 6)
-	spawnPad.CFrame = at(74, 3, padTop + 0.5)
+	spawnPad.CFrame = atPad(-6, 3, padTop + 0.5)
 	spawnPad.Color = color:Lerp(Color3.new(1, 1, 1), 0.4)
 	spawnPad.Material = Enum.Material.SmoothPlastic
 	spawnPad.TopSurface = Enum.SurfaceType.Smooth

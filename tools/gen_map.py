@@ -20,16 +20,16 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # ---- ต้องตรงกับ Config/Map.luau ----
 GROUND_Y = 1
-RADIUS = 160
-TILE = 8
+RADIUS = 400
+TILE = 16
 EDGE_HEIGHT = 3
-PIT_STEPS = [(18, 3), (30, 2), (40, 1)]  # (รัศมีไม่เกิน, ความลึก) เรียงจากในออกนอก
-ROAD = (40, 52)
+PIT_STEPS = [(45, 3), (75, 2), (100, 1)]  # (รัศมีไม่เกิน, ความลึก) เรียงจากในออกนอก
+ROAD = (100, 130)
 MAX_BASES = 8
-BASE_DISTANCE = 80
-BASE_SIZE = 44
-YARD = (104, 140, math.radians(18))
-TURRET_DISTANCE = 56
+BASE_DISTANCE = 200
+BASE_SIZE = 110
+YARD = (260, 350, math.radians(18))
+TURRET_DISTANCE = 140
 BOTTOM_Y = GROUND_Y - 5  # ก้นของทุกบล็อก (บล็อกเป็นเสาถึงระดับเดียวกัน ไม่มีช่องโหว่ข้างขั้นบันได)
 
 COLORS = {
