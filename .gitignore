@@ -12,3 +12,5 @@ sourcemap.json
 
 # Python cache จาก tools/
 __pycache__/
+# ไฟล์สำรองอัตโนมัติของ Blender
+*.blend1
