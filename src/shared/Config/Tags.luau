@@ -3,6 +3,8 @@
 -- โค้ดอ้างอิงผ่าน Tags.X เสมอ ห้ามพิมพ์ชื่อ tag เป็นข้อความตรงๆ
 
 return table.freeze({
+	Boss = "Boss", -- Model บอส · ต้องมี Attribute BossId ตรงกับชื่อใน Config/BossAnimations.luau
+
 	-- ตัวอย่าง:
 	-- SpawnPoint = "SpawnPoint",
 	-- Coin = "Coin",
