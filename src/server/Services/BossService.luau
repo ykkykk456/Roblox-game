@@ -7,6 +7,8 @@
 --
 -- หน้าตา/ท่าทาง (ยืนยัน 2026-09-26):
 --   • โมเดลจริงวางเองใน Studio ที่ ServerStorage > Bosses > <Combat.Boss.Model> (ริก R15 มี Humanoid)
+--     วางไว้ใน Workspace ก็ได้ → ตอนเซิร์ฟเริ่มจะย้ายไปเก็บให้ · ชื่อยืดหยุ่น (Slambot / Slam-Bot / boss_slambot)
+--     ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะถูกซ่อมข้อต่อให้ (กันร่วงทะลุแมพ) · ตัวรากถูกซ่อน
 --     ไม่มีโมเดล → ใช้ลูกบอลสำรอง · clone แล้วลบสคริปต์ที่ติดมากับโมเดล (กันสคริปต์แฝง)
 --   • เปิดตัว: ท่า Walk เดินจากขอบแอ่งเข้ากลาง → ยืน Idle วน · ทุก SlamInterval วินาทีเล่นท่า Slam
 --   • จังหวะกระแทก: เอฟเฟกต์พื้นแตก + ยิงสัญญาณ BossService.Slammed (TurretService ลดเลือดป้อม)
@@ -140,8 +142,8 @@ local function loadTracks(model: Model): { [string]: AnimationTrack }
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	local controller: Instance? = humanoid or model:FindFirstChildOfClass("AnimationController")
 	if not controller then
-		warn(`[BossService] โมเดล {model.Name} ไม่มี Humanoid หรือ AnimationController — เล่นท่าไม่ได้`)
-		return tracks
+		controller = Instance.new("AnimationController")
+		controller.Parent = model
 	end
 	local animator = controller:FindFirstChildOfClass("Animator")
 	if not animator then
@@ -176,15 +178,152 @@ local function loadTracks(model: Model): { [string]: AnimationTrack }
 	return tracks
 end
 
--- บอสจริงจาก ServerStorage > Bosses > <Model> · คืน nil ถ้าไม่มีโมเดล
-local function makeModel(): (Model?, BasePart?, BasePart?)
+-- ชื่อแบบยืดหยุ่น: ตัวเล็กหมด ตัดช่องว่าง/ขีด/_ และคำว่า boss → "Slambot", "Slam-Bot", "boss_slambot" = "slambot"
+local function normalizeName(name: string): string
+	local simple = string.gsub(string.lower(name), "[^%w]", "")
+	return (string.gsub(simple, "boss", ""))
+end
+
+local function isBossModel(item: Instance): boolean
+	return item:IsA("Model")
+		and normalizeName(item.Name) == normalizeName(Combat.Boss.Model)
+		and (item:FindFirstChildOfClass("Humanoid") ~= nil or item:FindFirstChild("HumanoidRootPart") ~= nil)
+end
+
+-- หาโมเดลต้นแบบ: ServerStorage > Bosses ก่อน แล้วค่อยใน Workspace (ผู้ใช้อาจวางไว้ในแมพ)
+local function findTemplate(): Model?
 	local folder = ServerStorage:FindFirstChild("Bosses")
-	local template = folder and folder:FindFirstChild(Combat.Boss.Model)
-	if not template then
-		return nil, nil, nil
+	if folder then
+		for _, item in folder:GetChildren() do
+			if isBossModel(item) then
+				return item :: Model
+			end
+		end
 	end
-	if not template:IsA("Model") then
-		warn(`[BossService] ServerStorage.Bosses.{Combat.Boss.Model} ต้องเป็น Model — ใช้ลูกบอลแทน`)
+	for _, item in workspace:GetDescendants() do
+		if isBossModel(item) then
+			return item :: Model
+		end
+	end
+	return nil
+end
+
+-- ข้อต่อมาตรฐาน R15: ชิ้นลูก → (ชิ้นแม่, ชื่อข้อต่อ)
+local R15_JOINTS = {
+	LowerTorso = { "HumanoidRootPart", "Root" },
+	UpperTorso = { "LowerTorso", "Waist" },
+	Head = { "UpperTorso", "Neck" },
+	LeftUpperArm = { "UpperTorso", "LeftShoulder" },
+	LeftLowerArm = { "LeftUpperArm", "LeftElbow" },
+	LeftHand = { "LeftLowerArm", "LeftWrist" },
+	RightUpperArm = { "UpperTorso", "RightShoulder" },
+	RightLowerArm = { "RightUpperArm", "RightElbow" },
+	RightHand = { "RightLowerArm", "RightWrist" },
+	LeftUpperLeg = { "LowerTorso", "LeftHip" },
+	LeftLowerLeg = { "LeftUpperLeg", "LeftKnee" },
+	LeftFoot = { "LeftLowerLeg", "LeftAnkle" },
+	RightUpperLeg = { "LowerTorso", "RightHip" },
+	RightLowerLeg = { "RightUpperLeg", "RightKnee" },
+	RightFoot = { "RightLowerLeg", "RightAnkle" },
+}
+-- ลำดับซ่อม: จากลำตัวออกไปปลายแขนขา (ชิ้นแม่ต้องต่อกับ root ก่อน)
+local R15_ORDER = {
+	"LowerTorso", "UpperTorso", "Head",
+	"LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand",
+	"LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot",
+}
+
+-- ชิ้นที่ต่อถึง root ผ่านข้อต่อ (Motor6D / Weld / WeldConstraint) — คำนวณเองไม่ต้องพึ่งฟิสิกส์
+local function connectedToRoot(model: Model, root: BasePart): { [BasePart]: boolean }
+	local links: { [BasePart]: { BasePart } } = {}
+	local function link(a: any, b: any)
+		if typeof(a) == "Instance" and typeof(b) == "Instance" and a:IsA("BasePart") and b:IsA("BasePart") then
+			links[a] = links[a] or {}
+			links[b] = links[b] or {}
+			table.insert(links[a], b)
+			table.insert(links[b], a)
+		end
+	end
+	for _, item in model:GetDescendants() do
+		if item:IsA("JointInstance") then
+			link(item.Part0, item.Part1)
+		elseif item:IsA("WeldConstraint") then
+			link(item.Part0, item.Part1)
+		end
+	end
+	local seen = { [root] = true }
+	local queue = { root }
+	while #queue > 0 do
+		local part = table.remove(queue) :: BasePart
+		for _, other in links[part] or {} do
+			if not seen[other] then
+				seen[other] = true
+				table.insert(queue, other)
+			end
+		end
+	end
+	return seen
+end
+
+-- ซ่อมริกที่ชิ้นส่วนไม่ได้ต่อกับ root (FBX บางไฟล์ไม่มีข้อต่อ → ตัวร่วงทะลุแมพ เหลือ root ค้าง)
+-- ชิ้น R15 → สร้าง Motor6D ตามมาตรฐาน (ท่าจาก Animation Editor ขยับได้) · ชิ้นอื่น → เชื่อมติดชิ้นที่ใกล้ที่สุด
+local function repairJoints(model: Model, root: BasePart): number
+	local repaired = 0
+	local connected = connectedToRoot(model, root)
+	for _, childName in R15_ORDER do
+		local child = model:FindFirstChild(childName)
+		local info = R15_JOINTS[childName]
+		local parent = model:FindFirstChild(info[1])
+		if child and child:IsA("BasePart") and not connected[child] and parent and parent:IsA("BasePart") and connected[parent] then
+			-- จุดหมุนข้อต่อ: ใช้ Bone ชื่อเดียวกันถ้ามี (มาจากโครงกระดูก FBX) ไม่งั้นใช้กลางชิ้นลูก
+			local pivot = child.Position
+			for _, item in model:GetDescendants() do
+				if item:IsA("Bone") and item.Name == childName then
+					pivot = item.WorldPosition
+					break
+				end
+			end
+			local joint = Instance.new("Motor6D")
+			joint.Name = info[2]
+			joint.Part0 = parent
+			joint.Part1 = child
+			joint.C0 = parent.CFrame:Inverse() * CFrame.new(pivot)
+			joint.C1 = child.CFrame:Inverse() * CFrame.new(pivot)
+			joint.Parent = child
+			connected[child] = true
+			repaired += 1
+		end
+	end
+	local anchors = {}
+	for part in connected do
+		table.insert(anchors, part)
+	end
+	for _, item in model:GetDescendants() do
+		if item:IsA("BasePart") and not connected[item] then
+			local nearest, best = root, math.huge
+			for _, anchor in anchors do
+				local distance = (anchor.Position - item.Position).Magnitude
+				if distance < best then
+					nearest, best = anchor, distance
+				end
+			end
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = nearest
+			weld.Part1 = item
+			weld.Parent = item
+			repaired += 1
+		end
+	end
+	return repaired
+end
+
+-- บอสจริงจากโมเดลต้นแบบ (findTemplate) · คืน nil ถ้าไม่มีโมเดล
+local function makeModel(): (Model?, BasePart?, BasePart?)
+	local template = findTemplate()
+	if not template then
+		warn(
+			`[BossService] ไม่เจอโมเดลบอสชื่อ "{Combat.Boss.Model}" (ต้องมี Humanoid) ใน ServerStorage > Bosses หรือ Workspace — ใช้ลูกบอลแทน`
+		)
 		return nil, nil, nil
 	end
 
@@ -215,7 +354,13 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 	end
 	-- ยึดแค่ตัวราก ชิ้นอื่นขยับตาม Motor6D ตามท่า
 	root.Anchored = true
+	root.Transparency = 1 -- ตัวรากเป็นกล่องช่วย ไม่ต้องเห็น (บล็อกสีเข้มที่โผล่ในตัวบอส)
+	root.CanQuery = false
 	model.PrimaryPart = root
+	local repaired = repairJoints(model, root)
+	if repaired > 0 then
+		print(`[BossService] ซ่อมข้อต่อในตัวบอส {repaired} จุด (ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะร่วงทะลุแมพ)`)
+	end
 
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
 	if humanoid then
@@ -505,6 +650,19 @@ function BossService.damage(player: Player, amount: number)
 end
 
 function BossService.Init()
+	-- โมเดลบอสที่วางไว้ในแมพ → ย้ายเก็บ ServerStorage > Bosses ให้โผล่เฉพาะตอนบอสมา (ไม่ร่วงทะลุแมพก่อนเวลา)
+	local template = findTemplate()
+	if template and not template:IsDescendantOf(ServerStorage) then
+		local folder = ServerStorage:FindFirstChild("Bosses")
+		if not folder then
+			folder = Instance.new("Folder")
+			folder.Name = "Bosses"
+			folder.Parent = ServerStorage
+		end
+		template.Parent = folder
+		print(`[BossService] ย้าย {template.Name} จาก Workspace ไปรอใน ServerStorage > Bosses (จะโผล่ตอนบอสมา)`)
+	end
+
 	state = Instance.new("Folder")
 	state.Name = "BossState"
 	state:SetAttribute("Active", false)

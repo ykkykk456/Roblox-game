@@ -46,14 +46,32 @@ if not bosses then
 	ok("สร้างโฟลเดอร์ ServerStorage > Bosses แล้ว")
 end
 
-local model = bosses:FindFirstChild(MODEL_NAME)
-local inWorkspace = workspace:FindFirstChild(MODEL_NAME, true)
+-- ชื่อแบบยืดหยุ่น: "Slambot", "Slam-Bot", "boss_slambot" ถือว่าเป็นตัวเดียวกัน
+local function simple(name)
+	return (string.gsub(string.gsub(string.lower(name), "[^%w]", ""), "boss", ""))
+end
+local function findIn(container)
+	for _, item in container:GetDescendants() do
+		if item:IsA("Model") and simple(item.Name) == simple(MODEL_NAME)
+			and (item:FindFirstChildOfClass("Humanoid") or item:FindFirstChild("HumanoidRootPart")) then
+			return item
+		end
+	end
+	return nil
+end
+
+local model = findIn(bosses)
+local inWorkspace = findIn(workspace)
 if not model and inWorkspace then
 	inWorkspace.Parent = bosses
 	model = inWorkspace
-	ok("ย้าย " .. MODEL_NAME .. " จาก Workspace เข้า ServerStorage > Bosses แล้ว")
+	ok("ย้าย " .. inWorkspace.Name .. " จาก Workspace เข้า ServerStorage > Bosses แล้ว (บอสจะโผล่เฉพาะตอนบอสมา)")
 elseif model and inWorkspace then
-	bad("มี " .. MODEL_NAME .. " ทั้งใน Workspace และ Bosses — ลบตัวใน Workspace ทิ้ง (ไม่งั้นจะมีบอสยืนค้างในแมพ)")
+	bad("มีโมเดลบอสทั้งใน Workspace (" .. inWorkspace:GetFullName() .. ") และใน Bosses — ลบตัวใน Workspace ทิ้ง")
+end
+if model and model.Name ~= MODEL_NAME then
+	ok("เปลี่ยนชื่อ " .. model.Name .. " → " .. MODEL_NAME)
+	model.Name = MODEL_NAME
 end
 
 if not model then
@@ -76,12 +94,24 @@ else
 		end
 	end
 
+	local missingJoints = 0
 	for joint, partName in JOINTS do
 		local part = model:FindFirstChild(partName)
 		local motor = part and part:FindFirstChild(joint)
 		if part and not (motor and motor:IsA("Motor6D")) then
-			bad("ไม่เจอข้อต่อ Motor6D ชื่อ " .. joint .. " ใน " .. partName)
+			missingJoints += 1
+			print("ℹ️ ไม่เจอข้อต่อ Motor6D ชื่อ " .. joint .. " ใน " .. partName)
 		end
+	end
+	if missingJoints > 0 then
+		print("ℹ️ ขาดข้อต่อ " .. missingJoints .. " จุด — ไม่ต้องแก้เอง เกมจะซ่อมให้ตอนบอสเกิด (ถ้าไม่ซ่อม ตัวจะร่วงทะลุแมพ)")
+	end
+
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if root and root:IsA("BasePart") then
+		root.Transparency = 1
+		root.Anchored = true
+		ok("ซ่อน HumanoidRootPart (บล็อกสีเข้มในตัว) และยึดไว้ไม่ให้ร่วง")
 	end
 
 	for _, item in model:GetDescendants() do
