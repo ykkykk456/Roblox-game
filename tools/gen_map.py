@@ -114,7 +114,8 @@ def write_project(tiles):
                 "Position": [t["x"], BOTTOM_Y + height / 2, t["z"]],
             },
         }
-    project = {"name": "MapGround", "tree": {"$className": "Folder", **children}}
+    # $ignoreUnknownInstances = false → Rojo ลบบล็อกรุ่นเก่าที่ไม่มีในไฟล์นี้แล้ว (ชื่อบล็อกเปลี่ยนเมื่อแก้ขนาด)
+    project = {"name": "MapGround", "tree": {"$className": "Folder", "$ignoreUnknownInstances": False, **children}}
     out = ROOT / "map" / "ground.project.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps(project, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")

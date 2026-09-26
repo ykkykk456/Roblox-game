@@ -2,6 +2,7 @@
  "name": "MapGround",
  "tree": {
   "$className": "Folder",
+  "$ignoreUnknownInstances": false,
   "Tile_-24_-4": {
    "$className": "Part",
    "$properties": {

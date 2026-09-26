@@ -119,10 +119,20 @@ local function buildGround(parent: Instance)
 	local ground = workspace:FindFirstChild("MapGround")
 	if ground then
 		-- บล็อกในแอ่งกลางแมพ = พื้นที่เก็บของ (ชื่อขึ้นต้น "Pit_" จาก tools/gen_map.py)
+		local farthest = 0
 		for _, part in ground:GetChildren() do
-			if part:IsA("BasePart") and string.sub(part.Name, 1, 4) == "Pit_" then
-				CollectionService:AddTag(part, Tags.LootZone)
+			if part:IsA("BasePart") then
+				farthest = math.max(farthest, Vector3.new(part.Position.X, 0, part.Position.Z).Magnitude)
+				if string.sub(part.Name, 1, 4) == "Pit_" then
+					CollectionService:AddTag(part, Tags.LootZone)
+				end
 			end
+		end
+		-- พื้นใน Studio ไม่ตรงกับ Config (ยังไม่ได้ sync รุ่นใหม่) → เตือนให้รีสตาร์ท Rojo
+		if math.abs(farthest - Map.Radius) > Map.Tile * 2 then
+			warn(
+				`[MapService] MapGround ใน Studio ขอบไกลสุด {math.floor(farthest)} แต่ Config/Map.Radius = {Map.Radius} — พื้นยังเป็นรุ่นเก่า: ปิด rojo serve แล้วเปิดใหม่ + กด Connect`
+			)
 		end
 	else
 		buildFallbackFloor(parent)
