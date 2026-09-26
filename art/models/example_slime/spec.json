@@ -1,0 +1,44 @@
+{
+  "name": "example_slime",
+  "brief": {
+    "purpose": "ตัวอย่างมอนสไลม์ขนาดเล็ก สำหรับทดสอบ pipeline ของ /blender-model",
+    "requested_by": "ผู้ใช้ (ตัวอย่าง)",
+    "max_colors": 7,
+    "max_tris": 3000,
+    "animate_parts": ["Sprout"],
+    "notes": "ตัวทรงโดม ใบไม้บนหัวแยกชิ้นไว้ให้แกว่งได้"
+  },
+  "grid": [16, 16, 14],
+  "size_studs": [8, 8, 7],
+  "colors": {
+    "G": "green",
+    "D": "dark_green",
+    "L": "lime",
+    "W": "white",
+    "K": "black",
+    "P": "pink",
+    "B": "brown"
+  },
+  "parts": {
+    "Body": [
+      { "ellipsoid": [8, 8, 0, 8, 8, 11], "c": "G" },
+      { "box": [0, 0, 0, 15, 15, 1], "c": "D", "recolor": true },
+      { "ellipsoid": [5, 6, 8, 3, 3, 2.5], "c": "L", "recolor": true },
+      {
+        "decal": [
+          "WK....WK",
+          "KK....KK",
+          "P......P",
+          "...KK..."
+        ],
+        "x0": 4,
+        "z0": 4
+      }
+    ],
+    "Sprout": [
+      { "box": [7, 7, 11, 8, 8, 12], "c": "B" },
+      { "box": [4, 7, 13, 6, 8, 13], "c": "L" },
+      { "box": [9, 7, 13, 11, 8, 13], "c": "L" }
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+# ใช้เมื่อรันสคริปต์ด้วย Python ธรรมดา (ไม่ต้องเปิดโปรแกรม Blender) · ต้องใช้ Python 3.11
+# pip install -r tools/blender/requirements.txt
+bpy==5.0.1

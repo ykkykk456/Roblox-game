@@ -9,3 +9,6 @@ sourcemap.json
 
 # Rojo build output used for checks
 /build.rbxlx
+
+# Python cache จาก tools/
+__pycache__/
