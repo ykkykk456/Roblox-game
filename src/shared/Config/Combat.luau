@@ -16,10 +16,10 @@ return table.freeze({
 	}),
 
 	Monster = table.freeze({
-		-- เกิดในสวนหลังบ้านของฐานที่มีเจ้าของ แล้วเดินสุ่มรอบฐาน (ผัง: Config/Map.MonsterWander)
-		SpawnInterval = 2, -- วินาที (เกิดฐานละ 1 ตัวต่อรอบ)
-		MaxAlivePerBase = 6,
-		Lifetime = 90, -- วินาที · อยู่ครบแล้วหายไปเอง (ไม่มีรางวัล) เพื่อให้มอนใหม่เกิดแทน
+		-- แบบ Tower Defense (ยืนยัน 2026-09-26): เกิดกลางแอ่ง เดินตามเลนไปหาป้อมของฐานที่มีเจ้าของ (ผัง: Config/Map.Lane)
+		WaveSize = 15, -- มอนต่อ wave ต่อเลน
+		SpawnGap = 0.8, -- วินาทีระหว่างมอนแต่ละตัวใน wave (ทยอยออกเป็นแถว)
+		WaveDelay = 10, -- วินาทีพักหลังมอนทั้ง wave ตาย/ถึงปลายทางหมด ก่อนปล่อย wave ถัดไป
 		TypeOrder = table.freeze({ "Small", "Medium" }),
 		-- Weight = โอกาสเกิดเทียบกัน · Speed = studs ต่อวินาที · Size = เส้นผ่านศูนย์กลาง · เงินอยู่ที่ Economy.MonsterRewardMultiplier
 		Types = table.freeze({

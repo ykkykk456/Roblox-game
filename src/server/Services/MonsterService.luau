@@ -1,10 +1,10 @@
--- มอนเล็ก/กลางที่เกิดในสวนหลังบ้านของแต่ละฐาน แล้วเดินสุ่มไปมารอบฐานตัวเอง (เจ้าของ: Gameplay_Scripter)
--- ไม่เข้าลานฐาน/บ้าน และไม่ล้ำไปฐานข้างๆ (พื้นที่: Config/Map.MonsterWander) · อยู่ครบ Lifetime แล้วหายไป ไม่มีรางวัล
--- เกิดเฉพาะฐานที่มีเจ้าของ และจำนวนเท่ากันทุกฐาน
+-- มอนเล็ก/กลางแบบ Tower Defense (เจ้าของ: Gameplay_Scripter) · ยืนยัน 2026-09-26 แทนการเดินสุ่ม
+-- 8 เลนตามแนวฐาน: เกิดกลางแอ่ง (จุดบอส) → เดินตรงออกไปหาป้อมหน้าฐาน (ผัง: Config/Map.Lane)
+-- ปล่อยเป็น wave: เลนละ Combat.Monster.WaveSize ตัว ทยอยออกทีละตัว · ทั้ง wave ตาย/ถึงปลายทางหมด → พัก WaveDelay → wave ถัดไป
+-- ถึงปลายเลนแล้วหายไป ไม่มีรางวัล · ปล่อยเฉพาะเลนของฐานที่มีเจ้าของ
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
 -- หน้าตา: สัตว์บล็อกทรงกล่อง (ตัว หู ตา ปาก) สไตล์ voxel · [Proposed] ยังไม่มีอนิเมชันนอกจากเด้งตอนเดิน
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -24,18 +24,25 @@ export type Monster = {
 	hp: number,
 	maxHp: number,
 	speed: number,
-	-- ช่วงเดินปัจจุบัน: จาก from ไป to เริ่มที่ legStart ใช้เวลา legTime วินาที
+	-- เดินเส้นตรงจาก from ไป to (ระดับพื้น) เริ่มที่ legStart ใช้เวลา legTime วินาที · lift = ความสูงตัวจากพื้น
 	from: Vector3,
 	to: Vector3,
 	legStart: number,
 	legTime: number,
-	restUntil: number, -- 0 = ยังไม่ได้เริ่มพัก
-	expiresAt: number,
+	lift: number,
 	alive: boolean,
 	damageBy: { [Player]: number },
 }
 
+type Wave = {
+	index: number, -- wave ที่เท่าไรของเลนนี้
+	toSpawn: number, -- ยังเหลือปล่อยอีกกี่ตัว
+	nextSpawnAt: number,
+	restUntil: number?, -- ตั้งค่าเมื่อ wave จบ (ไม่มีมอนเหลือ)
+}
+
 local monsters: { Monster } = {}
+local waves: { [number]: Wave } = {}
 local folder: Folder
 local rng = Random.new()
 
@@ -120,71 +127,33 @@ local function makeBody(size: number, color: Color3): (Model, BasePart, Frame)
 	return model, body, bar
 end
 
--- จุดนี้อยู่ในลานฐานของช่องนี้ (บวกระยะกันห่าง) หรือไม่
-local function insidePad(slot: number, point: Vector3): boolean
-	local out, right = MapMath.axes(slot)
-	local flat = Vector3.new(point.X, 0, point.Z)
-	local u, v = flat:Dot(out), flat:Dot(right)
-	local half = Map.Base.Size / 2 + Map.MonsterWander.PadMargin
-	return math.abs(u - Map.Base.Distance) <= half and math.abs(v) <= half
-end
-
--- จุดสุ่มในพื้นที่เดินของฐาน (กระจายเท่ากันทั้งพื้นที่) · minRadius ใช้บังคับให้เกิดในสวนหลังบ้าน
-local function randomPoint(slot: number, y: number, minRadius: number?): Vector3?
-	local wander = Map.MonsterWander
-	local r0 = math.max(minRadius or wander.Inner, wander.Inner)
-	for _ = 1, 20 do
-		local angle = MapMath.angle(slot) + rng:NextNumber(-1, 1) * wander.HalfAngle
-		local radius = math.sqrt(rng:NextNumber(r0 * r0, wander.Outer * wander.Outer))
-		local point = MapMath.polar(angle, radius, y)
-		if not insidePad(slot, point) then
-			return point
+-- ความสูงผิวพื้นที่รัศมี r (แอ่งกลางแมพลึกเป็นขั้น)
+local function groundAt(r: number): number
+	local depth = 0
+	for _, step in Map.Pit.Steps do
+		if r < step.Outer then
+			depth = step.Depth
 		end
 	end
-	return nil
-end
-
--- เส้นทางตรงจาก a ไป b ไม่ตัดผ่านลานฐาน
-local function clearPath(slot: number, a: Vector3, b: Vector3): boolean
-	for step = 1, 10 do
-		if insidePad(slot, a:Lerp(b, step / 10)) then
-			return false
-		end
-	end
-	return true
-end
-
-local function startLeg(monster: Monster, now: number)
-	local y = monster.from.Y
-	for _ = 1, 8 do
-		local target = randomPoint(monster.slot, y)
-		if target and clearPath(monster.slot, monster.to, target) then
-			monster.from = monster.to
-			monster.to = target
-			monster.legStart = now
-			monster.legTime = (target - monster.from).Magnitude / monster.speed
-			monster.restUntil = 0
-			return
-		end
-	end
-	-- หาทางไม่ได้รอบนี้ → ยืนพักแล้วลองใหม่
-	monster.restUntil = now + Map.MonsterWander.PauseMax
+	return Map.GroundY - depth
 end
 
 local function spawnMonster(slot: number)
 	local kind = pickKind()
 	local def = Combat.Monster.Types[kind]
-	local y = Map.GroundY + def.Size * 0.4
-	local start = randomPoint(slot, y, Map.Yard.Inner)
-		or MapMath.point(slot, (Map.Yard.Inner + Map.Yard.Outer) / 2, 0, y)
+	local lane = Map.Lane
+	-- แต่ละตัวเดินเยื้องซ้าย/ขวาในเลนแบบสุ่ม ไม่ให้ซ้อนเป็นเส้นเดียว
+	local offset = rng:NextNumber(-1, 1) * lane.HalfWidth
+	local from = MapMath.point(slot, lane.Start, offset)
+	local to = MapMath.point(slot, lane.End, offset)
+	local lift = def.Size * 0.4
 
 	local model, part, bar = makeBody(def.Size, def.Color)
 	-- ย้ายทั้งโมเดล (ทุกชิ้นพร้อมกัน) ก่อนเข้า workspace · ถ้าย้ายแค่ตัวหลัก WeldConstraint จะจำระยะผิด
 	-- แล้วหู/ตา/ปากลอยแยกจากตัว (บั๊กที่เจอ 2026-09-26)
-	model:PivotTo(CFrame.new(start))
+	model:PivotTo(CFrame.lookAt(from, to) + Vector3.new(0, groundAt(from.Magnitude) + lift, 0))
 	model.Parent = folder
 
-	local now = os.clock()
 	local monster: Monster = {
 		model = model,
 		part = part,
@@ -194,16 +163,14 @@ local function spawnMonster(slot: number)
 		hp = def.Hp,
 		maxHp = def.Hp,
 		speed = def.Speed,
-		from = start,
-		to = start,
-		legStart = now,
-		legTime = 0,
-		restUntil = 0,
-		expiresAt = now + Combat.Monster.Lifetime,
+		from = from,
+		to = to,
+		legStart = os.clock(),
+		legTime = (to - from).Magnitude / def.Speed,
+		lift = lift,
 		alive = true,
 		damageBy = {},
 	}
-	startLeg(monster, now)
 	table.insert(monsters, monster)
 end
 
@@ -239,10 +206,9 @@ function MonsterService.getAlive(): { Monster }
 end
 
 function MonsterService.positionOf(monster: Monster, now: number): Vector3
-	if monster.legTime <= 0 then
-		return monster.to
-	end
-	return monster.from:Lerp(monster.to, math.clamp((now - monster.legStart) / monster.legTime, 0, 1))
+	local t = if monster.legTime > 0 then math.clamp((now - monster.legStart) / monster.legTime, 0, 1) else 1
+	local flat = monster.from:Lerp(monster.to, t)
+	return Vector3.new(flat.X, groundAt(flat.Magnitude) + monster.lift, flat.Z)
 end
 
 function MonsterService.damage(monster: Monster, player: Player, amount: number)
@@ -267,47 +233,62 @@ function MonsterService.Init()
 
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
-		local wander = Map.MonsterWander
 		for index = #monsters, 1, -1 do
 			local monster = monsters[index]
 			if not monster.alive then
 				table.remove(monsters, index)
-			elseif now >= monster.expiresAt then
-				-- อยู่ครบเวลาแล้ว หายไป ไม่มีรางวัล
+			elseif now >= monster.legStart + monster.legTime then
+				-- ถึงปลายเลน (หน้าป้อม) → หายไป ไม่มีรางวัล
 				monster.alive = false
 				monster.model:Destroy()
 				table.remove(monsters, index)
 			else
-				local arrived = now >= monster.legStart + monster.legTime
-				if arrived and monster.restUntil == 0 then
-					monster.restUntil = now + rng:NextNumber(wander.PauseMin, wander.PauseMax)
-				elseif arrived and now >= monster.restUntil then
-					startLeg(monster, now)
-				end
-
 				local position = MonsterService.positionOf(monster, now)
-				local direction = Vector3.new(monster.to.X - monster.from.X, 0, monster.to.Z - monster.from.Z)
-				local moving = not arrived and direction.Magnitude > 0.1
-				local hop = if moving then math.abs(math.sin(now * monster.speed * 1.5)) * 0.4 else 0
+				local direction = monster.to - monster.from
+				local hop = math.abs(math.sin(now * monster.speed * 1.5)) * 0.4
 				local lifted = position + Vector3.new(0, hop, 0)
-				monster.part.CFrame = if direction.Magnitude > 0.1
-					then CFrame.lookAt(lifted, lifted + direction)
-					else CFrame.new(lifted) * monster.part.CFrame.Rotation
+				monster.part.CFrame = CFrame.lookAt(lifted, lifted + direction)
 			end
 		end
 	end)
 end
 
+-- คุมจังหวะ wave ของเลนเดียว
+local function stepWave(slot: number, now: number)
+	local config = Combat.Monster
+	local wave = waves[slot]
+	if not wave then
+		waves[slot] = { index = 1, toSpawn = config.WaveSize, nextSpawnAt = now }
+		return
+	end
+	if wave.toSpawn > 0 then
+		if now >= wave.nextSpawnAt then
+			spawnMonster(slot)
+			wave.toSpawn -= 1
+			wave.nextSpawnAt = now + config.SpawnGap
+		end
+	elseif aliveIn(slot) == 0 then
+		if not wave.restUntil then
+			wave.restUntil = now + config.WaveDelay
+		elseif now >= wave.restUntil then
+			waves[slot] = { index = wave.index + 1, toSpawn = config.WaveSize, nextSpawnAt = now }
+		end
+	end
+end
+
 function MonsterService.Start()
 	while true do
-		task.wait(Combat.Monster.SpawnInterval)
-		if #Players:GetPlayers() == 0 then
-			continue
-		end
-		for slot in BaseService.owners() do
-			if aliveIn(slot) < Combat.Monster.MaxAlivePerBase then
-				spawnMonster(slot)
+		task.wait(0.1)
+		local now = os.clock()
+		local owners = BaseService.owners()
+		for slot in waves do
+			if not owners[slot] then
+				-- เจ้าของออกจากเกม → หยุดเลนนี้ (มอนที่เดินอยู่เดินต่อจนถึงปลายทาง) · คนใหม่เริ่ม wave 1
+				waves[slot] = nil
 			end
+		end
+		for slot in owners do
+			stepWave(slot, now)
 		end
 	end
 end
