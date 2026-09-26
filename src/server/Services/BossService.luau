@@ -112,7 +112,8 @@ local ANIMATION_NAMES = { "Idle", "Walk", "Slam" }
 local function animationIdFor(name: string, folder: Instance?): string?
 	local fromConfig = Combat.Boss.Animations[name]
 	if type(fromConfig) == "number" and fromConfig > 0 then
-		return `rbxassetid://{fromConfig}`
+		-- %d กันเลขยาวถูกแปลงเป็นรูป 9.3e+13
+		return `rbxassetid://{string.format("%d", fromConfig)}`
 	end
 	local item = folder and folder:FindFirstChild(name)
 	if item and item:IsA("Animation") and item.AnimationId ~= "" then

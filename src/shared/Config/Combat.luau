@@ -46,7 +46,7 @@ return table.freeze({
 		-- ใส่ได้ 2 ที่ (ที่นี่ชนะถ้าไม่ใช่ 0): ที่นี่ หรือ AnimationId ของ ServerStorage > Bosses > Slambot > Animations > <ท่า> ใน Studio
 		-- สร้างโฟลเดอร์ Animations ให้อัตโนมัติด้วย tools/studio/setup_slambot.lua (วางใน Command Bar)
 		Animations = table.freeze({
-			Idle = 0, -- ยืนหายใจ เล่นวน
+			Idle = 93277664050065, -- ท่ายืนเล่นวน · ตอนนี้ใช้ท่าเต้น (ท่าแรกที่ทำจาก Motion Capture 2026-09-26) ไปก่อน
 			Walk = 0, -- เดินหนักๆ เล่นวนตอนเปิดตัว
 			Slam = 0, -- ยกแขนทุบพื้น เล่นครั้งเดียว · ใส่ Marker ชื่อ "Hit" ตรงจังหวะมือกระแทกพื้นได้
 		}),
