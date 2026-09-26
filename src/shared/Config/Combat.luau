@@ -42,7 +42,9 @@ return table.freeze({
 		-- โมเดลบอส: วางเองใน Studio ที่ ServerStorage > Bosses > <Model> (Rojo ไม่ยุ่งกับ ServerStorage)
 		-- ไม่มีโมเดล → ใช้ลูกบอลสำรอง · บอสยืนกลางแอ่ง (ยืนยัน 2026-09-26)
 		Model = "Slambot",
-		-- เลข Animation ID หลัง Publish (ตัวเลขล้วน เช่น 1234567890) · 0 = ยังไม่มี ข้ามท่านั้น
+		-- เลข Animation ID หลัง Publish (ตัวเลขล้วน เช่น 1234567890) · 0 = ใช้ค่าจากโมเดลแทน
+		-- ใส่ได้ 2 ที่ (ที่นี่ชนะถ้าไม่ใช่ 0): ที่นี่ หรือ AnimationId ของ ServerStorage > Bosses > Slambot > Animations > <ท่า> ใน Studio
+		-- สร้างโฟลเดอร์ Animations ให้อัตโนมัติด้วย tools/studio/setup_slambot.lua (วางใน Command Bar)
 		Animations = table.freeze({
 			Idle = 0, -- ยืนหายใจ เล่นวน
 			Walk = 0, -- เดินหนักๆ เล่นวนตอนเปิดตัว

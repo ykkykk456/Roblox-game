@@ -46,6 +46,17 @@ local boss: Boss? = nil
 local dirty = false
 local slammedEvent = Instance.new("BindableEvent")
 
+-- ความสูงผิวพื้นที่รัศมี r จากกลางแมพ (แอ่งลึกเป็นขั้น)
+local function floorAt(r: number): number
+	local depth = 0
+	for _, step in Map.Pit.Steps do
+		if r < step.Outer then
+			depth = math.max(depth, step.Depth)
+		end
+	end
+	return Map.GroundY - depth
+end
+
 -- ความลึกของพื้นกลางแอ่ง (ขั้นในสุด)
 local function pitFloorY(): number
 	local deepest = 0
@@ -94,7 +105,25 @@ local function makeBall(): (Instance, BasePart)
 	return part, part
 end
 
--- โหลดท่าที่มี ID (ข้ามท่าที่ยังเป็น 0) · คืนตาราง ชื่อท่า → AnimationTrack
+local ANIMATION_NAMES = { "Idle", "Walk", "Slam" }
+
+-- หา ID ของท่า: เลขใน Config (ถ้าไม่ใช่ 0) ก่อน → ไม่งั้นใช้ Animation ชื่อเดียวกันในโฟลเดอร์ Animations ของโมเดล
+-- (ใส่ AnimationId ในหน้าต่าง Properties ของ Studio ได้เลย) · คืน nil = ยังไม่มีท่านี้
+local function animationIdFor(name: string, folder: Instance?): string?
+	local fromConfig = Combat.Boss.Animations[name]
+	if type(fromConfig) == "number" and fromConfig > 0 then
+		return `rbxassetid://{fromConfig}`
+	end
+	local item = folder and folder:FindFirstChild(name)
+	if item and item:IsA("Animation") and item.AnimationId ~= "" then
+		local id = item.AnimationId
+		-- พิมพ์แค่ตัวเลข → เติม rbxassetid:// ให้
+		return if string.match(id, "^%d+$") then `rbxassetid://{id}` else id
+	end
+	return nil
+end
+
+-- โหลดท่าที่มี ID (ข้ามท่าที่ยังไม่มี) · คืนตาราง ชื่อท่า → AnimationTrack
 local function loadTracks(model: Model): { [string]: AnimationTrack }
 	local tracks = {}
 	local humanoid = model:FindFirstChildOfClass("Humanoid")
@@ -108,11 +137,13 @@ local function loadTracks(model: Model): { [string]: AnimationTrack }
 		animator = Instance.new("Animator")
 		animator.Parent = controller
 	end
-	for name, id in Combat.Boss.Animations do
-		if type(id) == "number" and id > 0 then
+	local folder = model:FindFirstChild("Animations")
+	for _, name in ANIMATION_NAMES do
+		local id = animationIdFor(name, folder)
+		if id then
 			local animation = Instance.new("Animation")
 			animation.Name = name
-			animation.AnimationId = `rbxassetid://{id}`
+			animation.AnimationId = id
 			local ok, result = pcall(function()
 				return (animator :: Animator):LoadAnimation(animation)
 			end)
@@ -121,9 +152,15 @@ local function loadTracks(model: Model): { [string]: AnimationTrack }
 				result.Priority = if name == "Slam" then Enum.AnimationPriority.Action else Enum.AnimationPriority.Idle
 				tracks[name] = result
 			else
-				warn(`[BossService] โหลดท่า {name} (ID {id}) ไม่สำเร็จ: {result}`)
+				warn(`[BossService] โหลดท่า {name} ({id}) ไม่สำเร็จ: {result}`)
 			end
 		end
+	end
+	if next(tracks) == nil then
+		warn(
+			`[BossService] บอส {model.Name} ยังไม่มีท่า — ใส่ AnimationId ที่ ServerStorage > Bosses > {model.Name} > Animations`
+				.. " หรือใส่เลขใน Config/Combat.luau (Boss.Animations)"
+		)
 	end
 	return tracks
 end
@@ -141,6 +178,11 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 	end
 
 	local model = template:Clone()
+	-- AnimSaves = ท่าร่างที่ Animation Editor เก็บไว้ในโมเดล ไม่ต้องใช้ตอนเล่นจริง
+	local drafts = model:FindFirstChild("AnimSaves")
+	if drafts then
+		drafts:Destroy()
+	end
 	local root: BasePart? = nil
 	for _, item in model:GetDescendants() do
 		if item:IsA("BaseScript") then
@@ -168,12 +210,14 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 	if humanoid then
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.BreakJointsOnDeath = false
+		humanoid.RequiresNeck = false -- ริกจากภายนอกอาจไม่มีข้อต่อคอ → ไม่ให้ Humanoid ถือว่าตาย
 	end
 
 	-- วางให้เท้าแตะพื้นกลางแอ่ง: หาความสูงจากราก ถึงก้นกล่องครอบโมเดล
 	local boxCFrame, boxSize = model:GetBoundingBox()
 	local rootToBottom = model:GetPivot().Y - (boxCFrame.Y - boxSize.Y / 2)
-	local start = Vector3.new(0, pitFloorY() + rootToBottom, -Combat.Boss.EntranceFrom)
+	local start = Vector3.new(0, floorAt(Combat.Boss.EntranceFrom) + rootToBottom, -Combat.Boss.EntranceFrom)
+	model:SetAttribute("RootToBottom", rootToBottom)
 	model:PivotTo(CFrame.lookAt(start, Vector3.new(0, start.Y, 0)))
 
 	local aim = model:FindFirstChild("UpperTorso", true)
@@ -256,12 +300,15 @@ local function runBehaviour(current: Boss)
 			tracks.Walk:Play()
 		end
 		local model = current.body :: Model
+		local lift = model:GetAttribute("RootToBottom") or 0
 		local from = model:GetPivot().Position
 		local to = Vector3.new(0, from.Y, 0)
 		local started = os.clock()
 		while boss == current do
 			local t = math.min((os.clock() - started) / Combat.Boss.EntranceSeconds, 1)
-			local position = from:Lerp(to, t)
+			local flat = from:Lerp(to, t)
+			-- เดินลงขั้นบันไดของแอ่ง: ปรับความสูงตามพื้นใต้เท้า
+			local position = Vector3.new(flat.X, floorAt(Vector3.new(flat.X, 0, flat.Z).Magnitude) + lift, flat.Z)
 			model:PivotTo(CFrame.lookAt(position, position + (to - from)))
 			if t >= 1 then
 				break

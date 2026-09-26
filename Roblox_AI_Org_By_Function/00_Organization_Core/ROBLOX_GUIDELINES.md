@@ -151,5 +151,7 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 ## 8. โมเดล/อนิเมชันที่เจ้าของเกมนำเข้าเองใน Studio
 - โมเดลที่ต้อง Clone ตอนเกมรัน (เช่นบอส) → วางใน **ServerStorage** (Rojo ไม่ยุ่ง ไม่ลบ/ไม่เขียนทับ) · บอส: `ServerStorage/Bosses/<Combat.Boss.Model>`
 - โค้ดที่ Clone ต้องลบ `Script`/`LocalScript` ที่ติดมากับโมเดลเสมอ (กันสคริปต์แฝง) · ไม่มีโมเดล = มีตัวสำรองจากโค้ด เกมไม่พัง
+- จัดโมเดลบอส/ตรวจริก R15 ใน Studio: วาง `tools/studio/setup_slambot.lua` ใน **View → Command Bar** (สร้าง `Bosses`, ย้ายโมเดล, สร้าง `Animations/Idle|Walk|Slam`, รายงานปัญหาใน Output)
+- ID ท่าบอสใส่ได้ที่ AnimationId ของ `ServerStorage/Bosses/<Model>/Animations/<ท่า>` ใน Studio หรือ `Combat.Boss.Animations` (Config ชนะถ้าไม่ใช่ 0)
 - อนิเมชัน: Publish ให้ **เจ้าของเดียวกับเกม** (เกมเป็นของ Group → Publish เข้า Group) `[Inferred]` · ใส่เลข Animation ID ใน `src/shared/Config/` (เช่น `Combat.Boss.Animations`) ไม่ hard-code ในสคริปต์
 - ความละเอียด: < 10,000 สามเหลี่ยมต่อชิ้นสำหรับมือถือ (สูงสุด ~20,000) `[Unverified]`
