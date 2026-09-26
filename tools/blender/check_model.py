@@ -35,6 +35,59 @@ def palette_name_of(rgb, palette):
     return None
 
 
+def mirror_name(name):
+    """ชื่อฝั่งตรงข้าม: ...R ↔ ...L (ใช้เดา parent ของชิ้นที่ mirror)"""
+    if name.endswith("R"):
+        return name[:-1] + "L"
+    if name.endswith("L"):
+        return name[:-1] + "R"
+    return name
+
+
+def normalize_parts(spec):
+    """แปลง spec.parts ให้อยู่รูปเดียวกัน: { ชื่อ: {"ops", "pivot", "parent", "mirror"} }
+
+    รองรับ 3 แบบ: [ops...] · {"ops", "pivot", "parent"} · {"mirror_of": "ชื่อ", ...}
+    pivot หน่วย voxel (มุมกริด ใช้ทศนิยมได้) ไม่ใส่ = [gx/2, gy/2, 0] (ฐานกลาง) · parent ไม่ใส่ = ผูกกับ root
+    """
+    gx = spec["grid"][0]
+    raw = spec["parts"]
+    parts = {}
+    for name, entry in raw.items():
+        if isinstance(entry, list):
+            entry = {"ops": entry}
+        if "mirror_of" in entry:
+            src_name = entry["mirror_of"]
+            src = raw.get(src_name)
+            if src is None:
+                raise ValueError(f"{name}: mirror_of '{src_name}' ไม่มีใน parts")
+            src = {"ops": src} if isinstance(src, list) else src
+            default_parent = src.get("parent")
+            if default_parent and mirror_name(default_parent) in raw:
+                default_parent = mirror_name(default_parent)
+            pivot = entry.get("pivot")
+            if pivot is None and src.get("pivot") is not None:
+                px, py, pz = src["pivot"]
+                pivot = [gx - px, py, pz]
+            parts[name] = {
+                "ops": src["ops"],
+                "pivot": pivot,
+                "parent": entry.get("parent", default_parent),
+                "mirror": True,
+            }
+        else:
+            parts[name] = {
+                "ops": entry["ops"],
+                "pivot": entry.get("pivot"),
+                "parent": entry.get("parent"),
+                "mirror": False,
+            }
+    for part in parts.values():
+        if part["pivot"] is None:
+            part["pivot"] = [spec["grid"][0] / 2, spec["grid"][1] / 2, 0]
+    return parts
+
+
 def signed_volume(mesh):
     total = 0.0
     for poly in mesh.polygons:
@@ -72,6 +125,33 @@ def run(spec, palette, report_path=None, spec_label=""):
         "ชิ้นส่วนตรงกับ spec",
         f"ขาด {sorted(wanted - names)} · เกิน {sorted(names - wanted)}" if names != wanted else ", ".join(sorted(names)),
     )
+
+    # 2b) ข้อต่อ: parent มีจริง ไม่วนลูป · pivot อยู่ในกริด
+    joint_problems = []
+    try:
+        parts = normalize_parts(spec)
+    except ValueError as err:
+        parts = {}
+        joint_problems.append(str(err))
+    for pname, part in parts.items():
+        parent = part["parent"]
+        if parent and parent not in parts:
+            joint_problems.append(f"{pname}: parent '{parent}' ไม่มีใน parts")
+        seen, cur = set(), pname
+        while cur and cur in parts:
+            if cur in seen:
+                joint_problems.append(f"{pname}: parent วนลูป")
+                break
+            seen.add(cur)
+            cur = parts[cur]["parent"]
+        if not all(0 <= part["pivot"][i] <= grid[i] for i in range(3)):
+            joint_problems.append(f"{pname}: pivot {part['pivot']} อยู่นอกกริด")
+        obj = bpy.data.objects.get(pname)
+        want = parent or spec["name"]
+        if obj and (obj.parent is None or obj.parent.name != want):
+            joint_problems.append(f"{pname}: ผูกกับ {obj.parent.name if obj.parent else 'ไม่มี'} แต่ spec บอก {want}")
+    joints = sum(1 for p in parts.values() if p["parent"])
+    check(not joint_problems, "ข้อต่อถูกต้อง (parent มีจริง ไม่วนลูป pivot ในกริด)", "; ".join(joint_problems) or f"{joints} ข้อต่อ")
 
     # 3) สีจาก palette เท่านั้น + ไม่เกินจำนวน
     used, outside = set(), []

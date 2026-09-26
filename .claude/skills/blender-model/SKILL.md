@@ -39,6 +39,16 @@ description: Workflow รับความต้องการโมเดล 
 - สไตล์ 16-bit: ใช้เงา 2 ระดับ (สีหลัก + สีเข้มด้านล่าง/สีอ่อนไฮไลต์) · ตาอย่างน้อย 2×2 voxel · ไม่ใช้ gradient หลายขั้น
 - รูปแบบคำสั่งวาดครบอยู่ใน docstring ของ `tools/blender/build_model.py` · ตัวอย่างใช้งานจริง: `art/models/example_slime/spec.json`
 
+## โมเดลที่มีข้อต่อ (หุ่นยนต์ ตัวละคร บอส) — ตัวอย่าง: `art/models/boss_slambot/spec.json`
+- เขียนชิ้นเป็น object: `{"ops": [...], "pivot": [x,y,z], "parent": "Torso"}` · pivot = กลางข้อต่อ (หน่วย voxel ที่มุมกริด ใช้ .5 ได้)
+- ลำดับชั้นมาตรฐาน: `Pelvis → Torso → Head` · `Torso → UpperArm → Forearm → Fist` · `Pelvis → Thigh → Shin → Foot`
+- **บล็อกข้อต่ออยู่ในชิ้นที่อยู่ใต้ข้อนั้น** (ศอกไปกับ Forearm) · ทำข้อต่อกว้างเกือบเท่าท่อน แต่เว้าเข้า 1 voxel → เห็นเป็นแถบสีชัด
+- ของที่ไม่ควรหมุนตามแขน (เกราะไหล่ ปีกหลัง) → ใส่ในชิ้นลำตัว ไม่ใช่ชิ้นแขน
+- ซ้าย/ขวานับจากตัวหุ่น: หันหน้า −Y → **ขวา = −X (x น้อย) · ซ้าย = +X** · เขียนฝั่ง R แล้วใช้ `{"mirror_of": "…R"}` สร้างฝั่ง L
+- ใส่ `poses` อย่างน้อย 1 ท่าต่อสกิลของตัวละคร → ได้ `preview_<ท่า>.png` พิสูจน์ว่าข้อต่อหมุนถูกจุด (Step 4 ต้องเปิดดูทุกภาพ)
+  - แกน X: ค่าลบ = ยกแขน/ขาไปข้างหน้า-ขึ้น · ค่าบวก = ลำตัว/หัวก้มไปข้างหน้า · แกน Y: กางขา (R ใช้ค่าบวก, L ใช้ค่าลบ)
+- ออกแบบรูปทรงจากสกิล: ชิ้นที่ "ทำงาน" ในสกิลต้องใหญ่/เด่นที่สุด (เช่น หมัดทุบพื้น, เลนส์ยิงเลเซอร์)
+
 ## Step 3 — คำสั่ง Build
 ใน cloud (ไม่มีโปรแกรม Blender): ติดตั้งครั้งแรก `python3 -m venv <scratchpad>/bvenv && <scratchpad>/bvenv/bin/pip install -r tools/blender/requirements.txt`
 - ถ้าเรนเดอร์พรีวิวแล้ว error เรื่อง `libEGL` → `apt-get install -y libegl1 libegl-mesa0 libgl1-mesa-dri` `[Verified: 2026-09-26]`
@@ -51,7 +61,7 @@ description: Workflow รับความต้องการโมเดล 
 
 ## Step 4 — Build Checklist (check_model.py ตรวจให้อัตโนมัติ)
 1. Brief ครบ · voxel เป็นลูกบาศก์
-2. ชิ้นส่วนตรงกับ spec
+2. ชิ้นส่วนตรงกับ spec · ข้อต่อถูกต้อง (parent มีจริง ไม่วนลูป pivot ในกริด)
 3. ทุกสีอยู่ใน `palette16.json` · จำนวนสี ≤ `max_colors`
 4. Shading แบบ Flat · material ด้าน (roughness ≥ 0.9) ไม่มีโลหะ ไม่มี texture ภาพ
 5. ขนาดตรง `size_studs` ±1 voxel · pivot ที่ฐานกลาง
@@ -66,7 +76,7 @@ description: Workflow รับความต้องการโมเดล 
 โมเดล: <name> — <purpose>
 ไฟล์: art/models/<name>/out/ (.blend · .fbx · .obj · preview.png · report.md)
 สเปก: <X×Y×Z studs> · <tris> tris · <n> สี · ชิ้น: <parts>
-ผลตรวจ: ✅ ผ่าน 8/8 · ข้อสังเกต: <ถ้ามี>
+ผลตรวจ: ✅ ผ่านครบทุกข้อใน report.md · ข้อสังเกต: <ถ้ามี>
 ```
 
 ## STOP and REPORT เมื่อ

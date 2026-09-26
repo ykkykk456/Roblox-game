@@ -11,6 +11,10 @@
   grid = [กว้าง X, ลึก Y, สูง Z] หน่วย voxel · size_studs = ขนาดจริง [X, Y, Z] (1 หน่วย Blender = 1 stud)
   colors = { ตัวอักษร: ชื่อสีใน palette16.json }
   parts = { ชื่อชิ้น: [คำสั่งวาด...] } → 1 ชิ้น = 1 object (แยกไว้ให้ขยับ/animate ได้)
+    โมเดลที่มีข้อต่อ เขียนชิ้นเป็น object แทน list:
+      {"ops": [...], "pivot": [x,y,z], "parent": "Torso"}  pivot = จุดหมุน (หน่วย voxel ที่มุมกริด) · parent = ชิ้นที่ต่ออยู่
+      {"mirror_of": "ArmR"}                                  ชิ้นกระจกซ้าย-ขวาของ ArmR (pivot/parent กลับด้านให้เอง R→L)
+  poses = { ชื่อท่า: { ชื่อชิ้น: [องศา X, Y, Z] } } (ไม่บังคับ) → preview_<ท่า>.png ทดสอบข้อต่อ แล้วคืนท่ายืนก่อนบันทึก
   คำสั่งวาด (ทำตามลำดับ ตัวหลังทับตัวก่อน):
     {"box": [x0,y0,z0, x1,y1,z1], "c": "G"}                 กล่อง (รวมขอบทั้งสองฝั่ง)
     {"ellipsoid": [cx,cy,cz, rx,ry,rz], "c": "G"}           วงรี (หน่วย voxel, จุดศูนย์กลางใช้ทศนิยมได้)
@@ -203,8 +207,9 @@ def make_materials(colors, palette):
     return materials
 
 
-def build_mesh(part_name, quads, grid, voxel, materials, root):
+def build_mesh(part_name, quads, grid, voxel, materials, pivot_world):
     gx, gy, _ = grid
+    ox, oy, oz = pivot_world
     verts, index, faces, face_mats = [], {}, [], []
     used = []
     for ring, key in quads:
@@ -212,7 +217,8 @@ def build_mesh(part_name, quads, grid, voxel, materials, root):
         for c in ring:
             if c not in index:
                 index[c] = len(verts)
-                verts.append(((c[0] - gx / 2) * voxel, (c[1] - gy / 2) * voxel, c[2] * voxel))
+                # vertex เก็บแบบเทียบกับ pivot → origin ของ object อยู่ที่ข้อต่อ หมุนแล้วหมุนรอบข้อต่อ
+                verts.append(((c[0] - gx / 2) * voxel - ox, (c[1] - gy / 2) * voxel - oy, c[2] * voxel - oz))
             face.append(index[c])
         if key not in used:
             used.append(key)
@@ -230,21 +236,52 @@ def build_mesh(part_name, quads, grid, voxel, materials, root):
 
     obj = bpy.data.objects.new(part_name, mesh)
     bpy.context.scene.collection.objects.link(obj)
-    obj.parent = root
     return obj
+
+
+def mirror_cells(cells, grid):
+    gx = grid[0]
+    return {(gx - 1 - x, y, z): key for (x, y, z), key in cells.items()}
+
+
+def pivot_to_world(pivot, grid, voxel):
+    return Vector(((pivot[0] - grid[0] / 2) * voxel, (pivot[1] - grid[1] / 2) * voxel, pivot[2] * voxel))
+
+
+def render_poses(poses, size, out_dir):
+    """เรนเดอร์ท่าทดสอบข้อต่อ (องศา XYZ ต่อชิ้น) แล้วคืนทุกชิ้นกลับท่ายืน"""
+    import math
+
+    for pose_name, rotations in poses.items():
+        for part_name, degrees in rotations.items():
+            obj = bpy.data.objects.get(part_name)
+            if obj is None:
+                raise ValueError(f"ท่า {pose_name}: ไม่มีชิ้น '{part_name}'")
+            obj.rotation_euler = [math.radians(d) for d in degrees]
+        bpy.context.view_layer.update()
+        render_preview(size, out_dir / f"preview_{pose_name}.png")
+        for obj in bpy.data.objects:
+            obj.rotation_euler = (0, 0, 0)
+    bpy.context.view_layer.update()
 
 
 def render_preview(size, out_path):
     scene = bpy.context.scene
-    center = Vector((0, 0, size[2] / 2))
-    radius = max(size) * 1.2
+    # จัดกล้องตามกรอบของที่เห็นจริง (ท่าที่ยกแขนสูงจะไม่ถูกตัด)
+    bpy.context.view_layer.update()
+    corners = [o.matrix_world @ Vector(c) for o in bpy.data.objects if o.type == "MESH" for c in o.bound_box]
+    lo = Vector([min(c[i] for c in corners) for i in range(3)])
+    hi = Vector([max(c[i] for c in corners) for i in range(3)])
+    center = (lo + hi) / 2
+    extent = max(hi - lo)
+    radius = max(max(size), extent) * 1.2
 
     target = bpy.data.objects.new("PreviewTarget", None)
     target.location = center
     scene.collection.objects.link(target)
     cam_data = bpy.data.cameras.new("PreviewCam")
     cam_data.type = "ORTHO"
-    cam_data.ortho_scale = max(size) * 1.6
+    cam_data.ortho_scale = extent * 1.6
     cam = bpy.data.objects.new("PreviewCam", cam_data)
     cam.location = center + Vector((radius * 0.9, -radius * 1.3, radius * 0.8))
     track = cam.constraints.new("TRACK_TO")
@@ -293,18 +330,33 @@ def main():
 
     root = bpy.data.objects.new(name, None)  # Empty ที่ฐานกลาง = จุด pivot ของทั้งโมเดล
     bpy.context.scene.collection.objects.link(root)
-    for part_name, ops in spec["parts"].items():
-        cells = paint_part(ops, grid, spec["colors"])
+    parts = check_model.normalize_parts(spec)
+    objects, pivots = {}, {}
+    for part_name, part in parts.items():
+        cells = paint_part(part["ops"], grid, spec["colors"])
+        if part["mirror"]:
+            cells = mirror_cells(cells, grid)
         if not cells:
             print(f"⚠ ชิ้น {part_name} ว่าง (ไม่มี voxel)")
             continue
-        build_mesh(part_name, greedy_quads(cells, grid), grid, voxel, materials, root)
+        pivots[part_name] = pivot_to_world(part["pivot"], grid, voxel)
+        objects[part_name] = build_mesh(part_name, greedy_quads(cells, grid), grid, voxel, materials, pivots[part_name])
+    # ผูกข้อต่อ: location ของลูก = ตำแหน่งข้อต่อเทียบกับข้อต่อของพ่อ (parent inverse = identity)
+    for part_name, obj in objects.items():
+        parent_name = parts[part_name]["parent"]
+        parent = objects.get(parent_name) if parent_name else None
+        if parent_name and parent is None:
+            raise ValueError(f"{part_name}: parent '{parent_name}' ไม่มีหรือว่าง")
+        obj.parent = parent or root
+        obj.location = pivots[part_name] - (pivots[parent_name] if parent else Vector((0, 0, 0)))
+    bpy.context.view_layer.update()
 
     blend_path = out_dir / f"{name}.blend"
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
     bpy.ops.export_scene.fbx(filepath=str(out_dir / f"{name}.fbx"), object_types={"EMPTY", "MESH"})
     bpy.ops.wm.obj_export(filepath=str(out_dir / f"{name}.obj"), export_materials=True)
     render_preview(size, out_dir / "preview.png")
+    render_poses(spec.get("poses", {}), size, out_dir)
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
 
     try:

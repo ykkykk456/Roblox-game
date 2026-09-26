@@ -9,6 +9,7 @@ spec: `art/models/example_slime/spec.json`
 | ✅ | Brief ครบ (purpose, max_colors, max_tris) |  |
 | ✅ | voxel เป็นลูกบาศก์ (size_studs ÷ grid เท่ากันทุกแกน) | [0.5, 0.5, 0.5] |
 | ✅ | ชิ้นส่วนตรงกับ spec | Body, Sprout |
+| ✅ | ข้อต่อถูกต้อง (parent มีจริง ไม่วนลูป pivot ในกริด) | 0 ข้อต่อ |
 | ✅ | ทุกสีอยู่ใน palette16.json | black, brown, dark_green, green, lime, pink, white |
 | ✅ | จำนวนสี ≤ 7 | ใช้ 7 สี |
 | ✅ | Shading แบบ Flat ทุกหน้า |  |
