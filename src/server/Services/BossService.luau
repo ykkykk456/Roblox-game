@@ -610,8 +610,11 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 
 	-- วางให้เท้าแตะพื้นที่ขอบแอ่ง: หันหน้าเข้ากลางก่อน แล้ววัดจุดต่ำสุดของตัวจริงในโลก
 	-- (ไม่ใช้ GetBoundingBox เพราะกล่องหมุนตามตัวราก ถ้าโมเดลจาก Blender หมุนแกนมา ความสูงจะผิด → จม/ลอย)
+	-- เก็บการหมุนเดิมของตัวราก: FBX จาก Blender หมุนแกนมา 90° ถ้าบังคับให้ตัวรากตั้งตรง (CFrame.lookAt) บอสจะนอนราบ (บั๊ก 2026-09-27)
+	-- ทิศหน้าบอส = ทิศที่วางโมเดลไว้ใน Studio (อยากให้หันทางอื่น → หมุนโมเดลใน Studio แล้ว Ctrl+S)
 	local startXZ = Vector3.new(0, 0, -Combat.Boss.EntranceFrom)
-	model:PivotTo(CFrame.lookAt(startXZ, Vector3.new(0, 0, 0)))
+	local rest = model:GetPivot().Rotation
+	model:PivotTo(CFrame.new(startXZ) * rest)
 	local lowest, highest = math.huge, -math.huge
 	for _, item in model:GetDescendants() do
 		-- ข้ามชิ้นล่องหน (HumanoidRootPart / ชิ้นช่วย) ที่อาจยื่นเลยเท้า
@@ -731,6 +734,7 @@ local function runBehaviour(current: Boss)
 			tracks.Walk:Play()
 		end
 		local model = current.body :: Model
+		local rest = model:GetPivot().Rotation
 		local lift = model:GetAttribute("RootToBottom") or 0
 		local from = model:GetPivot().Position
 		local to = Vector3.new(0, from.Y, 0)
@@ -740,7 +744,7 @@ local function runBehaviour(current: Boss)
 			local flat = from:Lerp(to, t)
 			-- เดินลงขั้นบันไดของแอ่ง: ปรับความสูงตามพื้นใต้เท้า
 			local position = Vector3.new(flat.X, floorAt(Vector3.new(flat.X, 0, flat.Z).Magnitude) + lift, flat.Z)
-			model:PivotTo(CFrame.lookAt(position, position + (to - from)))
+			model:PivotTo(CFrame.new(position) * rest) -- คงการหมุนเดิม ไม่ให้บอสนอน
 			if t >= 1 then
 				break
 			end
