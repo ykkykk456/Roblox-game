@@ -22,6 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
+local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
@@ -137,8 +138,50 @@ local function animationIdFor(name: string, folder: Instance?): string?
 	return nil
 end
 
--- โหลดท่าที่มี ID (ข้ามท่าที่ยังไม่มี) · คืนตาราง ชื่อท่า → AnimationTrack
-local function loadTracks(model: Model): { [string]: AnimationTrack }
+-- ท่าที่กด Save ไว้ใน Animation Editor (KeyframeSequence) ของโมเดลต้นแบบ
+-- Studio เก็บไว้ที่ <โมเดล>.AnimSaves หรือ ServerStorage.RBX_ANIMSAVES.<ชื่อโมเดล> `[Inferred]`
+-- คืน ชื่อท่า → KeyframeSequence (ชื่อที่มี idle/walk/slam · ท่าอื่นท่าแรกใช้เป็น Idle เช่นท่าเต้น)
+local function studioSequences(template: Model): { [string]: KeyframeSequence }
+	local found: { KeyframeSequence } = {}
+	local places: { Instance? } = { template:FindFirstChild("AnimSaves", true) }
+	local store = ServerStorage:FindFirstChild("RBX_ANIMSAVES")
+	if store then
+		table.insert(places, store:FindFirstChild(template.Name))
+	end
+	for _, place in places do
+		if place then
+			for _, item in place:GetDescendants() do
+				if item:IsA("KeyframeSequence") then
+					table.insert(found, item)
+				end
+			end
+		end
+	end
+	local result = {}
+	for _, sequence in found do
+		local lower = string.lower(sequence.Name)
+		for _, name in ANIMATION_NAMES do
+			if not result[name] and string.find(lower, string.lower(name), 1, true) then
+				result[name] = sequence
+			end
+		end
+	end
+	if not result.Idle then
+		for _, sequence in found do
+			local lower = string.lower(sequence.Name)
+			if not string.find(lower, "walk", 1, true) and not string.find(lower, "slam", 1, true) then
+				result.Idle = sequence
+				break
+			end
+		end
+	end
+	return result
+end
+
+-- โหลดท่า · คืนตาราง ชื่อท่า → AnimationTrack
+-- ใน Studio: ใช้ท่าที่ Save ไว้ใน Animation Editor ก่อน (เห็นท่าล่าสุดทันที ไม่ต้อง Publish ไม่ติดเรื่องเจ้าของ)
+-- เกมจริง: ใช้เลข ID ที่ Publish แล้ว (Config หรือโฟลเดอร์ Animations ในโมเดล)
+local function loadTracks(model: Model, sequences: { [string]: KeyframeSequence }): { [string]: AnimationTrack }
 	local tracks = {}
 	local humanoid = model:FindFirstChildWhichIsA("Humanoid", true)
 	local controller: Instance? = humanoid or model:FindFirstChildOfClass("AnimationController")
@@ -152,8 +195,20 @@ local function loadTracks(model: Model): { [string]: AnimationTrack }
 		animator.Parent = controller
 	end
 	local folder = model:FindFirstChild("Animations")
+	local inStudio = RunService:IsStudio()
 	for _, name in ANIMATION_NAMES do
 		local id = animationIdFor(name, folder)
+		local source = "ID ที่ Publish"
+		local sequence = sequences[name]
+		if inStudio and sequence then
+			local ok, tempId = pcall(function()
+				return KeyframeSequenceProvider:RegisterKeyframeSequence(sequence)
+			end)
+			if ok then
+				id = tempId
+				source = `ท่าที่ Save ใน Studio "{sequence.Name}"`
+			end
+		end
 		if id then
 			local animation = Instance.new("Animation")
 			animation.Name = name
@@ -165,6 +220,16 @@ local function loadTracks(model: Model): { [string]: AnimationTrack }
 				result.Looped = name ~= "Slam"
 				result.Priority = if name == "Slam" then Enum.AnimationPriority.Action else Enum.AnimationPriority.Idle
 				tracks[name] = result
+				print(`[BossService] ท่า {name} ใช้{source}`)
+				-- LoadAnimation ไม่ error ถ้าโหลดไม่ขึ้น → เช็กความยาวท่าภายหลัง
+				task.delay(3, function()
+					if result.Length == 0 then
+						warn(
+							`[BossService] ท่า {name} โหลดไม่ขึ้น ({id}) — มักเป็นเพราะ Publish ด้วยบัญชี/Group ที่ไม่ใช่เจ้าของเกม`
+								.. " หรือยังไม่ได้ Save ท่าใน Animation Editor"
+						)
+					end
+				end)
 			else
 				warn(`[BossService] โหลดท่า {name} ({id}) ไม่สำเร็จ: {result}`)
 			end
@@ -319,15 +384,16 @@ local function repairJoints(model: Model, root: BasePart): number
 end
 
 -- บอสจริงจากโมเดลต้นแบบ (findTemplate) · คืน nil ถ้าไม่มีโมเดล
-local function makeModel(): (Model?, BasePart?, BasePart?)
+local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeSequence })
 	local template = findTemplate()
 	if not template then
 		warn(
 			`[BossService] ไม่เจอโมเดลบอสชื่อ "{Combat.Boss.Model}" (ต้องมี Humanoid) ใน ServerStorage > Bosses หรือ Workspace — ใช้ลูกบอลแทน`
 		)
-		return nil, nil, nil
+		return nil, nil, nil, {}
 	end
 
+	local sequences = studioSequences(template)
 	local model = template:Clone()
 	-- AnimSaves = ท่าร่างที่ Animation Editor เก็บไว้ในโมเดล ไม่ต้องใช้ตอนเล่นจริง
 	local drafts = model:FindFirstChild("AnimSaves")
@@ -351,7 +417,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 	if not root then
 		warn(`[BossService] โมเดล {model.Name} ไม่มี HumanoidRootPart — ใช้ลูกบอลแทน`)
 		model:Destroy()
-		return nil, nil, nil
+		return nil, nil, nil, {}
 	end
 	-- ยึดแค่ตัวราก ชิ้นอื่นขยับตาม Motor6D ตามท่า
 	root.Anchored = true
@@ -403,7 +469,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?)
 	local target = if aim and aim:IsA("BasePart") then aim else root
 	addLabel(target, height * 0.6)
 	model.Parent = workspace
-	return model, target, root
+	return model, target, root, sequences
 end
 
 -- เอฟเฟกต์ทุบพื้น: วงคลื่นกระแทก + ก้อนบล็อกกระเด็น (ลบเองอัตโนมัติ)
@@ -546,10 +612,10 @@ local function spawnBoss()
 	local maxHp = Combat.Boss.BaseHp + Combat.Boss.HpPerPlayer * #Players:GetPlayers()
 	local body: Instance, part: BasePart
 	local tracks = {}
-	local model, target, root = makeModel()
+	local model, target, root, sequences = makeModel()
 	if model and target then
 		body, part = model, target
-		tracks = loadTracks(model)
+		tracks = loadTracks(model, sequences)
 	else
 		body, part = makeBall()
 	end

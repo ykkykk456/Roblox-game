@@ -153,5 +153,6 @@ Rojo sync **ทางเดียว**: ไฟล์ใน `src/` → Studio · 
 - โค้ดที่ Clone ต้องลบ `Script`/`LocalScript` ที่ติดมากับโมเดลเสมอ (กันสคริปต์แฝง) · ไม่มีโมเดล = มีตัวสำรองจากโค้ด เกมไม่พัง
 - จัดโมเดลบอส/ตรวจริก R15 ใน Studio: วาง `tools/studio/setup_slambot.lua` ใน **View → Command Bar** (สร้าง `Bosses`, ย้ายโมเดล, สร้าง `Animations/Idle|Walk|Slam`, รายงานปัญหาใน Output)
 - ID ท่าบอสใส่ได้ที่ AnimationId ของ `ServerStorage/Bosses/<Model>/Animations/<ท่า>` (ตอนนี้ Model = `boss_slambot`) ใน Studio หรือ `Combat.Boss.Animations` (Config ชนะถ้าไม่ใช่ 0)
+- ทดสอบใน Studio: `BossService` ใช้ท่าที่ Save ไว้ใน Animation Editor (AnimSaves / `ServerStorage.RBX_ANIMSAVES`) ผ่าน `KeyframeSequenceProvider:RegisterKeyframeSequence` ก่อน `[Inferred]` · เกมจริงต้องใช้ ID ที่ Publish
 - อนิเมชัน: Publish ให้ **เจ้าของเดียวกับเกม** (เกมเป็นของ Group → Publish เข้า Group) `[Inferred]` · ใส่เลข Animation ID ใน `src/shared/Config/` (เช่น `Combat.Boss.Animations`) ไม่ hard-code ในสคริปต์
 - ความละเอียด: < 10,000 สามเหลี่ยมต่อชิ้นสำหรับมือถือ (สูงสุด ~20,000) `[Unverified]`

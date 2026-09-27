@@ -45,6 +45,7 @@ return table.freeze({
 		-- เลข Animation ID หลัง Publish (ตัวเลขล้วน เช่น 1234567890) · 0 = ใช้ค่าจากโมเดลแทน
 		-- ใส่ได้ 2 ที่ (ที่นี่ชนะถ้าไม่ใช่ 0): ที่นี่ หรือ AnimationId ของ ServerStorage > Bosses > boss_slambot > Animations > <ท่า> ใน Studio
 		-- สร้างโฟลเดอร์ Animations ให้อัตโนมัติด้วย tools/studio/setup_slambot.lua (วางใน Command Bar)
+		-- ทดสอบใน Studio: ท่าที่กด Save ใน Animation Editor (ชื่อมี Idle/Walk/Slam) ถูกใช้ก่อน ไม่ต้อง Publish · เกมจริงใช้เลขที่นี่
 		Animations = table.freeze({
 			Idle = 93277664050065, -- ท่ายืนเล่นวน · ตอนนี้ใช้ท่าเต้น (ท่าแรกที่ทำจาก Motion Capture 2026-09-26) ไปก่อน
 			Walk = 0, -- เดินหนักๆ เล่นวนตอนเปิดตัว
