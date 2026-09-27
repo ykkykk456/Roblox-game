@@ -542,13 +542,13 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 		end
 	end
 	if shape then
-		local pairs = {}
+		local shown = {}
 		for index, pair in poseLinks(shape, root.Name) do
 			if index <= 6 then
-				table.insert(pairs, `{pair[1]}→{pair[2]}`)
+				table.insert(shown, `{pair[1]}→{pair[2]}`)
 			end
 		end
-		print(`[BossService] โครงข้อต่อตามท่า "{shape.Name}": {table.concat(pairs, ", ")} …`)
+		print(`[BossService] โครงข้อต่อตามท่า "{shape.Name}": {table.concat(shown, ", ")} …`)
 	end
 	local repaired = repairJoints(model, root, shape)
 	if repaired > 0 then
