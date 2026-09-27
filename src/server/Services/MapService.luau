@@ -12,6 +12,7 @@ local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local Tags = require(ReplicatedStorage.Shared.Config.Tags)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
+local LayoutService = require(script.Parent.LayoutService)
 
 local COLORS = {
 	Floor = Map.Style.Floor,
@@ -238,8 +239,27 @@ function MapService.ensureBuilt()
 	root.Name = "Map"
 	folder = root
 	buildGround(root)
-	for slot = 1, math.min(Map.BaseCount, Map.MaxBases) do
-		buildBase(root, slot)
+	if LayoutService.hasLayout() then
+		-- แมพสร้างมือ (Tag): ไม่สร้างฐานเก่า · มีแค่จุดเกิดล่องหนหน้าบ้านแต่ละหลัง (ยืนยัน 2026-09-27)
+		for _, slot in LayoutService.slots() do
+			local spawnPad = Instance.new("SpawnLocation")
+			spawnPad.Name = `Spawn{slot}`
+			spawnPad.Anchored = true
+			spawnPad.CanCollide = false
+			spawnPad.CanTouch = false
+			spawnPad.CanQuery = false
+			spawnPad.Transparency = 1
+			spawnPad.Size = Vector3.new(6, 1, 6)
+			spawnPad.Position = LayoutService.spawnPoint(slot) + Vector3.new(0, 0.5, 0)
+			spawnPad.Duration = 0
+			spawnPad.Neutral = true
+			spawnPad.Parent = root
+			spawns[slot] = spawnPad
+		end
+	else
+		for slot = 1, math.min(Map.BaseCount, Map.MaxBases) do
+			buildBase(root, slot)
+		end
 	end
 	root.Parent = workspace
 

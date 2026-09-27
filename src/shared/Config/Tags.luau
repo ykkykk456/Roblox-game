@@ -11,4 +11,9 @@ return table.freeze({
 	AmmoCrate = "AmmoCrate", -- ลังเติมกระสุนพิเศษ
 	UpgradeBoard = "UpgradeBoard", -- ป้ายอัปเกรดตัวเอง
 	SummonAltar = "SummonAltar", -- จุดส่งของเรียกบอสพิเศษ
+
+	-- ผังแมพที่สร้างมือใน Studio (ติด Tag ให้บล็อกที่มีอยู่ · อ่านโดย LayoutService · 2026-09-27)
+	BossSpawn = "BossSpawn", -- บล็อกตรงจุดบอสเกิด
+	TurretPrefix = "Turret", -- Tag Turret1..Turret6 = แท่นวางป้อมของบ้านเลขเดียวกัน
+	HousePrefix = "House", -- Tag House1..House6 = บ้านผู้เล่น (เกิดหน้าบ้าน)
 })

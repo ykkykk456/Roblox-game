@@ -30,6 +30,7 @@ local KeyframeSequenceProvider = game:GetService("KeyframeSequenceProvider")
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
+local LayoutService = require(script.Parent.LayoutService)
 local SkillService = require(script.Parent.SkillService)
 local Wallet = require(script.Parent.Wallet)
 
@@ -83,6 +84,53 @@ local function pitFloorY(): number
 	return Map.GroundY - deepest
 end
 
+-- จุดบอส: ผังจากแมพ (Tag BossSpawn) หรือกลางแมพเดิม (0, 0) · ยืนยัน 2026-09-27
+local function bossCenter(): Vector3
+	if LayoutService.hasLayout() then
+		return LayoutService.bossCenter()
+	end
+	return Vector3.new(0, pitFloorY(), 0)
+end
+
+-- ความสูงพื้นใต้ตำแหน่ง: ผังจากแมพ = ยิงลำแสงหาพื้นจริง · ผังเดิม = ขั้นแอ่งรอบกลางแมพ
+local function groundUnder(position: Vector3, ignore: { Instance }?): number
+	if LayoutService.hasLayout() then
+		return LayoutService.floorAt(position, ignore)
+	end
+	return floorAt(Vector3.new(position.X, 0, position.Z).Magnitude)
+end
+
+-- จุดเริ่มเดินเปิดตัว: ผังจากแมพ = ด้านหลังจุดบอส (ฝั่งตรงข้ามป้อม) · ผังเดิม = ทางทิศเหนือ
+local function entranceStart(): Vector3
+	if not LayoutService.hasLayout() then
+		return Vector3.new(0, 0, -Combat.Boss.EntranceFrom)
+	end
+	local center = LayoutService.bossCenter()
+	local sum = Vector3.zero
+	for _, slot in LayoutService.slots() do
+		local turret = LayoutService.turretTop(slot)
+		local toward = Vector3.new(turret.X - center.X, 0, turret.Z - center.Z)
+		if toward.Magnitude > 0.1 then
+			sum += toward.Unit
+		end
+	end
+	local back = if sum.Magnitude > 0.1 then -sum.Unit else Vector3.new(0, 0, -1)
+	return Vector3.new(center.X, 0, center.Z) + back * Map.Layout.EntranceFrom
+end
+
+-- ระยะที่คลื่นทุบพื้นต้องแผ่ไปถึง (ป้อมที่ไกลที่สุด)
+local function slamReach(center: Vector3): number
+	if not LayoutService.hasLayout() then
+		return Map.Base.TurretDistance * 2
+	end
+	local farthest = 20
+	for _, slot in LayoutService.slots() do
+		local turret = LayoutService.turretTop(slot)
+		farthest = math.max(farthest, Vector3.new(turret.X - center.X, 0, turret.Z - center.Z).Magnitude)
+	end
+	return farthest * 2 + 10
+end
+
 local function now(): number
 	return workspace:GetServerTimeNow()
 end
@@ -116,7 +164,7 @@ local function makeBall(): (Instance, BasePart)
 	part.CanCollide = false
 	part.CanTouch = false
 	part.CanQuery = false
-	part.CFrame = CFrame.new(0, Combat.Boss.Height, 0)
+	part.CFrame = CFrame.new(bossCenter() + Vector3.new(0, Combat.Boss.Height, 0))
 	addLabel(part, 10)
 	part.Parent = workspace
 	return part, part
@@ -625,7 +673,7 @@ local function makeModel(
 	-- (ไม่ใช้ GetBoundingBox เพราะกล่องหมุนตามตัวราก ถ้าโมเดลจาก Blender หมุนแกนมา ความสูงจะผิด → จม/ลอย)
 	-- เก็บการหมุนเดิมของตัวราก: FBX จาก Blender หมุนแกนมา 90° ถ้าบังคับให้ตัวรากตั้งตรง (CFrame.lookAt) บอสจะนอนราบ (บั๊ก 2026-09-27)
 	-- ทิศหน้าบอส = ทิศที่วางโมเดลไว้ใน Studio (อยากให้หันทางอื่น → หมุนโมเดลใน Studio แล้ว Ctrl+S)
-	local startXZ = Vector3.new(0, 0, -Combat.Boss.EntranceFrom)
+	local startXZ = entranceStart()
 	local rest = model:GetPivot().Rotation
 	model:PivotTo(CFrame.new(startXZ) * rest)
 	local lowest, highest = math.huge, -math.huge
@@ -644,7 +692,7 @@ local function makeModel(
 		lowest, highest = root.Position.Y, root.Position.Y
 	end
 	local rootToBottom = model:GetPivot().Y - lowest + Combat.Boss.GroundOffset
-	local floor = floorAt(Combat.Boss.EntranceFrom)
+	local floor = groundUnder(startXZ)
 	model:SetAttribute("RootToBottom", rootToBottom)
 	model:PivotTo(model:GetPivot() + Vector3.new(0, floor + rootToBottom - model:GetPivot().Y, 0))
 	print(
@@ -662,7 +710,7 @@ end
 
 -- เอฟเฟกต์ทุบพื้น: วงคลื่นกระแทก + ก้อนบล็อกกระเด็น (ลบเองอัตโนมัติ)
 local function slamEffect(center: Vector3)
-	local y = pitFloorY()
+	local y = groundUnder(center, if boss then { boss.body } else nil)
 	local ring = Instance.new("Part")
 	ring.Name = "SlamWave"
 	ring.Shape = Enum.PartType.Cylinder
@@ -675,7 +723,7 @@ local function slamEffect(center: Vector3)
 	ring.Size = Vector3.new(0.6, 8, 8)
 	ring.CFrame = CFrame.new(center.X, y + 0.4, center.Z) * CFrame.Angles(0, 0, math.pi / 2)
 	ring.Parent = workspace
-	local reach = Map.Base.TurretDistance * 2
+	local reach = slamReach(center)
 	TweenService:Create(ring, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Size = Vector3.new(0.6, reach, reach),
 		Transparency = 1,
@@ -750,13 +798,14 @@ local function runBehaviour(current: Boss)
 		local rest = model:GetPivot().Rotation
 		local lift = model:GetAttribute("RootToBottom") or 0
 		local from = model:GetPivot().Position
-		local to = Vector3.new(0, from.Y, 0)
+		local centerPoint = bossCenter()
+		local to = Vector3.new(centerPoint.X, from.Y, centerPoint.Z)
 		local started = os.clock()
 		while boss == current do
 			local t = math.min((os.clock() - started) / Combat.Boss.EntranceSeconds, 1)
 			local flat = from:Lerp(to, t)
 			-- เดินลงขั้นบันไดของแอ่ง: ปรับความสูงตามพื้นใต้เท้า
-			local position = Vector3.new(flat.X, floorAt(Vector3.new(flat.X, 0, flat.Z).Magnitude) + lift, flat.Z)
+			local position = Vector3.new(flat.X, groundUnder(flat, { model }) + lift, flat.Z)
 			model:PivotTo(CFrame.new(position) * rest) -- คงการหมุนเดิม ไม่ให้บอสนอน
 			if t >= 1 then
 				break

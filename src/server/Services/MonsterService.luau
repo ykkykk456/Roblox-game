@@ -1,7 +1,7 @@
 -- มอนเล็ก/กลางแบบ Tower Defense (เจ้าของ: Gameplay_Scripter) · ยืนยัน 2026-09-26 แทนการเดินสุ่ม
--- 8 เลนตามแนวฐาน: เกิดกลางแอ่ง (จุดบอส) → เดินตรงออกไปหาป้อมหน้าฐาน (ผัง: Config/Map.Lane)
+-- เลนละช่อง: เกิดที่จุดบอส → เดินตรงไปหาป้อมของช่องนั้น · ผังจากแมพ (Tag BossSpawn/TurretN) หรือผังวงกลมเดิม (Config/Map.Lane)
 -- ปล่อยเป็น wave: เลนละ Combat.Monster.WaveSize ตัว ทยอยออกทีละตัว · ทั้ง wave ตาย/ถึงปลายทางหมด → พัก WaveDelay → wave ถัดไป
--- ถึงปลายเลนแล้วหายไป ไม่มีรางวัล · ปล่อยเฉพาะเลนของฐานที่มีเจ้าของ
+-- ถึงปลายเลนแล้วหายไป ไม่มีรางวัล · ปล่อยเฉพาะเลนที่มีเจ้าของ (Combat.Monster.AllLanesForTest = true → ทุกเลน)
 -- ระหว่างตีบอส: หยุดปล่อยมอนทุกเลน (ตัวที่เดินอยู่แล้วเดินต่อ) · บอสจบ → wave เดิมปล่อยต่อจากที่ค้างไว้ (ยืนยัน 2026-09-26)
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
 -- หน้าตา: สัตว์บล็อกทรงกล่อง (ตัว หู ตา ปาก) สไตล์ voxel · [Proposed] ยังไม่มีอนิเมชันนอกจากเด้งตอนเดิน
@@ -15,6 +15,7 @@ local Map = require(ReplicatedStorage.Shared.Config.Map)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 local BaseService = require(script.Parent.BaseService)
 local BossService = require(script.Parent.BossService)
+local LayoutService = require(script.Parent.LayoutService)
 local Wallet = require(script.Parent.Wallet)
 
 export type Monster = {
@@ -32,6 +33,8 @@ export type Monster = {
 	legStart: number,
 	legTime: number,
 	lift: number,
+	fromY: number?, -- ผังจากแมพ: ความสูงพื้นต้นเลน/ปลายเลน (ไล่ระดับระหว่างทาง) · nil = ผังเดิม (ขั้นแอ่ง)
+	toY: number?,
 	alive: boolean,
 	damageBy: { [Player]: number },
 }
@@ -148,12 +151,27 @@ local function spawnMonster(slot: number)
 	local offset = rng:NextNumber(-1, 1) * lane.HalfWidth
 	local from = MapMath.point(slot, lane.Start, offset)
 	local to = MapMath.point(slot, lane.End, offset)
+	local fromY, toY = nil, nil
+	if LayoutService.hasLayout() then
+		-- ผังจากแมพ (Tag): เลน = จากจุดบอสตรงไปหาแท่นป้อมของช่องนี้ หยุดก่อนถึงแท่น
+		local layout = Map.Layout
+		local boss = LayoutService.bossCenter()
+		local turret = LayoutService.turretTop(slot)
+		local flatBoss = Vector3.new(boss.X, 0, boss.Z)
+		local toward = Vector3.new(turret.X, 0, turret.Z) - flatBoss
+		local dir = if toward.Magnitude > 0.1 then toward.Unit else Vector3.new(0, 0, 1)
+		local side = Vector3.new(-dir.Z, 0, dir.X) * offset
+		local length = math.max(toward.Magnitude - layout.LaneStopBefore, layout.LaneStart + 1)
+		from = flatBoss + dir * layout.LaneStart + side
+		to = flatBoss + dir * length + side
+		fromY, toY = LayoutService.floorAt(from), LayoutService.floorAt(to)
+	end
 	local lift = def.Size * 0.4
 
 	local model, part, bar = makeBody(def.Size, def.Color)
 	-- ย้ายทั้งโมเดล (ทุกชิ้นพร้อมกัน) ก่อนเข้า workspace · ถ้าย้ายแค่ตัวหลัก WeldConstraint จะจำระยะผิด
 	-- แล้วหู/ตา/ปากลอยแยกจากตัว (บั๊กที่เจอ 2026-09-26)
-	model:PivotTo(CFrame.lookAt(from, to) + Vector3.new(0, groundAt(from.Magnitude) + lift, 0))
+	model:PivotTo(CFrame.lookAt(from, to) + Vector3.new(0, (fromY or groundAt(from.Magnitude)) + lift, 0))
 	model.Parent = folder
 
 	local monster: Monster = {
@@ -170,6 +188,8 @@ local function spawnMonster(slot: number)
 		legStart = os.clock(),
 		legTime = (to - from).Magnitude / def.Speed,
 		lift = lift,
+		fromY = fromY,
+		toY = toY,
 		alive = true,
 		damageBy = {},
 	}
@@ -210,7 +230,10 @@ end
 function MonsterService.positionOf(monster: Monster, now: number): Vector3
 	local t = if monster.legTime > 0 then math.clamp((now - monster.legStart) / monster.legTime, 0, 1) else 1
 	local flat = monster.from:Lerp(monster.to, t)
-	return Vector3.new(flat.X, groundAt(flat.Magnitude) + monster.lift, flat.Z)
+	local ground = if monster.fromY and monster.toY
+		then monster.fromY + (monster.toY - monster.fromY) * t
+		else groundAt(flat.Magnitude)
+	return Vector3.new(flat.X, ground + monster.lift, flat.Z)
 end
 
 function MonsterService.damage(monster: Monster, player: Player, amount: number)
@@ -282,7 +305,15 @@ function MonsterService.Start()
 	while true do
 		task.wait(0.1)
 		local now = os.clock()
-		local owners = BaseService.owners()
+		-- เลนที่ปล่อยมอน: ทุกช่อง (โหมดเทส AllLanesForTest) หรือเฉพาะช่องที่มีเจ้าของ
+		local owners: { [number]: any } = BaseService.owners()
+		if Combat.Monster.AllLanesForTest then
+			local all = {}
+			for _, slot in BaseService.slots() do
+				all[slot] = true
+			end
+			owners = all
+		end
 		for slot in waves do
 			if not owners[slot] then
 				-- เจ้าของออกจากเกม → หยุดเลนนี้ (มอนที่เดินอยู่เดินต่อจนถึงปลายทาง) · คนใหม่เริ่ม wave 1

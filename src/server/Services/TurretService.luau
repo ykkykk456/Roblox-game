@@ -17,6 +17,7 @@ local SkillMath = require(ReplicatedStorage.Shared.Util.SkillMath)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local BaseService = require(script.Parent.BaseService)
 local BossService = require(script.Parent.BossService)
+local LayoutService = require(script.Parent.LayoutService)
 local FriendBoostService = require(script.Parent.FriendBoostService)
 local MonsterService = require(script.Parent.MonsterService)
 local SkillService = require(script.Parent.SkillService)
@@ -77,9 +78,67 @@ local function refreshLabel(turret: Turret)
 	turret.label.Text = `{turret.owner.DisplayName} · Lv.{levelOf(turret.owner)} · {status}`
 end
 
+-- ฐานป้อม (ระดับพื้น): บนแท่น Tag TurretN ของแมพ · ไม่มี Tag → หน้าฐานผังวงกลมเดิม
+local function footOf(slot: number): Vector3
+	if LayoutService.hasLayout() then
+		return LayoutService.turretTop(slot)
+	end
+	return MapMath.point(slot, Map.Base.TurretDistance, 0) + Vector3.new(0, GROUND_Y, 0)
+end
+
+-- จุดที่ป้อมหันไปตอนยังไม่มีเป้า = จุดบอส
+local function bossPoint(): Vector3
+	return if LayoutService.hasLayout() then LayoutService.bossCenter() else Vector3.zero
+end
+
+-- ป้อมว่าง (ช่องที่ยังไม่มีเจ้าของ): โชว์ไว้เฉยๆ สีเทา ไม่ยิง (ยืนยัน 2026-09-27)
+local idleTurrets: { [number]: Model } = {}
+
+local function buildIdle(slot: number)
+	if idleTurrets[slot] then
+		return
+	end
+	local foot = footOf(slot)
+	local model = Instance.new("Model")
+	model.Name = `TurretIdle_{slot}`
+	local pedestal = newPart("Pedestal", Vector3.new(HEAD_HEIGHT - 1, 6, 6), Color3.fromRGB(90, 92, 100), model)
+	pedestal.Shape = Enum.PartType.Cylinder
+	pedestal.CFrame = CFrame.new(foot + Vector3.new(0, (HEAD_HEIGHT - 1) / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2)
+	local headPosition = foot + Vector3.new(0, HEAD_HEIGHT, 0)
+	local target = bossPoint()
+	local head = newPart("Head", Vector3.new(3, 2.5, 3), STUNNED_COLOR, model)
+	head.CanCollide = false
+	head.CFrame = CFrame.lookAt(headPosition, Vector3.new(target.X, headPosition.Y, target.Z))
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(120, 24)
+	gui.StudsOffset = Vector3.new(0, 3, 0)
+	gui.MaxDistance = 150
+	gui.Parent = head
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.4
+	label.Text = `ป้อม {slot} · ว่าง`
+	label.Parent = gui
+	model.PrimaryPart = pedestal
+	model.Parent = folder
+	idleTurrets[slot] = model
+end
+
+local function removeIdle(slot: number)
+	local model = idleTurrets[slot]
+	if model then
+		idleTurrets[slot] = nil
+		model:Destroy()
+	end
+end
+
 local function build(owner: Player, slot: number): Turret
-	local base = MapMath.point(slot, Map.Base.TurretDistance, 0)
-	local headPosition = base + Vector3.new(0, GROUND_Y + HEAD_HEIGHT, 0)
+	local base = footOf(slot)
+	local headPosition = base + Vector3.new(0, HEAD_HEIGHT, 0)
 
 	local model = Instance.new("Model")
 	model.Name = `Turret_{owner.UserId}`
@@ -87,8 +146,7 @@ local function build(owner: Player, slot: number): Turret
 
 	local pedestal = newPart("Pedestal", Vector3.new(HEAD_HEIGHT - 1, 6, 6), Color3.fromRGB(70, 74, 86), model)
 	pedestal.Shape = Enum.PartType.Cylinder
-	pedestal.CFrame = CFrame.new(base + Vector3.new(0, GROUND_Y + (HEAD_HEIGHT - 1) / 2, 0))
-		* CFrame.Angles(0, 0, math.pi / 2)
+	pedestal.CFrame = CFrame.new(base + Vector3.new(0, (HEAD_HEIGHT - 1) / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2)
 
 	local head = newPart("Head", Vector3.new(3, 2.5, 3), HEAD_COLOR, model)
 	head.CanCollide = false
@@ -125,7 +183,8 @@ local function build(owner: Player, slot: number): Turret
 		hp = Combat.Turret.MaxHp,
 		stunnedUntil = 0,
 	}
-	aim(turret, Vector3.new(0, headPosition.Y, 0)) -- หันเข้ากลางแมพ
+	local target = bossPoint()
+	aim(turret, Vector3.new(target.X, headPosition.Y, target.Z)) -- หันเข้าหาจุดบอส
 	refreshLabel(turret)
 	return turret
 end
@@ -136,8 +195,10 @@ local function onBaseChanged(player: Player, slot: number?)
 	if turret and turret.slot ~= slot then
 		turrets[player] = nil
 		turret.model:Destroy()
+		buildIdle(turret.slot) -- เจ้าของออก → กลับเป็นป้อมว่าง
 	end
 	if slot and not turrets[player] then
+		removeIdle(slot)
 		turrets[player] = build(player, slot)
 	end
 end
@@ -316,7 +377,13 @@ function TurretService.Init()
 
 	BaseService.Changed:Connect(onBaseChanged)
 	BossService.Slammed:Connect(onSlammed)
-	for slot, player in BaseService.owners() do
+	local owners = BaseService.owners()
+	for _, slot in BaseService.slots() do
+		if not owners[slot] then
+			buildIdle(slot)
+		end
+	end
+	for slot, player in owners do
 		onBaseChanged(player, slot)
 	end
 
