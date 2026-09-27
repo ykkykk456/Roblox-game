@@ -254,7 +254,45 @@ function MapService.spawnOf(slot: number): SpawnLocation?
 	return spawns[slot]
 end
 
+-- ล็อกแมพที่สร้างมือใน Studio ไม่ให้ร่วงตอนรัน (ตอนแก้งานฟิสิกส์ยังไม่ทำงาน ของที่ลืม Anchored จึงดูปกติ)
+-- ข้าม: ตัวละคร/บอส (Model ที่มี Humanoid หรือ HumanoidRootPart) · โฟลเดอร์ที่โค้ดสร้างเอง · ชิ้นที่ตั้ง attribute Physics = true
+-- ยึดถาวรในไฟล์เกม: รัน tools/studio/anchor_map.lua ใน Command Bar
+local RUNTIME_FOLDERS = { Map = true, Monsters = true, Turrets = true }
+
+local function isCharacterPart(part: BasePart): boolean
+	local node = part.Parent
+	while node and node ~= workspace do
+		if node:IsA("Model") and (node:FindFirstChildOfClass("Humanoid") or node:FindFirstChild("HumanoidRootPart")) then
+			return true
+		end
+		node = node.Parent
+	end
+	return false
+end
+
+local function anchorMap()
+	local count = 0
+	for _, item in workspace:GetDescendants() do
+		if item:IsA("BasePart") and not item.Anchored and not item:IsA("Terrain") then
+			local top = item
+			while top.Parent and top.Parent ~= workspace do
+				top = top.Parent
+			end
+			if not RUNTIME_FOLDERS[top.Name] and item:GetAttribute("Physics") ~= true and not isCharacterPart(item) then
+				item.Anchored = true
+				count += 1
+			end
+		end
+	end
+	if count > 0 then
+		print(
+			`[MapService] ยึด (Anchored) ชิ้นในแมพที่ยังไม่ได้ยึด {count} ชิ้น กันร่วงตอนรัน · ยึดถาวรได้ด้วย tools/studio/anchor_map.lua`
+		)
+	end
+end
+
 function MapService.Init()
+	anchorMap()
 	MapService.ensureBuilt()
 end
 

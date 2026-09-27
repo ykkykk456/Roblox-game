@@ -37,10 +37,15 @@ return table.freeze({
 		Duration = 300, -- บอสอยู่ 5 นาที · ไม่มีเลือด ครบเวลาแล้วจากไป แจกเงิน + ตั๋วตามดาเมจ (ยืนยัน 2026-09-27)
 		Height = 14, -- ความสูงของบอสลูกบอลสำรอง (ใช้เมื่อยังไม่มีโมเดล)
 
-		-- โมเดลบอส: วางเองใน Studio ที่ ServerStorage > Bosses > <Model> (Rojo ไม่ยุ่งกับ ServerStorage)
-		-- ไม่มีโมเดล → ใช้ลูกบอลสำรอง · บอสยืนกลางแอ่ง (ยืนยัน 2026-09-26)
-		Model = "boss_slambot", -- ชื่อจริงของโมเดลที่ Import จาก boss_slambot.fbx (ชื่ออื่นที่คล้ายกัน เช่น Slambot ก็หาเจอ)
-		-- เลข Animation ID หลัง Publish (ตัวเลขล้วน เช่น 1234567890) · 0 = ใช้ค่าจากโมเดลแทน
+		-- โมเดลบอส: วางเองใน Studio ที่ ServerStorage > Bosses (หรือ Workspace ก็ได้ เกมย้ายให้) · Rojo ไม่ยุ่งกับ ServerStorage
+		-- บอสสลับกันตามลำดับนี้ วนไปเรื่อยๆ (ยืนยัน 2026-09-27: กระต่ายก่อน → โรบอท) · ทุกตัวเกิดกลางแอ่ง
+		-- Animate = false → ยืนเฉย ไม่เล่นท่า · Animate = true → ใช้ท่าใน Animations ด้านล่าง
+		-- หาโมเดลตัวไหนไม่เจอ → ข้ามไปตัวถัดไป · ไม่เจอเลย → ลูกบอลสำรอง
+		Rotation = table.freeze({
+			table.freeze({ Model = "Boss_rabbit", Animate = false }), -- กระต่าย (ทดสอบโมเดล ยังไม่มีท่า)
+			table.freeze({ Model = "boss_slambot", Animate = true }), -- โรบอท Slambot (ท่าเต้น) · ส่วนนี้ล็อกไว้
+		}),
+		-- ท่าของบอสที่ Animate = true (ตอนนี้ = โรบอท) · เลข Animation ID หลัง Publish (ตัวเลขล้วน) · 0 = ใช้ค่าจากโมเดลแทน
 		-- ใส่ได้ 2 ที่ (ที่นี่ชนะถ้าไม่ใช่ 0): ที่นี่ หรือ AnimationId ของ ServerStorage > Bosses > boss_slambot > Animations > <ท่า> ใน Studio
 		-- สร้างโฟลเดอร์ Animations ให้อัตโนมัติด้วย tools/studio/setup_slambot.lua (วางใน Command Bar)
 		-- ทดสอบใน Studio: ท่าที่กด Save ใน Animation Editor (ชื่อมี Idle/Walk/Slam) ถูกใช้ก่อน ไม่ต้อง Publish · เกมจริงใช้เลขที่นี่

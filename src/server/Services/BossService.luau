@@ -8,7 +8,8 @@
 -- ดาเมจของตัวเองส่งผ่าน Player Attribute "BossDamage"
 --
 -- หน้าตา/ท่าทาง (ยืนยัน 2026-09-26):
---   • โมเดลจริงวางเองใน Studio ที่ ServerStorage > Bosses > <Combat.Boss.Model> (ริก R15 มี Humanoid)
+--   • บอสหลายตัวสลับกันตาม Combat.Boss.Rotation (กระต่าย → โรบอท → วน) · Animate = false = ยืนเฉย ไม่มีท่า
+--   • โมเดลจริงวางเองใน Studio ที่ ServerStorage > Bosses > <ชื่อใน Rotation> (ริก R15 มี Humanoid)
 --     ตอนนี้ชื่อ boss_slambot (Import จาก boss_slambot.fbx) · วางไว้ใน Workspace ก็ได้ → ตอนเซิร์ฟเริ่มจะย้ายไปเก็บให้
 --     ชื่อยืดหยุ่น (boss_slambot / Slambot / Slam-Bot) · ชิ้นส่วนซ้อนอยู่ในโมเดลย่อยก็หาเจอ
 --     ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะถูกซ่อมข้อต่อให้ (กันร่วงทะลุแมพ) · ตัวรากถูกซ่อน
@@ -49,6 +50,7 @@ type Boss = {
 local state: Folder
 local boss: Boss? = nil
 local dirty = false
+local nextBoss = 1 -- ลำดับใน Combat.Boss.Rotation ของบอสตัวถัดไป
 local slammedEvent = Instance.new("BindableEvent")
 
 -- มุมทั้ง 8 ของกล่อง (ใช้หาจุดต่ำสุดของชิ้นส่วน)
@@ -286,24 +288,24 @@ local function normalizeName(name: string): string
 	return (string.gsub(simple, "boss", ""))
 end
 
-local function isBossModel(item: Instance): boolean
+local function isBossModel(item: Instance, name: string): boolean
 	return item:IsA("Model")
-		and normalizeName(item.Name) == normalizeName(Combat.Boss.Model)
+		and normalizeName(item.Name) == normalizeName(name)
 		and item:FindFirstChild("HumanoidRootPart", true) ~= nil -- FBX อาจซ้อนชิ้นส่วนไว้ในโมเดลย่อย
 end
 
 -- หาโมเดลต้นแบบ: ServerStorage > Bosses ก่อน แล้วค่อยใน Workspace (ผู้ใช้อาจวางไว้ในแมพ)
-local function findTemplate(): Model?
+local function findTemplate(name: string): Model?
 	local folder = ServerStorage:FindFirstChild("Bosses")
 	if folder then
 		for _, item in folder:GetChildren() do
-			if isBossModel(item) then
+			if isBossModel(item, name) then
 				return item :: Model
 			end
 		end
 	end
 	for _, item in workspace:GetDescendants() do
-		if isBossModel(item) then
+		if isBossModel(item, name) then
 			return item :: Model
 		end
 	end
@@ -422,7 +424,8 @@ local function jointPivot(model: Model, parent: BasePart, child: BasePart, root:
 	return child.Position + unit * reach
 end
 
-local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequence?): number
+-- animate = false (บอสไม่มีท่า เช่นกระต่าย) → ไม่สร้าง Motor6D แค่เชื่อมชิ้นที่หลุดให้ติดกัน
+local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequence?, animate: boolean): number
 	local repaired = 0
 	local connected = connectedToRoot(model, root)
 	-- ริกแบบกระดูก (Bone จาก FBX): ท่าขยับที่กระดูก ไม่ใช่ที่ชิ้นส่วน → แค่เชื่อมทุกชิ้นให้ติดกัน ห้ามสร้าง Motor6D (ท่าจะซ้อนกันสองชั้น)
@@ -435,7 +438,7 @@ local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequ
 		end
 	end
 	-- ปิดการสร้างข้อต่อได้จาก Config (ทดสอบว่าข้อต่อที่เราสร้างทำให้ตัวล้มไหม) → เหลือแค่เชื่อมชิ้นที่หลุดให้ติดกัน
-	local createMotors = not usesBones and Combat.Boss.RepairJoints ~= false
+	local createMotors = animate and not usesBones and Combat.Boss.RepairJoints ~= false
 	for _, pair in (if createMotors then links else {}) do
 		local parent = if pair[1] == root.Name then root else model:FindFirstChild(pair[1], true)
 		local child = model:FindFirstChild(pair[2], true)
@@ -478,16 +481,16 @@ local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequ
 end
 
 -- บอสจริงจากโมเดลต้นแบบ (findTemplate) · คืน nil ถ้าไม่มีโมเดล
-local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeSequence })
-	local template = findTemplate()
+local function makeModel(name: string, animate: boolean): (Model?, BasePart?, BasePart?, { [string]: KeyframeSequence })
+	local template = findTemplate(name)
 	if not template then
 		warn(
-			`[BossService] ไม่เจอโมเดลบอสชื่อ "{Combat.Boss.Model}" (ต้องมี HumanoidRootPart) ใน ServerStorage > Bosses หรือ Workspace — ใช้ลูกบอลแทน`
+			`[BossService] ไม่เจอโมเดลบอสชื่อ "{name}" (ต้องมี HumanoidRootPart) ใน ServerStorage > Bosses หรือ Workspace`
 		)
 		return nil, nil, nil, {}
 	end
 
-	local sequences = studioSequences(template)
+	local sequences = if animate then studioSequences(template) else {}
 	local model = template:Clone()
 	-- AnimSaves = ท่าร่างที่ Animation Editor เก็บไว้ในโมเดล ไม่ต้องใช้ตอนเล่นจริง
 	local drafts = model:FindFirstChild("AnimSaves")
@@ -554,7 +557,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 	-- โครงข้อต่อเอาจากท่า Idle: ท่าที่ Save ใน Studio หรือท่าที่ Publish (โหลดจาก Roblox)
 	local shape: KeyframeSequence? = sequences.Idle or sequences.Walk or sequences.Slam
 	local idleId = Combat.Boss.Animations.Idle
-	if not shape and type(idleId) == "number" and idleId > 0 then
+	if animate and not shape and type(idleId) == "number" and idleId > 0 then
 		local ok, result = pcall(function()
 			return KeyframeSequenceProvider:GetKeyframeSequenceAsync(`rbxassetid://{string.format("%d", idleId)}`)
 		end)
@@ -590,7 +593,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 	print(
 		`[BossService] ชิ้นส่วน {parts} ชิ้น · HumanoidRootPart {roots} อัน · ข้อต่อเดิม: {if #joints > 0 then table.concat(joints, ", ") else "ไม่มี"}`
 	)
-	local repaired = repairJoints(model, root, shape)
+	local repaired = repairJoints(model, root, shape, animate)
 	if repaired > 0 then
 		local kind = if model:FindFirstChildWhichIsA("Bone", true) then "ริกกระดูก (Bone): เชื่อมชิ้นให้ติดกัน ท่าขยับที่กระดูก" else "ริก Motor6D"
 		print(`[BossService] ซ่อมข้อต่อในตัวบอส {repaired} จุด · {kind} (ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะร่วงทะลุแมพ)`)
@@ -800,11 +803,25 @@ end
 local function spawnBoss()
 	local body: Instance, part: BasePart
 	local tracks = {}
-	local model, target, root, sequences = makeModel()
+	-- เลือกบอสตัวถัดไปใน Rotation · หาโมเดลไม่เจอ → ลองตัวถัดไป · ไม่เจอเลย → ลูกบอลสำรอง
+	local rotation = Combat.Boss.Rotation
+	local model, target, root, sequences = nil, nil, nil, {}
+	for _ = 1, #rotation do
+		local entry = rotation[nextBoss]
+		nextBoss = nextBoss % #rotation + 1
+		model, target, root, sequences = makeModel(entry.Model, entry.Animate)
+		if model and target then
+			print(`[BossService] บอสรอบนี้: {entry.Model} ({if entry.Animate then "มีท่า" else "ยืนเฉย ไม่มีท่า"})`)
+			if entry.Animate then
+				tracks = loadTracks(model, sequences)
+			end
+			break
+		end
+	end
 	if model and target then
 		body, part = model, target
-		tracks = loadTracks(model, sequences)
 	else
+		warn("[BossService] ไม่เจอโมเดลบอสใน Rotation เลย — ใช้ลูกบอลแทน")
 		body, part = makeBall()
 	end
 	local current: Boss = {
@@ -897,16 +914,18 @@ end
 
 function BossService.Init()
 	-- โมเดลบอสที่วางไว้ในแมพ → ย้ายเก็บ ServerStorage > Bosses ให้โผล่เฉพาะตอนบอสมา (ไม่ร่วงทะลุแมพก่อนเวลา)
-	local template = findTemplate()
-	if template and not template:IsDescendantOf(ServerStorage) then
-		local folder = ServerStorage:FindFirstChild("Bosses")
-		if not folder then
-			folder = Instance.new("Folder")
-			folder.Name = "Bosses"
-			folder.Parent = ServerStorage
+	for _, entry in Combat.Boss.Rotation do
+		local template = findTemplate(entry.Model)
+		if template and not template:IsDescendantOf(ServerStorage) then
+			local folder = ServerStorage:FindFirstChild("Bosses")
+			if not folder then
+				folder = Instance.new("Folder")
+				folder.Name = "Bosses"
+				folder.Parent = ServerStorage
+			end
+			template.Parent = folder
+			print(`[BossService] ย้าย {template.Name} จาก Workspace ไปรอใน ServerStorage > Bosses (จะโผล่ตอนบอสมา)`)
 		end
-		template.Parent = folder
-		print(`[BossService] ย้าย {template.Name} จาก Workspace ไปรอใน ServerStorage > Bosses (จะโผล่ตอนบอสมา)`)
 	end
 
 	state = Instance.new("Folder")
