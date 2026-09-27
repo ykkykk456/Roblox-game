@@ -39,10 +39,15 @@ return table.freeze({
 
 		-- โมเดลบอส: วางเองใน Studio ที่ ServerStorage > Bosses (หรือ Workspace ก็ได้ เกมย้ายให้) · Rojo ไม่ยุ่งกับ ServerStorage
 		-- บอสสลับกันตามลำดับนี้ วนไปเรื่อยๆ (ยืนยัน 2026-09-27: กระต่ายก่อน → โรบอท) · ทุกตัวเกิดกลางแอ่ง
-		-- Animate = false → ยืนเฉย ไม่เล่นท่า · Animate = true → ใช้ท่าใน Animations ด้านล่าง
+		-- Animate = false → ยืนเฉย ไม่เล่นท่า · Animate = true → ใช้ท่าใน Animations ของแถวนั้น (ไม่ใส่ = ใช้ Animations ด้านล่าง = ท่าโรบอท)
 		-- หาโมเดลตัวไหนไม่เจอ → ข้ามไปตัวถัดไป · ไม่เจอเลย → ลูกบอลสำรอง
 		Rotation = table.freeze({
-			table.freeze({ Model = "Boss_rabbit", Animate = false }), -- กระต่าย (ทดสอบโมเดล ยังไม่มีท่า)
+			-- กระต่าย: ท่าของตัวเอง (Motion Capture 2026-09-27) · Walk/Slam = 0 ยังไม่มี
+			table.freeze({
+				Model = "Boss_rabbit",
+				Animate = true,
+				Animations = table.freeze({ Idle = 99370436873239, Walk = 0, Slam = 0 }),
+			}),
 			table.freeze({ Model = "boss_slambot", Animate = true }), -- โรบอท Slambot (ท่าเต้น) · ส่วนนี้ล็อกไว้
 		}),
 		-- ท่าของบอสที่ Animate = true (ตอนนี้ = โรบอท) · เลข Animation ID หลัง Publish (ตัวเลขล้วน) · 0 = ใช้ค่าจากโมเดลแทน

@@ -126,8 +126,9 @@ local ANIMATION_NAMES = { "Idle", "Walk", "Slam" }
 
 -- หา ID ของท่า: เลขใน Config (ถ้าไม่ใช่ 0) ก่อน → ไม่งั้นใช้ Animation ชื่อเดียวกันในโฟลเดอร์ Animations ของโมเดล
 -- (ใส่ AnimationId ในหน้าต่าง Properties ของ Studio ได้เลย) · คืน nil = ยังไม่มีท่านี้
-local function animationIdFor(name: string, folder: Instance?): string?
-	local fromConfig = Combat.Boss.Animations[name]
+-- animations = ตารางท่าของบอสตัวนั้น (Rotation[i].Animations หรือ Combat.Boss.Animations ของโรบอท)
+local function animationIdFor(name: string, folder: Instance?, animations: { [string]: number }): string?
+	local fromConfig = animations[name]
 	if type(fromConfig) == "number" and fromConfig > 0 then
 		-- %d กันเลขยาวถูกแปลงเป็นรูป 9.3e+13
 		return `rbxassetid://{string.format("%d", fromConfig)}`
@@ -194,7 +195,11 @@ end
 -- โหลดท่า · คืนตาราง ชื่อท่า → AnimationTrack
 -- ใน Studio: ใช้ท่าที่ Save ไว้ใน Animation Editor ก่อน (เห็นท่าล่าสุดทันที ไม่ต้อง Publish ไม่ติดเรื่องเจ้าของ)
 -- เกมจริง: ใช้เลข ID ที่ Publish แล้ว (Config หรือโฟลเดอร์ Animations ในโมเดล)
-local function loadTracks(model: Model, sequences: { [string]: KeyframeSequence }): { [string]: AnimationTrack }
+local function loadTracks(
+	model: Model,
+	sequences: { [string]: KeyframeSequence },
+	animations: { [string]: number }
+): { [string]: AnimationTrack }
 	local tracks = {}
 	local humanoid = model:FindFirstChildWhichIsA("Humanoid", true)
 	local controller: Instance? = humanoid or model:FindFirstChildOfClass("AnimationController")
@@ -210,7 +215,7 @@ local function loadTracks(model: Model, sequences: { [string]: KeyframeSequence 
 	local folder = model:FindFirstChild("Animations")
 	local inStudio = RunService:IsStudio()
 	for _, name in ANIMATION_NAMES do
-		local id = animationIdFor(name, folder)
+		local id = animationIdFor(name, folder, animations)
 		local publishedId = id
 		local source = "ID ที่ Publish"
 		local sequence = sequences[name]
@@ -481,7 +486,11 @@ local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequ
 end
 
 -- บอสจริงจากโมเดลต้นแบบ (findTemplate) · คืน nil ถ้าไม่มีโมเดล
-local function makeModel(name: string, animate: boolean): (Model?, BasePart?, BasePart?, { [string]: KeyframeSequence })
+local function makeModel(
+	name: string,
+	animate: boolean,
+	animations: { [string]: number }
+): (Model?, BasePart?, BasePart?, { [string]: KeyframeSequence })
 	local template = findTemplate(name)
 	if not template then
 		warn(
@@ -556,7 +565,7 @@ local function makeModel(name: string, animate: boolean): (Model?, BasePart?, Ba
 	)
 	-- โครงข้อต่อเอาจากท่า Idle: ท่าที่ Save ใน Studio หรือท่าที่ Publish (โหลดจาก Roblox)
 	local shape: KeyframeSequence? = sequences.Idle or sequences.Walk or sequences.Slam
-	local idleId = Combat.Boss.Animations.Idle
+	local idleId = animations.Idle
 	if animate and not shape and type(idleId) == "number" and idleId > 0 then
 		local ok, result = pcall(function()
 			return KeyframeSequenceProvider:GetKeyframeSequenceAsync(`rbxassetid://{string.format("%d", idleId)}`)
@@ -809,11 +818,13 @@ local function spawnBoss()
 	for _ = 1, #rotation do
 		local entry = rotation[nextBoss]
 		nextBoss = nextBoss % #rotation + 1
-		model, target, root, sequences = makeModel(entry.Model, entry.Animate)
+		-- ท่าของบอสตัวนี้: ใส่ไว้ในแถว Rotation ก็ได้ · ไม่ใส่ = ใช้ Combat.Boss.Animations (ท่าโรบอท)
+		local animations = entry.Animations or Combat.Boss.Animations
+		model, target, root, sequences = makeModel(entry.Model, entry.Animate, animations)
 		if model and target then
 			print(`[BossService] บอสรอบนี้: {entry.Model} ({if entry.Animate then "มีท่า" else "ยืนเฉย ไม่มีท่า"})`)
 			if entry.Animate then
-				tracks = loadTracks(model, sequences)
+				tracks = loadTracks(model, sequences, animations)
 			end
 			break
 		end
