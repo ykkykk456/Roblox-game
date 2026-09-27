@@ -374,29 +374,76 @@ end
 
 -- ซ่อมริกที่ชิ้นส่วนไม่ได้ต่อกับ root (FBX บางไฟล์ไม่มีข้อต่อ → ตัวร่วงทะลุแมพ เหลือ root ค้าง)
 -- ชิ้น R15 → สร้าง Motor6D ตามมาตรฐาน (ท่าจาก Animation Editor ขยับได้) · ชิ้นอื่น → เชื่อมติดชิ้นที่ใกล้ที่สุด
-local function repairJoints(model: Model, root: BasePart): number
+-- คู่ข้อต่อ (ชิ้นแม่, ชิ้นลูก) จากโครงของท่า: Pose ซ้อนกันตามข้อต่อที่ท่าคาดไว้
+-- ท่าเล่นได้ก็ต่อเมื่อข้อต่อในตัวต่อ "แม่ → ลูก" ตรงกับท่า `[Inferred]` (ท่านี้ขาต่อกับตัวราก ไม่ใช่ LowerTorso แบบ R15)
+local function poseLinks(sequence: KeyframeSequence?, rootName: string): { { string } }
+	local links = {}
+	if not sequence then
+		return links
+	end
+	local keyframe = sequence:GetKeyframes()[1]
+	if not keyframe then
+		return links
+	end
+	local function walk(pose: Instance, parentName: string)
+		for _, sub in (pose :: Pose):GetSubPoses() do
+			table.insert(links, { parentName, sub.Name })
+			walk(sub, sub.Name)
+		end
+	end
+	for _, top in (keyframe :: Keyframe):GetPoses() do
+		-- Pose บนสุดคือตัวราก (ชื่ออาจไม่ตรงกับชิ้นในโมเดล)
+		walk(top, rootName)
+	end
+	return links
+end
+
+-- จุดหมุนข้อต่อ: กระดูกชื่อเดียวกันถ้ามี · ไม่งั้นขอบของชิ้นลูกฝั่งที่หันเข้าหาชิ้นแม่ (ไหล่ สะโพก เข่า)
+local function jointPivot(model: Model, parent: BasePart, child: BasePart, root: BasePart): Vector3
+	for _, item in model:GetDescendants() do
+		if item:IsA("Bone") and item.Name == child.Name then
+			return item.WorldPosition
+		end
+	end
+	if parent == root then
+		return child.Position
+	end
+	local toward = parent.Position - child.Position
+	if toward.Magnitude < 0.01 then
+		return child.Position
+	end
+	local unit = toward.Unit
+	local half = child.Size / 2
+	local cf = child.CFrame
+	local reach = math.abs(cf.RightVector:Dot(unit)) * half.X
+		+ math.abs(cf.UpVector:Dot(unit)) * half.Y
+		+ math.abs(cf.LookVector:Dot(unit)) * half.Z
+	return child.Position + unit * reach
+end
+
+local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequence?): number
 	local repaired = 0
 	local connected = connectedToRoot(model, root)
 	-- ริกแบบกระดูก (Bone จาก FBX): ท่าขยับที่กระดูก ไม่ใช่ที่ชิ้นส่วน → แค่เชื่อมทุกชิ้นให้ติดกัน ห้ามสร้าง Motor6D (ท่าจะซ้อนกันสองชั้น)
 	local usesBones = model:FindFirstChildWhichIsA("Bone", true) ~= nil
-	for _, childName in (if usesBones then {} else R15_ORDER) do
-		local child = model:FindFirstChild(childName, true)
-		local info = R15_JOINTS[childName]
-		local parent = model:FindFirstChild(info[1], true)
-		if child and child:IsA("BasePart") and not connected[child] and parent and parent:IsA("BasePart") and connected[parent] then
-			-- จุดหมุนข้อต่อ: ใช้ Bone ชื่อเดียวกันถ้ามี (มาจากโครงกระดูก FBX) ไม่งั้นใช้กลางชิ้นลูก
-			local pivot = child.Position
-			for _, item in model:GetDescendants() do
-				if item:IsA("Bone") and item.Name == childName then
-					pivot = item.WorldPosition
-					break
-				end
-			end
+	-- ลำดับข้อต่อ: ตามโครงของท่าถ้ามี (เล่นท่าได้แน่) · ไม่มีท่า → มาตรฐาน R15
+	local links = poseLinks(sequence, root.Name)
+	if #links == 0 then
+		for _, childName in R15_ORDER do
+			table.insert(links, { R15_JOINTS[childName][1], childName })
+		end
+	end
+	for _, pair in (if usesBones then {} else links) do
+		local parent = if pair[1] == root.Name then root else model:FindFirstChild(pair[1], true)
+		local child = model:FindFirstChild(pair[2], true)
+		if child and child:IsA("BasePart") and child ~= root and not connected[child] and parent and parent:IsA("BasePart") and connected[parent] then
+			local pivot = jointPivot(model, parent, child, root)
 			local joint = Instance.new("Motor6D")
-			joint.Name = info[2]
-			joint.Part0 = parent
+			local info = R15_JOINTS[child.Name]
+			joint.Name = if info then info[2] else child.Name
+			joint.Part0 = parent :: BasePart
 			joint.Part1 = child
-			joint.C0 = parent.CFrame:Inverse() * CFrame.new(pivot)
+			joint.C0 = (parent :: BasePart).CFrame:Inverse() * CFrame.new(pivot)
 			joint.C1 = child.CFrame:Inverse() * CFrame.new(pivot)
 			joint.Parent = child
 			connected[child] = true
@@ -483,7 +530,27 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 		`[BossService] ริกของ {model.Name}: Motor6D {counts.Motor6D} · AnimationConstraint {counts.AnimationConstraint} · Bone {counts.Bone}`
 			.. ` · Humanoid {if humanoid0 then humanoid0:GetFullName() else "ไม่มี"}`
 	)
-	local repaired = repairJoints(model, root)
+	-- โครงข้อต่อเอาจากท่า Idle: ท่าที่ Save ใน Studio หรือท่าที่ Publish (โหลดจาก Roblox)
+	local shape: KeyframeSequence? = sequences.Idle or sequences.Walk or sequences.Slam
+	local idleId = Combat.Boss.Animations.Idle
+	if not shape and type(idleId) == "number" and idleId > 0 then
+		local ok, result = pcall(function()
+			return KeyframeSequenceProvider:GetKeyframeSequenceAsync(`rbxassetid://{string.format("%d", idleId)}`)
+		end)
+		if ok and result and result:IsA("KeyframeSequence") then
+			shape = result
+		end
+	end
+	if shape then
+		local pairs = {}
+		for index, pair in poseLinks(shape, root.Name) do
+			if index <= 6 then
+				table.insert(pairs, `{pair[1]}→{pair[2]}`)
+			end
+		end
+		print(`[BossService] โครงข้อต่อตามท่า "{shape.Name}": {table.concat(pairs, ", ")} …`)
+	end
+	local repaired = repairJoints(model, root, shape)
 	if repaired > 0 then
 		local kind = if model:FindFirstChildWhichIsA("Bone", true) then "ริกกระดูก (Bone): เชื่อมชิ้นให้ติดกัน ท่าขยับที่กระดูก" else "ริก Motor6D"
 		print(`[BossService] ซ่อมข้อต่อในตัวบอส {repaired} จุด · {kind} (ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะร่วงทะลุแมพ)`)
