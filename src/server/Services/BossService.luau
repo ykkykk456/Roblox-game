@@ -433,7 +433,9 @@ local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequ
 			table.insert(links, { R15_JOINTS[childName][1], childName })
 		end
 	end
-	for _, pair in (if usesBones then {} else links) do
+	-- ปิดการสร้างข้อต่อได้จาก Config (ทดสอบว่าข้อต่อที่เราสร้างทำให้ตัวล้มไหม) → เหลือแค่เชื่อมชิ้นที่หลุดให้ติดกัน
+	local createMotors = not usesBones and Combat.Boss.RepairJoints ~= false
+	for _, pair in (if createMotors then links else {}) do
 		local parent = if pair[1] == root.Name then root else model:FindFirstChild(pair[1], true)
 		local child = model:FindFirstChild(pair[2], true)
 		if child and child:IsA("BasePart") and child ~= root and not connected[child] and parent and parent:IsA("BasePart") and connected[parent] then
@@ -550,6 +552,25 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 		end
 		print(`[BossService] โครงข้อต่อตามท่า "{shape.Name}": {table.concat(shown, ", ")} …`)
 	end
+	local roots, parts = 0, 0
+	for _, item in model:GetDescendants() do
+		if item:IsA("BasePart") then
+			parts += 1
+			if item.Name == "HumanoidRootPart" then
+				roots += 1
+			end
+		end
+	end
+	local joints = {}
+	for _, item in model:GetDescendants() do
+		if item:IsA("Motor6D") and #joints < 20 then
+			local p0, p1 = item.Part0, item.Part1
+			table.insert(joints, `{if p0 then p0.Name else "?"}→{if p1 then p1.Name else "?"}`)
+		end
+	end
+	print(
+		`[BossService] ชิ้นส่วน {parts} ชิ้น · HumanoidRootPart {roots} อัน · ข้อต่อเดิม: {if #joints > 0 then table.concat(joints, ", ") else "ไม่มี"}`
+	)
 	local repaired = repairJoints(model, root, shape)
 	if repaired > 0 then
 		local kind = if model:FindFirstChildWhichIsA("Bone", true) then "ริกกระดูก (Bone): เชื่อมชิ้นให้ติดกัน ท่าขยับที่กระดูก" else "ริก Motor6D"
@@ -561,6 +582,12 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 		humanoid.BreakJointsOnDeath = false
 		humanoid.RequiresNeck = false -- ริกจากภายนอกอาจไม่มีข้อต่อคอ → ไม่ให้ Humanoid ถือว่าตาย
+		-- บอสไม่ต้องเดิน/ล้ม/ตายแบบตัวละคร → ปิดระบบสถานะของ Humanoid (กันล้มหรือนอนราบเอง)
+		humanoid.EvaluateStateMachine = false
+		humanoid.PlatformStand = true
+		for _, state in { Enum.HumanoidStateType.FallingDown, Enum.HumanoidStateType.Ragdoll, Enum.HumanoidStateType.Dead } do
+			humanoid:SetStateEnabled(state, false)
+		end
 	end
 
 	-- วางให้เท้าแตะพื้นที่ขอบแอ่ง: หันหน้าเข้ากลางก่อน แล้ววัดจุดต่ำสุดของตัวจริงในโลก
