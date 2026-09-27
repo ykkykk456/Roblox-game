@@ -96,7 +96,9 @@ local function load()
 		`[LayoutService] ใช้ผังจากแมพ: BossSpawn = {(bossMarker :: Instance):GetFullName()} · ป้อม {#slotList} จุด ({table.concat(slotList, ", ")})`
 	)
 	if #missingHouses > 0 then
-		warn(`[LayoutService] ยังไม่มี Tag {table.concat(missingHouses, ", ")} — ผู้เล่นช่องนั้นจะเกิดข้างป้อมแทน`)
+		print(
+			`[LayoutService] ยังไม่มี Tag {table.concat(missingHouses, ", ")} — ผู้เล่นเกิดข้างป้อมของตัวเอง (ติด Tag House ทีหลังได้)`
+		)
 	end
 
 	if Map.Layout.HideBossMarker then
