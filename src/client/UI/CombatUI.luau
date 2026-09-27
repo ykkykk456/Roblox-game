@@ -64,13 +64,11 @@ end
 local function renderBoss()
 	local serverNow = workspace:GetServerTimeNow()
 	if bossState:GetAttribute("Active") == true then
-		local hp = numberAttr(bossState, "Hp", 0)
-		local maxHp = math.max(numberAttr(bossState, "MaxHp", 1), 1)
-		bossTitle.Text = `👹 บอสมาแล้ว! เหลือเวลา {clock(
-			numberAttr(bossState, "EndsAt", 0) - serverNow
-		)}`
-		bossFill.Size = UDim2.fromScale(math.clamp(hp / maxHp, 0, 1), 1)
-		bossHpText.Text = `{shortNumber(hp)} / {shortNumber(maxHp)}`
+		-- บอสไม่มีเลือด: แถบ = เวลาที่เหลือ · ตัวเลข = ดาเมจรวมทั้งเซิร์ฟ
+		local left = numberAttr(bossState, "EndsAt", 0) - serverNow
+		bossTitle.Text = `👹 บอสมาแล้ว! เหลือเวลา {clock(left)}`
+		bossFill.Size = UDim2.fromScale(math.clamp(left / math.max(Combat.Boss.Duration, 1), 0, 1), 1)
+		bossHpText.Text = `ดาเมจรวม {shortNumber(numberAttr(bossState, "TotalDamage", 0))}`
 		bossBarBack.Visible = true
 		return
 	end

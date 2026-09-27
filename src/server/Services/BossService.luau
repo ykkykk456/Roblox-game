@@ -2,7 +2,8 @@
 -- บอสอีเวนต์: เกิดตามเวลา ทั้งเซิร์ฟช่วยกันตี แบ่งรางวัล "ขั้นต่ำ + ตามดาเมจ" (เจ้าของ: Gameplay_Scripter)
 -- ชนะ = เงิน + ตั๋วกาชา (อันดับต้นได้โบนัส) · หนี = เงินลดลง ไม่มีตั๋ว
 -- สถานะส่งให้ Client ผ่าน Attribute ของ ReplicatedStorage.BossState (อ่านอย่างเดียว ใช้แสดงผล):
---   Active: boolean · Hp / MaxHp: number · EndsAt / NextAt: เวลา workspace:GetServerTimeNow()
+--   Active: boolean · TotalDamage: ดาเมจรวมทั้งเซิร์ฟ · EndsAt / NextAt: เวลา workspace:GetServerTimeNow()
+--   บอสไม่มีเลือด อยู่ Combat.Boss.Duration แล้วจากไป → แจกเงิน + ตั๋วตามดาเมจ (ยืนยัน 2026-09-27)
 --   Top: JSON [{ n = ชื่อ, d = ดาเมจ }] 5 อันดับ · Result: ข้อความผลรอบล่าสุด
 -- ดาเมจของตัวเองส่งผ่าน Player Attribute "BossDamage"
 --
@@ -40,8 +41,7 @@ type Boss = {
 	part: BasePart, -- จุดที่ป้อมเล็ง
 	root: BasePart?, -- HumanoidRootPart (มีเฉพาะโมเดลจริง ใช้ขยับตอนเปิดตัว)
 	tracks: { [string]: AnimationTrack },
-	hp: number,
-	maxHp: number,
+	total: number, -- ดาเมจรวมทั้งเซิร์ฟ (บอสไม่มีเลือด)
 	endsAt: number,
 	damageBy: { [number]: Entry }, -- key = UserId (คนที่ออกไปแล้วยังอยู่ในตาราง แต่ไม่ได้รางวัล)
 }
@@ -780,7 +780,7 @@ local function sortedEntries(current: Boss): { Entry }
 end
 
 local function publish(current: Boss)
-	state:SetAttribute("Hp", math.ceil(current.hp))
+	state:SetAttribute("TotalDamage", math.floor(current.total))
 	local top = {}
 	for index, entry in sortedEntries(current) do
 		if index > TOP_COUNT then
@@ -798,7 +798,6 @@ local function publish(current: Boss)
 end
 
 local function spawnBoss()
-	local maxHp = Combat.Boss.BaseHp + Combat.Boss.HpPerPlayer * #Players:GetPlayers()
 	local body: Instance, part: BasePart
 	local tracks = {}
 	local model, target, root, sequences = makeModel()
@@ -813,8 +812,7 @@ local function spawnBoss()
 		part = part,
 		root = root,
 		tracks = tracks,
-		hp = maxHp,
-		maxHp = maxHp,
+		total = 0,
 		endsAt = now() + Combat.Boss.Duration,
 		damageBy = {},
 	}
@@ -823,15 +821,15 @@ local function spawnBoss()
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("BossDamage", 0)
 	end
-	state:SetAttribute("MaxHp", maxHp)
-	state:SetAttribute("Hp", maxHp)
+	state:SetAttribute("TotalDamage", 0)
 	state:SetAttribute("EndsAt", boss.endsAt)
 	state:SetAttribute("Top", "[]")
 	state:SetAttribute("Result", "")
 	state:SetAttribute("Active", true)
 end
 
-local function finish(current: Boss, killed: boolean)
+-- ครบเวลา: บอสจากไป → แจกเงิน (ขั้นต่ำ + ตามสัดส่วนดาเมจ) + ตั๋วกาชา (ทุกคนที่ตี + โบนัสอันดับต้น)
+local function finish(current: Boss)
 	boss = nil
 	current.body:Destroy()
 	publish(current)
@@ -841,31 +839,22 @@ local function finish(current: Boss, killed: boolean)
 	for _, entry in ranking do
 		total += entry.damage
 	end
-	-- เงิน: ขั้นต่ำทุกคน + ตามสัดส่วนดาเมจ · บอสหนีได้เงินลดลงและไม่ได้ตั๋ว (IDEA.md)
-	local moneyMultiplier = if killed then 1 else Economy.Boss.EscapeMoneyMultiplier
 	for rank, entry in ranking do
 		local player = Players:GetPlayerByUserId(entry.userId)
-		if player and total > 0 then
-			local money = Economy.Boss.BaseReward + Economy.Boss.DamageRewardPool * entry.damage / total
-			Wallet.earn(player, money * moneyMultiplier)
-			if killed then
-				local bonus = if rank <= Economy.Gacha.TopBonusRanks then Economy.Gacha.TopBonusTickets else 0
-				SkillService.grantTickets(player, Economy.Gacha.TicketsPerBossKill + bonus)
-			end
+		if player and total > 0 and entry.damage > 0 then
+			Wallet.earn(player, Economy.Boss.BaseReward + Economy.Boss.DamageRewardPool * entry.damage / total)
+			local bonus = if rank <= Economy.Gacha.TopBonusRanks then Economy.Gacha.TopBonusTickets else 0
+			SkillService.grantTickets(player, Economy.Gacha.TicketsPerBossKill + bonus)
 		end
 	end
 
-	local mvp = if ranking[1] then ranking[1].name else "-"
-	if killed then
+	if total > 0 then
 		state:SetAttribute(
 			"Result",
-			`ชนะบอสแล้ว! 🏆 {mvp} · ได้เงิน + 🎟 ตั๋วกาชา`
+			`⏰ บอสจากไปแล้ว! 🏆 {ranking[1].name} · ได้เงิน + 🎟 ตั๋วตามดาเมจ`
 		)
 	else
-		state:SetAttribute(
-			"Result",
-			"บอสหนีไปแล้ว… ได้เงินบางส่วน (ไม่ได้ตั๋ว)"
-		)
+		state:SetAttribute("Result", "⏰ บอสจากไปแล้ว… ไม่มีใครทำดาเมจ")
 	end
 	state:SetAttribute("Active", false)
 	state:SetAttribute("NextAt", now() + Combat.Boss.Interval)
@@ -883,7 +872,7 @@ end
 
 -- บอสที่ตีได้ตอนนี้ (nil ถ้าไม่มี)
 function BossService.getTarget(): Vector3?
-	if boss and boss.hp > 0 then
+	if boss then
 		return boss.part.Position
 	end
 	return nil
@@ -891,11 +880,12 @@ end
 
 function BossService.damage(player: Player, amount: number)
 	local current = boss
-	if not current or current.hp <= 0 then
+	if not current or amount <= 0 or amount ~= amount then
 		return
 	end
-	local applied = math.min(amount, current.hp)
-	current.hp -= applied
+	-- บอสไม่มีเลือด: นับดาเมจทุกนัดจนหมดเวลา
+	local applied = amount
+	current.total += applied
 	local entry = current.damageBy[player.UserId]
 	if not entry then
 		entry = { userId = player.UserId, name = player.DisplayName, damage = 0 }
@@ -933,10 +923,8 @@ function BossService.Start()
 		task.wait(PUBLISH_INTERVAL)
 		local current = boss
 		if current then
-			if current.hp <= 0 then
-				finish(current, true)
-			elseif now() >= current.endsAt then
-				finish(current, false)
+			if now() >= current.endsAt then
+				finish(current)
 			elseif dirty then
 				dirty = false
 				publish(current)

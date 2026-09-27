@@ -16,13 +16,13 @@ return table.freeze({
 	MonsterRewardMultiplier = table.freeze({ Small = 1, Medium = 3 }), -- [Proposed] ตัวกลาง HP 3 เท่า ได้เงิน 3 เท่า
 
 	Boss = table.freeze({
+		-- แจกตอนบอสจากไป (ครบ Combat.Boss.Duration)
 		BaseReward = 50, -- ทุกคนที่มีดาเมจ > 0 ได้เท่ากัน
 		DamageRewardPool = 300, -- แบ่งตามสัดส่วนดาเมจ
-		EscapeMoneyMultiplier = 0.5, -- บอสหนี: ได้เงินตามสูตรเดียวกัน × ค่านี้ และไม่ได้ตั๋ว (IDEA.md)
 	}),
 
 	Gacha = table.freeze({
-		TicketsPerBossKill = 1, -- ทุกคนที่มีดาเมจ > 0 เมื่อชนะบอส
+		TicketsPerBossKill = 1, -- ต่อรอบบอส: ทุกคนที่มีดาเมจ > 0 ตอนบอสจากไป (บอสไม่มีเลือดแล้ว 2026-09-27)
 		TopBonusTickets = 1, -- โบนัสเพิ่มให้อันดับดาเมจ 1..TopBonusRanks
 		TopBonusRanks = 3,
 		MaxTickets = 100_000, -- เพดานกันค่าล้น
