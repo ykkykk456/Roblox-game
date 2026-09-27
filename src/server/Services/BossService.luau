@@ -350,6 +350,12 @@ local function connectedToRoot(model: Model, root: BasePart): { [BasePart]: bool
 			link(item.Part0, item.Part1)
 		elseif item:IsA("WeldConstraint") then
 			link(item.Part0, item.Part1)
+		elseif item:IsA("Constraint") then
+			-- ริกแบบใหม่ของ Roblox (AnimationConstraint) และ constraint อื่นต่อชิ้นผ่าน Attachment
+			local a0, a1 = item.Attachment0, item.Attachment1
+			if a0 and a1 then
+				link(a0.Parent, a1.Parent)
+			end
 		end
 	end
 	local seen = { [root] = true }
@@ -466,6 +472,17 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 	root.Transparency = 1 -- ตัวรากเป็นกล่องช่วย ไม่ต้องเห็น (บล็อกสีเข้มที่โผล่ในตัวบอส)
 	root.CanQuery = false
 	model.PrimaryPart = root
+	local counts = { Motor6D = 0, AnimationConstraint = 0, Bone = 0 }
+	for _, item in model:GetDescendants() do
+		if counts[item.ClassName] then
+			counts[item.ClassName] += 1
+		end
+	end
+	local humanoid0 = model:FindFirstChildWhichIsA("Humanoid", true)
+	print(
+		`[BossService] ริกของ {model.Name}: Motor6D {counts.Motor6D} · AnimationConstraint {counts.AnimationConstraint} · Bone {counts.Bone}`
+			.. ` · Humanoid {if humanoid0 then humanoid0:GetFullName() else "ไม่มี"}`
+	)
 	local repaired = repairJoints(model, root)
 	if repaired > 0 then
 		local kind = if model:FindFirstChildWhichIsA("Bone", true) then "ริกกระดูก (Bone): เชื่อมชิ้นให้ติดกัน ท่าขยับที่กระดูก" else "ริก Motor6D"
@@ -583,6 +600,20 @@ end
 local function runBehaviour(current: Boss)
 	local tracks = current.tracks
 	local root = current.root
+	-- ท่ายืน/เต้นเล่นวนตั้งแต่เกิด · มีท่าเดินค่อยใช้ท่าเดินช่วงเปิดตัว
+	local function playIdle()
+		local idle = current.tracks.Idle
+		if idle and not idle.IsPlaying then
+			idle.Looped = true
+			idle:Play(0.3)
+			task.delay(1, function()
+				print(`[BossService] ท่า Idle กำลังเล่น={idle.IsPlaying} ยาว {string.format("%.1f", idle.Length)} วิ`)
+			end)
+		end
+	end
+	if not tracks.Walk then
+		playIdle()
+	end
 	if root then
 		if tracks.Walk then
 			tracks.Walk:Play()
@@ -610,9 +641,7 @@ local function runBehaviour(current: Boss)
 	if boss ~= current then
 		return
 	end
-	if tracks.Idle then
-		tracks.Idle:Play(0.3)
-	end
+	playIdle()
 	while boss == current do
 		task.wait(Combat.Boss.SlamInterval)
 		if boss ~= current then
