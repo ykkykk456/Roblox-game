@@ -139,11 +139,11 @@ local function animationIdFor(name: string, folder: Instance?): string?
 end
 
 -- ท่าที่กด Save ไว้ใน Animation Editor (KeyframeSequence) ของโมเดลต้นแบบ
--- Studio เก็บไว้ที่ <โมเดล>.AnimSaves หรือ ServerStorage.RBX_ANIMSAVES.<ชื่อโมเดล> `[Inferred]`
--- คืน ชื่อท่า → KeyframeSequence (ชื่อที่มี idle/walk/slam · ท่าอื่นท่าแรกใช้เป็น Idle เช่นท่าเต้น)
+-- Studio เก็บไว้ใต้โมเดลโดยตรง, ใน <โมเดล>.AnimSaves หรือ ServerStorage.RBX_ANIMSAVES.<ชื่อโมเดล> `[Inferred]`
+-- ไม่ต้องตั้งชื่อ: ชื่อที่มี idle/walk/slam = ใช้เป็นท่านั้น · ไม่งั้นท่าที่ยาวที่สุดเป็น Idle (เช่น "Imported Animation Clip")
 local function studioSequences(template: Model): { [string]: KeyframeSequence }
 	local found: { KeyframeSequence } = {}
-	local places: { Instance? } = { template:FindFirstChild("AnimSaves", true) }
+	local places: { Instance? } = { template }
 	local store = ServerStorage:FindFirstChild("RBX_ANIMSAVES")
 	if store then
 		table.insert(places, store:FindFirstChild(template.Name))
@@ -151,7 +151,7 @@ local function studioSequences(template: Model): { [string]: KeyframeSequence }
 	for _, place in places do
 		if place then
 			for _, item in place:GetDescendants() do
-				if item:IsA("KeyframeSequence") then
+				if item:IsA("KeyframeSequence") and not table.find(found, item) then
 					table.insert(found, item)
 				end
 			end
@@ -436,6 +436,11 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 	local drafts = model:FindFirstChild("AnimSaves")
 	if drafts then
 		drafts:Destroy()
+	end
+	for _, item in model:GetDescendants() do
+		if item:IsA("KeyframeSequence") then
+			item:Destroy() -- ท่าร่างที่ Save ไว้ใต้โมเดลโดยตรง (ใช้ผ่าน studioSequences ของตัวต้นแบบแล้ว)
+		end
 	end
 	local root: BasePart? = nil
 	for _, item in model:GetDescendants() do
