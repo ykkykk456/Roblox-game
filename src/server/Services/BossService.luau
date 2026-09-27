@@ -497,7 +497,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 			item:Destroy() -- ท่าร่างที่ Save ไว้ใต้โมเดลโดยตรง (ใช้ผ่าน studioSequences ของตัวต้นแบบแล้ว)
 		end
 	end
-	local root: BasePart? = nil
+	local candidates: { BasePart } = {}
 	for _, item in model:GetDescendants() do
 		if item:IsA("BaseScript") then
 			item:Destroy() -- โมเดลจากภายนอกห้ามพาสคริปต์เข้ามา
@@ -506,8 +506,24 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 			item.CanTouch = false
 			item.Anchored = false
 			if item.Name == "HumanoidRootPart" then
-				root = item
+				table.insert(candidates, item)
+				-- ทุกชิ้นชื่อนี้เป็นกล่องช่วย ไม่ต้องเห็น (FBX มี HumanoidRootPart ติดมา 2 อัน = บล็อกสีเข้มในตัวบอส)
+				item.Transparency = 1
+				item.CanQuery = false
 			end
+		end
+	end
+	-- ตัวรากจริง = HumanoidRootPart ที่ต่อกับชิ้นอื่นมากที่สุด (ข้อต่อ AnimationConstraint ต่อกับอันนี้)
+	-- ถ้ายึดผิดอัน ตัวจริงจะไม่ถูกยึด → บอสล้ม/ร่วง (บั๊ก 2026-09-27)
+	local root: BasePart? = nil
+	local bestLinks = -1
+	for _, candidate in candidates do
+		local linked = 0
+		for _ in connectedToRoot(model, candidate) do
+			linked += 1
+		end
+		if linked > bestLinks then
+			root, bestLinks = candidate, linked
 		end
 	end
 	root = root or model.PrimaryPart
@@ -516,10 +532,11 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 		model:Destroy()
 		return nil, nil, nil, {}
 	end
-	-- ยึดแค่ตัวราก ชิ้นอื่นขยับตาม Motor6D ตามท่า
+	-- ยึดแค่ตัวราก ชิ้นอื่นขยับตามข้อต่อตามท่า
 	root.Anchored = true
-	root.Transparency = 1 -- ตัวรากเป็นกล่องช่วย ไม่ต้องเห็น (บล็อกสีเข้มที่โผล่ในตัวบอส)
-	root.CanQuery = false
+	if #candidates > 1 then
+		print(`[BossService] เจอ HumanoidRootPart {#candidates} อัน → ใช้ {root:GetFullName()} (ต่อกับ {bestLinks - 1} ชิ้น) เป็นตัวราก`)
+	end
 	model.PrimaryPart = root
 	local counts = { Motor6D = 0, AnimationConstraint = 0, Bone = 0 }
 	for _, item in model:GetDescendants() do
