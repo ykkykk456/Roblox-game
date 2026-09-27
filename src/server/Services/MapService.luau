@@ -8,6 +8,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local Tags = require(ReplicatedStorage.Shared.Config.Tags)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
@@ -255,14 +256,40 @@ function MapService.spawnOf(slot: number): SpawnLocation?
 end
 
 -- ล็อกแมพที่สร้างมือใน Studio ไม่ให้ร่วงตอนรัน (ตอนแก้งานฟิสิกส์ยังไม่ทำงาน ของที่ลืม Anchored จึงดูปกติ)
--- ข้าม: ตัวละคร/บอส (Model ที่มี Humanoid หรือ HumanoidRootPart) · โฟลเดอร์ที่โค้ดสร้างเอง · ชิ้นที่ตั้ง attribute Physics = true
+-- ข้าม: ตัวละคร/บอส/ริก (Humanoid, AnimationController, HumanoidRootPart, ข้อต่อ, ชื่อใน Combat.Boss.Rotation) · โฟลเดอร์ที่โค้ดสร้างเอง · attribute Physics = true
 -- ยึดถาวรในไฟล์เกม: รัน tools/studio/anchor_map.lua ใน Command Bar
 local RUNTIME_FOLDERS = { Map = true, Monsters = true, Turrets = true }
+
+-- ริก = โมเดลที่ขยับได้ (ตัวละคร/บอส) ห้ามยึด
+local function simpleName(name: string): string
+	return (string.gsub(string.gsub(string.lower(name), "[^%w]", ""), "boss", ""))
+end
+
+local function isRig(model: Model): boolean
+	for _, entry in Combat.Boss.Rotation do
+		if simpleName(model.Name) == simpleName(entry.Model) then
+			return true
+		end
+	end
+	if
+		model:FindFirstChildWhichIsA("Humanoid", true)
+		or model:FindFirstChildWhichIsA("AnimationController", true)
+		or model:FindFirstChild("HumanoidRootPart", true)
+	then
+		return true
+	end
+	for _, item in model:GetDescendants() do
+		if item:IsA("Motor6D") or item:IsA("Bone") or item:IsA("AnimationConstraint") then
+			return true
+		end
+	end
+	return false
+end
 
 local function isCharacterPart(part: BasePart): boolean
 	local node = part.Parent
 	while node and node ~= workspace do
-		if node:IsA("Model") and (node:FindFirstChildOfClass("Humanoid") or node:FindFirstChild("HumanoidRootPart")) then
+		if node:IsA("Model") and isRig(node) then
 			return true
 		end
 		node = node.Parent
