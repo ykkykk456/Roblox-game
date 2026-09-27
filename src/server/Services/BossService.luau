@@ -167,13 +167,23 @@ local function studioSequences(template: Model): { [string]: KeyframeSequence }
 		end
 	end
 	if not result.Idle then
+		-- ไม่มีท่าชื่อ Idle → ใช้ท่าที่ยาวที่สุด (เช่นท่าเต้น "Imported Animation Clip")
+		-- "Automatic Save" = ไฟล์เซฟอัตโนมัติของ Animation Editor มักว่าง/ไม่ใช่ท่าจริง → ใช้เป็นตัวเลือกสุดท้าย
+		local best, bestScore = nil, -math.huge
 		for _, sequence in found do
 			local lower = string.lower(sequence.Name)
 			if not string.find(lower, "walk", 1, true) and not string.find(lower, "slam", 1, true) then
-				result.Idle = sequence
-				break
+				local length = 0
+				for _, keyframe in sequence:GetKeyframes() do
+					length = math.max(length, (keyframe :: Keyframe).Time)
+				end
+				local score = length - (if string.find(lower, "automatic", 1, true) then 1e6 else 0)
+				if score > bestScore then
+					best, bestScore = sequence, score
+				end
 			end
 		end
+		result.Idle = best
 	end
 	return result
 end
@@ -198,6 +208,7 @@ local function loadTracks(model: Model, sequences: { [string]: KeyframeSequence 
 	local inStudio = RunService:IsStudio()
 	for _, name in ANIMATION_NAMES do
 		local id = animationIdFor(name, folder)
+		local publishedId = id
 		local source = "ID ที่ Publish"
 		local sequence = sequences[name]
 		if inStudio and sequence then
@@ -223,7 +234,31 @@ local function loadTracks(model: Model, sequences: { [string]: KeyframeSequence 
 				print(`[BossService] ท่า {name} ใช้{source}`)
 				-- LoadAnimation ไม่ error ถ้าโหลดไม่ขึ้น → เช็กความยาวท่าภายหลัง
 				task.delay(3, function()
-					if result.Length == 0 then
+					if result.Length == 0 and publishedId and id ~= publishedId and tracks[name] == result then
+						-- ท่าที่ Save ใน Studio เล่นไม่ขึ้น → เปลี่ยนไปใช้ ID ที่ Publish แทน
+						local fallback = Instance.new("Animation")
+						fallback.AnimationId = publishedId
+						local loaded, track = pcall(function()
+							return (animator :: Animator):LoadAnimation(fallback)
+						end)
+						if loaded then
+							track.Looped = result.Looped
+							track.Priority = result.Priority
+							tracks[name] = track
+							if result.IsPlaying then
+								result:Stop(0)
+								track:Play(0.2)
+							end
+							warn(`[BossService] ท่า {name} จาก Studio เล่นไม่ขึ้น → เปลี่ยนไปใช้ ID ที่ Publish ({publishedId})`)
+							task.delay(3, function()
+								if track.Length == 0 then
+									warn(
+										`[BossService] ท่า {name} โหลดไม่ขึ้นทั้งสองแบบ — ID {publishedId} อาจ Publish ด้วยบัญชี/Group ที่ไม่ใช่เจ้าของเกม`
+									)
+								end
+							end)
+						end
+					elseif result.Length == 0 then
 						warn(
 							`[BossService] ท่า {name} โหลดไม่ขึ้น ({id}) — มักเป็นเพราะ Publish ด้วยบัญชี/Group ที่ไม่ใช่เจ้าของเกม`
 								.. " หรือยังไม่ได้ Save ท่าใน Animation Editor"
@@ -336,7 +371,9 @@ end
 local function repairJoints(model: Model, root: BasePart): number
 	local repaired = 0
 	local connected = connectedToRoot(model, root)
-	for _, childName in R15_ORDER do
+	-- ริกแบบกระดูก (Bone จาก FBX): ท่าขยับที่กระดูก ไม่ใช่ที่ชิ้นส่วน → แค่เชื่อมทุกชิ้นให้ติดกัน ห้ามสร้าง Motor6D (ท่าจะซ้อนกันสองชั้น)
+	local usesBones = model:FindFirstChildWhichIsA("Bone", true) ~= nil
+	for _, childName in (if usesBones then {} else R15_ORDER) do
 		local child = model:FindFirstChild(childName, true)
 		local info = R15_JOINTS[childName]
 		local parent = model:FindFirstChild(info[1], true)
@@ -426,7 +463,8 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 	model.PrimaryPart = root
 	local repaired = repairJoints(model, root)
 	if repaired > 0 then
-		print(`[BossService] ซ่อมข้อต่อในตัวบอส {repaired} จุด (ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะร่วงทะลุแมพ)`)
+		local kind = if model:FindFirstChildWhichIsA("Bone", true) then "ริกกระดูก (Bone): เชื่อมชิ้นให้ติดกัน ท่าขยับที่กระดูก" else "ริก Motor6D"
+		print(`[BossService] ซ่อมข้อต่อในตัวบอส {repaired} จุด · {kind} (ชิ้นที่ไม่ได้ต่อกับ HumanoidRootPart จะร่วงทะลุแมพ)`)
 	end
 
 	local humanoid = model:FindFirstChildWhichIsA("Humanoid", true)
