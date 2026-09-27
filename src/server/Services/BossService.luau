@@ -469,6 +469,7 @@ local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequ
 			weld.Part0 = nearest
 			weld.Part1 = item
 			weld.Parent = item
+			item.Massless = true -- ชิ้นช่วยที่ติดมา (เช่น HumanoidRootPart อันที่สอง) ไม่ให้มีน้ำหนักถ่วงตัวบอส
 			repaired += 1
 		end
 	end
@@ -480,7 +481,7 @@ local function makeModel(): (Model?, BasePart?, BasePart?, { [string]: KeyframeS
 	local template = findTemplate()
 	if not template then
 		warn(
-			`[BossService] ไม่เจอโมเดลบอสชื่อ "{Combat.Boss.Model}" (ต้องมี Humanoid) ใน ServerStorage > Bosses หรือ Workspace — ใช้ลูกบอลแทน`
+			`[BossService] ไม่เจอโมเดลบอสชื่อ "{Combat.Boss.Model}" (ต้องมี HumanoidRootPart) ใน ServerStorage > Bosses หรือ Workspace — ใช้ลูกบอลแทน`
 		)
 		return nil, nil, nil, {}
 	end
