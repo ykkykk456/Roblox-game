@@ -47,7 +47,7 @@ return table.freeze({
 		-- สร้างโฟลเดอร์ Animations ให้อัตโนมัติด้วย tools/studio/setup_slambot.lua (วางใน Command Bar)
 		-- ทดสอบใน Studio: ท่าที่กด Save ใน Animation Editor (ชื่อมี Idle/Walk/Slam) ถูกใช้ก่อน ไม่ต้อง Publish · เกมจริงใช้เลขที่นี่
 		Animations = table.freeze({
-			Idle = 93277664050065, -- ท่ายืนเล่นวน · ตอนนี้ใช้ท่าเต้น (ท่าแรกที่ทำจาก Motion Capture 2026-09-26) ไปก่อน
+			Idle = 84868529983536, -- ท่ายืนเล่นวน · ตอนนี้ใช้ท่าเต้นจาก Motion Capture (Publish ใหม่ 2026-09-27 แทน 93277664050065)
 			Walk = 0, -- เดินหนักๆ เล่นวนตอนเปิดตัว
 			Slam = 0, -- ยกแขนทุบพื้น เล่นครั้งเดียว · ใส่ Marker ชื่อ "Hit" ตรงจังหวะมือกระแทกพื้นได้
 		}),
