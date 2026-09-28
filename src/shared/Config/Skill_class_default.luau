@@ -17,6 +17,33 @@
 --   ⚠️ เปลี่ยน Kind ใน Effect หรือ Fx เป็นชื่อใหม่ ต้องแก้โค้ด Server/Client ด้วย (แก้แค่ตัวเลขได้เลย)
 -- ใครใช้: Util/ClassMath · Server = Network/TurretClassHandler (ผ่าน ClassMath: TurretService, TurretClassService, TurretLook)
 --   Client = UI/ClassUI (แสดงผลเท่านั้น)
+--
+-- 📖 อ่านตามลำดับนี้ (ค่าในไฟล์นี้ถูก "ค้นหา" ยังไง):
+--   1) Server รู้ว่าผู้เล่นเป็นคลาสอะไร จาก Attribute TurretClass เช่น "Mage"
+--   2) เปิดตาราง Classes.Mage → ได้ Name/Color/Damage/FireRate/Fx และรายชื่อสาย Branches = { "Lightning", "Alchemist" }
+--   3) ถ้ามีสายแล้ว (TurretBranch เช่น "Lightning") → เปิด Branches.Lightning → ได้ค่าของสาย + Effect
+--   4) Util/ClassMath.stats(classId, branchId, level) เลือกชั้นที่ใช้: ยังไม่มีคลาส → Unchosen · มีแต่คลาส → ค่าคลาส
+--      · มีสาย → ค่าของสาย "แทน" ค่าคลาส (Damage/FireRate/Fx/Color + Effect)
+--      สายไฟ (Effect.Kind = "FireColor") → ClassMath.fireColor(level) เลือกสีจาก FireColors
+--   5) Server/TurretService ใช้สถิตินั้นยิงจริง แล้วส่ง Fx + Color ไปให้ Client วาด (Controllers/TurretController)
+--   6) UI/ClassUI อ่านไฟล์นี้แค่เพื่อแสดงชื่อ/คำอธิบาย/สี/แถบตัวคูณในการ์ด
+--
+-- 📖 วิธีเพิ่มคลาส/สายใหม่ (ทีละขั้น):
+--   ก) แก้แค่ Config (ไฟล์นี้) ก็พอ เมื่อ: ใช้ Fx ที่มีอยู่แล้ว และใช้ Effect.Kind ที่มีอยู่แล้ว (หรือไม่มี Effect)
+--      1. เพิ่มคลาส: ใส่ก้อนใหม่ใน Classes (ชื่อคีย์ภาษาอังกฤษ เช่น Healer) + ใส่ชื่อนั้นใน ClassOrder
+--      2. เพิ่มสาย: ใส่ก้อนใหม่ใน Branches (Class = คลาสเจ้าของ) + ใส่ชื่อสายใน Classes.<คลาส>.Branches
+--   ข) ต้องแก้โค้ดด้วย เมื่อ:
+--      • อยากให้ป้อมหน้าตาใหม่ → server/Services/TurretLook.luau (เพิ่มฟังก์ชัน buildXxx และเงื่อนไข branchId ==)
+--        ถ้าไม่แก้ คลาสใหม่จะไม่มีรูปทรงของตัวเอง [Inferred]
+--      • ตั้ง Fx เป็นชื่อใหม่ → client/Controllers/TurretController.luau (เขียน drawXxx + ใส่ใน DRAWERS)
+--        ถ้าไม่แก้ Client จะวาดเป็น Tracer ธรรมดา
+--      • ตั้ง Effect.Kind เป็นชื่อใหม่ → server/Services/TurretService.luau (จุดที่เช็ก effect.Kind ==)
+--        + server/Services/TurretClassService.luau (ตัวทำงานของความสามารถ) · ถ้าไม่แก้ ความสามารถจะไม่ทำงาน
+--   ⚠️ ชื่อคีย์ (Mage, Lightning, ...) ถูกบันทึกใน DataStore ของผู้เล่น → อย่าเปลี่ยนชื่อคีย์ที่มีอยู่แล้ว
+--      (เปลี่ยนได้แค่ Name ที่ผู้เล่นเห็น) ไม่งั้นผู้เล่นเก่าจะหลุดคลาส [Inferred]
+--
+-- 💡 table.freeze(ตาราง) = ล็อกตารางไม่ให้โค้ดไหนแก้ค่าระหว่างเกม (แก้ = error) → ค่าคงที่ปลอดภัย
+--    Color3.fromRGB(แดง, เขียว, น้ำเงิน) = สี แต่ละช่อง 0–255
 
 return table.freeze({
 	BranchLevel = 10, -- เลเวลป้อม (TurretLevel) ที่ปลดล็อกการเลือกสายธาตุ [Proposed]
@@ -28,6 +55,8 @@ return table.freeze({
 
 	-- ===== คลาสป้อม (เลือกได้ 1 คลาส) =====
 	-- Branches = สายธาตุที่คลาสนี้เลือกต่อได้ (ชื่อต้องตรงกับใน Branches ด้านล่าง)
+	-- ✏️ แก้ตรงนี้ถ้าอยากปรับความแรง/สี/ข้อความของคลาส (ตัวเลขแก้ได้เลย · ชื่อ Fx ต้องมีใน TurretController.DRAWERS)
+	-- ⚠️ เปลี่ยนตัวเลข Balance ควรผ่าน /roblox-economy
 	Classes = table.freeze({
 		Mage = table.freeze({
 			Name = "นักเวท",
@@ -69,6 +98,9 @@ return table.freeze({
 
 	-- ===== สายธาตุ (เลือกได้เมื่อป้อมถึง BranchLevel) =====
 	-- Class = คลาสที่เป็นเจ้าของสายนี้ · Damage/FireRate = ตัวคูณทับของคลาส
+	-- "ทับ" = ใช้ค่าของสายแทนค่าคลาส (ไม่คูณกัน) เช่น นักเวทที่เลือกสายฟ้า → Damage = 1.3 ไม่ใช่ 1.2 × 1.3
+	--   (ดู ClassMath.stats: มีสาย → คืนค่า Damage/FireRate/Fx ของสาย) [Verified: อ่านโค้ด ClassMath]
+	-- ✏️ แก้ตรงนี้ถ้าอยากปรับตัวเลขใน Effect (เวลา/รัศมี/ตัวคูณ) · ห้ามเปลี่ยนคำใน Kind ถ้าไม่แก้โค้ด Server ด้วย
 	Branches = table.freeze({
 		-- นักเวท
 		Lightning = table.freeze({
@@ -150,6 +182,8 @@ return table.freeze({
 	}),
 
 	-- สีบอลไฟของสายไฟตามเลเวลป้อม (ใช้แถวสุดท้ายที่ Level ≤ เลเวลป้อม) [Proposed]
+	-- ตัวอย่าง: ป้อม Lv.27 → แถว Level 20 (แดง) เพราะเป็นแถวสุดท้ายที่ ≤ 27
+	-- ✏️ แก้ตรงนี้ถ้าอยากเพิ่มขั้นสี: เพิ่มแถวใหม่ เรียง Level จากน้อยไปมาก (UI แบ่งช่องตามจำนวนแถวเอง)
 	FireColors = table.freeze({
 		table.freeze({ Level = 10, Name = "ส้ม", Color = Color3.fromRGB(255, 140, 40) }),
 		table.freeze({ Level = 20, Name = "แดง", Color = Color3.fromRGB(235, 50, 40) }),
