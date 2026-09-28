@@ -17,6 +17,27 @@
 --   • เปิดตัว: ท่า Walk เดินจากขอบแอ่งเข้ากลาง → ยืน Idle วน · ทุก SlamInterval วินาทีเล่นท่า Slam
 --   • จังหวะกระแทก: เอฟเฟกต์พื้นแตก + ยิงสัญญาณ BossService.Slammed (TurretService ลดเลือดป้อม)
 --   • เล่นอนิเมชันที่ Server ผ่าน Animator → ผู้เล่นทุกคนเห็นท่าเดียวกัน
+--
+-- ===== อยากปรับอะไร → ไปแก้ที่ไหน (ไม่ต้องแก้ไฟล์นี้) =====
+--   • บอสมาเมื่อไหร่ / อยู่นานแค่ไหน → Combat.Boss.FirstDelay / Interval / Duration (src/shared/Config/Combat.luau)
+--   • ลำดับบอส / เพิ่มบอสตัวใหม่ → Combat.Boss.Rotation (เพิ่มแถว + วางโมเดลชื่อตรงกันใน Studio)
+--   • เลขท่า Idle/Walk/Slam → Combat.Boss.Animations หรือ Animations ในแถว Rotation ของบอสตัวนั้น
+--   • บอสจมพื้น/ลอย → Combat.Boss.GroundOffset
+--   • ทุบบ่อย/แรงแค่ไหน → Combat.Boss.SlamInterval / SlamDamage / SlamHitDelay
+--   • เดินเปิดตัว → Combat.Boss.EntranceSeconds / EntranceFrom (ผังเดิม) · Map.Layout.EntranceFrom (ผังจาก Tag)
+--   • เงิน/ตั๋วที่แจกตอนจบ → Economy.Boss.BaseReward / DamageRewardPool · Economy.Gacha.* (src/shared/Config/Economy.luau)
+--
+-- คุยกับไฟล์ไหนบ้าง:
+--   • LayoutService — จุดบอส/จุดป้อม/ความสูงพื้นจากแมพ (Tag BossSpawn)
+--   • Wallet — ให้เงิน · SkillService — ให้ตั๋วกาชา
+--   • TurretService / TurretClassService — เรียก getTarget (จุดเล็ง), isActive, damage (นับดาเมจ) และฟัง Slammed (ลดเลือดป้อม)
+--   • MonsterService — เช็ก isActive (ตอนมีบอส มอนหยุดออก)
+--   • ฝั่ง Client อ่าน ReplicatedStorage.BossState + Player Attribute "BossDamage" ไปแสดง UI
+--
+-- ⚠️ ห้ามแก้ (ล็อก): ส่วนหาโมเดล/ข้อต่อ/วางตัว/อนิเมชัน (findTemplate, connectedToRoot, poseLinks, jointPivot,
+--   repairJoints, makeModel, studioSequences, loadTracks และการเดินใน runBehaviour)
+--   → อ่าน docs/boss-slambot-known-good.md ก่อนเสมอ · ห้าม CFrame.lookAt · ห้าม GetBoundingBox · ห้ามยึด HumanoidRootPart อันแรกที่เจอ
+--   → เพิ่มท่าใหม่ = ใส่เลข ID ใน Config อย่างเดียว ไม่ต้องแตะไฟล์นี้
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -34,9 +55,15 @@ local LayoutService = require(script.Parent.LayoutService)
 local SkillService = require(script.Parent.SkillService)
 local Wallet = require(script.Parent.Wallet)
 
+-- ===== ค่าคงที่ (ปรับได้ปลอดภัย) =====
+-- PUBLISH_INTERVAL = ทุกกี่วินาทีส่งดาเมจ/อันดับให้ Client และเช็กว่าหมดเวลาบอสหรือยัง
+--   ลดลง = ตัวเลขบน UI อัปเดตไวขึ้น (ส่งข้อมูลถี่ขึ้น) · เพิ่มขึ้น = ประหยัดกว่าแต่ตัวเลขกระตุก
+-- TOP_COUNT = จำนวนอันดับที่ส่งไปโชว์ในตาราง Top · เพิ่มได้ แต่ UI ฝั่ง Client อาจโชว์ไม่ครบ
 local PUBLISH_INTERVAL = 0.2
 local TOP_COUNT = 5
 
+-- ===== ชนิดข้อมูล =====
+-- Entry = ดาเมจของผู้เล่น 1 คน · Boss = ข้อมูลบอสตัวที่อยู่ในแมพตอนนี้
 type Entry = { userId: number, name: string, damage: number }
 type Boss = {
 	body: Instance, -- ของที่ลบทิ้งตอนบอสจบ (Model หรือลูกบอล)
@@ -48,12 +75,16 @@ type Boss = {
 	damageBy: { [number]: Entry }, -- key = UserId (คนที่ออกไปแล้วยังอยู่ในตาราง แต่ไม่ได้รางวัล)
 }
 
+-- ===== สถานะระหว่างเกม (ระบบใช้เอง ห้ามแก้) =====
+-- state = โฟลเดอร์ BossState · boss = บอสตัวปัจจุบัน (nil = ไม่มีบอส) · dirty = มีดาเมจใหม่รอส่งให้ Client
+-- slammedEvent = สัญญาณ "บอสทุบพื้น" ที่ส่งออกไปให้ TurretService
 local state: Folder
 local boss: Boss? = nil
 local dirty = false
 local nextBoss = 1 -- ลำดับใน Combat.Boss.Rotation ของบอสตัวถัดไป
 local slammedEvent = Instance.new("BindableEvent")
 
+-- ===== ตำแหน่งและพื้น (ผังจากแมพ Tag หรือผังแอ่งเดิม) =====
 -- มุมทั้ง 8 ของกล่อง (ใช้หาจุดต่ำสุดของชิ้นส่วน)
 local CORNERS = {}
 for _, x in { -1, 1 } do
@@ -119,6 +150,7 @@ local function entranceStart(): Vector3
 end
 
 -- ระยะที่คลื่นทุบพื้นต้องแผ่ไปถึง (ป้อมที่ไกลที่สุด)
+-- คืนระยะ (studs) ที่ใช้เป็นขนาดวงคลื่น: ไกลกว่าป้อมที่ไกลสุดเล็กน้อย
 local function slamReach(center: Vector3): number
 	if not LayoutService.hasLayout() then
 		return Map.Base.TurretDistance * 2
@@ -131,10 +163,13 @@ local function slamReach(center: Vector3): number
 	return farthest * 2 + 10
 end
 
+-- เวลาของ Server ที่ Client เห็นตรงกัน (ใช้กับ EndsAt / NextAt)
 local function now(): number
 	return workspace:GetServerTimeNow()
 end
 
+-- ===== บอสสำรอง + ป้ายชื่อ =====
+-- ติดป้าย "👹 BOSS" ลอยเหนือชิ้น parent สูง height studs (AlwaysOnTop = มองเห็นทะลุของบัง)
 local function addLabel(parent: BasePart, height: number)
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(200, 40)
@@ -170,6 +205,8 @@ local function makeBall(): (Instance, BasePart)
 	return part, part
 end
 
+-- ===== ท่าทาง (อนิเมชัน) — ล็อก: แก้ได้แค่เพิ่มเลขท่าใน Config =====
+-- ชื่อท่าที่ระบบรู้จัก · Slam เล่นครั้งเดียว ท่าอื่นเล่นวน (ดู loadTracks)
 local ANIMATION_NAMES = { "Idle", "Walk", "Slam" }
 
 -- หา ID ของท่า: เลขใน Config (ถ้าไม่ใช่ 0) ก่อน → ไม่งั้นใช้ Animation ชื่อเดียวกันในโฟลเดอร์ Animations ของโมเดล
@@ -243,6 +280,7 @@ end
 -- โหลดท่า · คืนตาราง ชื่อท่า → AnimationTrack
 -- ใน Studio: ใช้ท่าที่ Save ไว้ใน Animation Editor ก่อน (เห็นท่าล่าสุดทันที ไม่ต้อง Publish ไม่ติดเรื่องเจ้าของ)
 -- เกมจริง: ใช้เลข ID ที่ Publish แล้ว (Config หรือโฟลเดอร์ Animations ในโมเดล)
+-- คืน {} ถ้าไม่มีท่าเลย (บอสยืนนิ่ง) · ถ้าท่าโหลดไม่ขึ้น จะ warn บอกเหตุผลใน Output หลัง 3 วิ
 local function loadTracks(
 	model: Model,
 	sequences: { [string]: KeyframeSequence },
@@ -335,12 +373,14 @@ local function loadTracks(
 	return tracks
 end
 
+-- ===== หาโมเดลบอส — ล็อก ห้ามแก้ =====
 -- ชื่อแบบยืดหยุ่น: ตัวเล็กหมด ตัดช่องว่าง/ขีด/_ และคำว่า boss → "Slambot", "Slam-Bot", "boss_slambot" = "slambot"
 local function normalizeName(name: string): string
 	local simple = string.gsub(string.lower(name), "[^%w]", "")
 	return (string.gsub(simple, "boss", ""))
 end
 
+-- ใช่โมเดลบอสชื่อ name ไหม: เป็น Model + ชื่อตรงแบบยืดหยุ่น + มี HumanoidRootPart อยู่ข้างใน (ชั้นไหนก็ได้)
 local function isBossModel(item: Instance, name: string): boolean
 	return item:IsA("Model")
 		and normalizeName(item.Name) == normalizeName(name)
@@ -365,6 +405,7 @@ local function findTemplate(name: string): Model?
 	return nil
 end
 
+-- ===== ข้อต่อ/ริก — ล็อก ห้ามแก้ (อ่าน docs/boss-slambot-known-good.md) =====
 -- ข้อต่อมาตรฐาน R15: ชิ้นลูก → (ชิ้นแม่, ชื่อข้อต่อ)
 local R15_JOINTS = {
 	LowerTorso = { "HumanoidRootPart", "Root" },
@@ -391,6 +432,7 @@ local R15_ORDER = {
 }
 
 -- ชิ้นที่ต่อถึง root ผ่านข้อต่อ (Motor6D / Weld / WeldConstraint) — คำนวณเองไม่ต้องพึ่งฟิสิกส์
+-- คืนตาราง { [ชิ้น] = true } ของทุกชิ้นที่ต่อถึง root (รวม root เอง) · ใช้ทั้งซ่อมข้อต่อและเลือกตัวรากจริง
 local function connectedToRoot(model: Model, root: BasePart): { [BasePart]: boolean }
 	local links: { [BasePart]: { BasePart } } = {}
 	local function link(a: any, b: any)
@@ -432,6 +474,7 @@ end
 -- ชิ้น R15 → สร้าง Motor6D ตามมาตรฐาน (ท่าจาก Animation Editor ขยับได้) · ชิ้นอื่น → เชื่อมติดชิ้นที่ใกล้ที่สุด
 -- คู่ข้อต่อ (ชิ้นแม่, ชิ้นลูก) จากโครงของท่า: Pose ซ้อนกันตามข้อต่อที่ท่าคาดไว้
 -- ท่าเล่นได้ก็ต่อเมื่อข้อต่อในตัวต่อ "แม่ → ลูก" ตรงกับท่า `[Inferred]` (ท่านี้ขาต่อกับตัวราก ไม่ใช่ LowerTorso แบบ R15)
+-- poseLinks: อ่านท่าเฟรมแรก คืนรายการคู่ { ชื่อชิ้นแม่, ชื่อชิ้นลูก } · ไม่มีท่า = ตารางว่าง
 local function poseLinks(sequence: KeyframeSequence?, rootName: string): { { string } }
 	local links = {}
 	if not sequence then
@@ -478,6 +521,7 @@ local function jointPivot(model: Model, parent: BasePart, child: BasePart, root:
 end
 
 -- animate = false (บอสไม่มีท่า เช่นกระต่าย) → ไม่สร้าง Motor6D แค่เชื่อมชิ้นที่หลุดให้ติดกัน
+-- repairJoints: ซ่อมข้อต่อตามคำอธิบายเหนือ poseLinks · คืนจำนวนจุดที่ซ่อม (ใช้พิมพ์ลง Output)
 local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequence?, animate: boolean): number
 	local repaired = 0
 	local connected = connectedToRoot(model, root)
@@ -533,7 +577,9 @@ local function repairJoints(model: Model, root: BasePart, sequence: KeyframeSequ
 	return repaired
 end
 
+-- ===== สร้างตัวบอสและวางตัว — ล็อก ห้ามแก้ =====
 -- บอสจริงจากโมเดลต้นแบบ (findTemplate) · คืน nil ถ้าไม่มีโมเดล
+-- คืน (โมเดล, ชิ้นที่ป้อมเล็ง, ตัวราก, ท่าที่ Save ใน Studio) · เรียกจาก spawnBoss
 local function makeModel(
 	name: string,
 	animate: boolean,
@@ -600,6 +646,7 @@ local function makeModel(
 		print(`[BossService] เจอ HumanoidRootPart {#candidates} อัน → ใช้ {root:GetFullName()} (ต่อกับ {bestLinks - 1} ชิ้น) เป็นตัวราก`)
 	end
 	model.PrimaryPart = root
+-- ตั้งแต่ตรงนี้ถึง print "ชิ้นส่วน … ข้อต่อเดิม" = พิมพ์ข้อมูลริกลง Output ไว้ดูตอนแก้ปัญหา (ไม่ได้เปลี่ยนตัวบอส)
 	local counts = { Motor6D = 0, AnimationConstraint = 0, Bone = 0 }
 	for _, item in model:GetDescendants() do
 		if counts[item.ClassName] then
@@ -701,6 +748,7 @@ local function makeModel(
 	)
 	local height = highest - lowest
 
+-- ป้อมเล็งที่ UpperTorso (กลางตัว) ถ้ามี · ไม่มี → เล็งตัวราก
 	local aim = model:FindFirstChild("UpperTorso", true)
 	local target = if aim and aim:IsA("BasePart") then aim else root
 	addLabel(target, height * 0.6)
@@ -708,6 +756,7 @@ local function makeModel(
 	return model, target, root, sequences
 end
 
+-- ===== ท่าทุบพื้น (Slam) =====
 -- เอฟเฟกต์ทุบพื้น: วงคลื่นกระแทก + ก้อนบล็อกกระเด็น (ลบเองอัตโนมัติ)
 local function slamEffect(center: Vector3)
 	local y = groundUnder(center, if boss then { boss.body } else nil)
@@ -749,6 +798,7 @@ local function slamEffect(center: Vector3)
 	end
 end
 
+-- onHit ทำงานครั้งเดียวต่อการทุบ (ตัวแปร hit กันซ้ำ เพราะทั้ง Marker และตัวจับเวลาอาจเรียกทั้งคู่)
 -- จังหวะกระแทกของท่า Slam ครั้งเดียว (ลบเอฟเฟกต์เองถ้าบอสจบกลางท่า)
 local function slam(current: Boss)
 	local track = current.tracks.Slam
@@ -772,6 +822,8 @@ local function slam(current: Boss)
 	task.delay(Combat.Boss.SlamHitDelay, onHit)
 end
 
+-- ===== พฤติกรรมบอส (เดินเปิดตัว → ยืน → ทุบวน) =====
+-- เรียกผ่าน task.spawn ตอนบอสเกิด · ทุกลูปเช็ก boss == current → บอสจบเมื่อไหร่ ลูปหยุดเอง
 -- เปิดตัว (เดินเข้ากลาง) → Idle → วนทุบทุก SlamInterval จนบอสจบ
 local function runBehaviour(current: Boss)
 	local tracks = current.tracks
@@ -794,6 +846,8 @@ local function runBehaviour(current: Boss)
 		if tracks.Walk then
 			tracks.Walk:Play()
 		end
+		-- การเดินเปิดตัว (ล็อก): ต้องใช้ CFrame.new(ตำแหน่ง) * rest เสมอ ห้ามเปลี่ยนเป็น CFrame.lookAt → บอสนอนราบ
+		-- lift = ระยะจุดหมุนถึงเท้าที่วัดไว้ใน makeModel · t = ความคืบหน้า 0 → 1 ตลอด EntranceSeconds วินาที
 		local model = current.body :: Model
 		local rest = model:GetPivot().Rotation
 		local lift = model:GetAttribute("RootToBottom") or 0
@@ -829,6 +883,8 @@ local function runBehaviour(current: Boss)
 	end
 end
 
+-- ===== อันดับดาเมจ + ส่งสถานะให้ Client =====
+-- เรียงผู้เล่นตามดาเมจ มาก → น้อย (คืนรายการ Entry)
 local function sortedEntries(current: Boss): { Entry }
 	local list = {}
 	for _, entry in current.damageBy do
@@ -840,6 +896,7 @@ local function sortedEntries(current: Boss): { Entry }
 	return list
 end
 
+-- ส่งดาเมจรวม, Top (JSON) และดาเมจของแต่ละคน (Player Attribute BossDamage) ให้ Client · เรียกจาก Start เมื่อ dirty
 local function publish(current: Boss)
 	state:SetAttribute("TotalDamage", math.floor(current.total))
 	local top = {}
@@ -858,6 +915,8 @@ local function publish(current: Boss)
 	end
 end
 
+-- ===== เกิดบอส / จบรอบ =====
+-- เกิดบอสตัวถัดไปใน Rotation แล้วเริ่มพฤติกรรม + รีเซ็ตค่าใน BossState · เรียกจาก Start เมื่อถึงเวลา NextAt
 local function spawnBoss()
 	local body: Instance, part: BasePart
 	local tracks = {}
@@ -866,6 +925,7 @@ local function spawnBoss()
 	local model, target, root, sequences = nil, nil, nil, {}
 	for _ = 1, #rotation do
 		local entry = rotation[nextBoss]
+		-- เลื่อนลำดับไปตัวถัดไป วนกลับตัวแรกเมื่อสุดรายการ
 		nextBoss = nextBoss % #rotation + 1
 		-- ท่าของบอสตัวนี้: ใส่ไว้ในแถว Rotation ก็ได้ · ไม่ใส่ = ใช้ Combat.Boss.Animations (ท่าโรบอท)
 		local animations = entry.Animations or Combat.Boss.Animations
@@ -916,6 +976,7 @@ local function finish(current: Boss)
 	for _, entry in ranking do
 		total += entry.damage
 	end
+	-- เงินที่ได้ = BaseReward + DamageRewardPool × (ดาเมจตัวเอง ÷ ดาเมจรวม) · คนที่ออกจากเกมไปแล้วไม่ได้รางวัล
 	for rank, entry in ranking do
 		local player = Players:GetPlayerByUserId(entry.userId)
 		if player and total > 0 and entry.damage > 0 then
@@ -937,6 +998,7 @@ local function finish(current: Boss)
 	state:SetAttribute("NextAt", now() + Combat.Boss.Interval)
 end
 
+-- ===== API ให้ไฟล์อื่นเรียก =====
 local BossService = {}
 
 -- ยิงเมื่อบอสทุบพื้นถึงจังหวะกระแทก: (ดาเมจต่อป้อม)
@@ -955,6 +1017,8 @@ function BossService.getTarget(): Vector3?
 	return nil
 end
 
+-- นับดาเมจที่ player ทำใส่บอส · เรียกจาก TurretClassService.damageBoss (ตอนป้อมยิงโดน)
+-- amount ~= amount = เช็กค่า NaN (ตัวเลขเสีย) ไม่ให้เข้ามาปนยอดรวม
 function BossService.damage(player: Player, amount: number)
 	local current = boss
 	if not current or amount <= 0 or amount ~= amount then
@@ -972,6 +1036,7 @@ function BossService.damage(player: Player, amount: number)
 	dirty = true
 end
 
+-- เรียกครั้งเดียวตอนเซิร์ฟเริ่ม: ย้ายโมเดลบอสไปเก็บ + สร้างโฟลเดอร์ BossState ให้ Client อ่าน
 function BossService.Init()
 	-- โมเดลบอสที่วางไว้ในแมพ → ย้ายเก็บ ServerStorage > Bosses ให้โผล่เฉพาะตอนบอสมา (ไม่ร่วงทะลุแมพก่อนเวลา)
 	for _, entry in Combat.Boss.Rotation do
@@ -997,6 +1062,8 @@ function BossService.Init()
 	state.Parent = ReplicatedStorage
 end
 
+-- ลูปหลักทุก PUBLISH_INTERVAL วิ: ครบเวลา → finish · มีดาเมจใหม่ → publish
+-- ไม่มีบอสและถึง NextAt → spawnBoss (ถ้ายังไม่มีผู้เล่นในเซิร์ฟ → เลื่อนไปอีก 5 วิ)
 function BossService.Start()
 	while true do
 		task.wait(PUBLISH_INTERVAL)

@@ -5,6 +5,19 @@
 -- ระหว่างตีบอส: หยุดปล่อยมอนทุกเลน (ตัวที่เดินอยู่แล้วเดินต่อ) · บอสจบ → wave เดิมปล่อยต่อจากที่ค้างไว้ (ยืนยัน 2026-09-26)
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
 -- หน้าตา: สัตว์บล็อกทรงกล่อง (ตัว หู ตา ปาก) สไตล์ voxel · [Proposed] ยังไม่มีอนิเมชันนอกจากเด้งตอนเดิน
+--
+-- ===== อยากปรับอะไร → ไปแก้ที่ไหน (ไม่ต้องแก้ไฟล์นี้) =====
+--   • จำนวนมอนต่อ wave / ระยะห่างการเกิด / เวลาพักระหว่าง wave → Combat.Monster.WaveSize / SpawnGap / WaveDelay
+--   • ชนิดมอน (HP, ความเร็ว, ขนาด, โอกาสเกิด, สี) → Combat.Monster.Types + TypeOrder (src/shared/Config/Combat.luau)
+--   • ให้มอนออกทุกเลนตอนเทส → Combat.Monster.AllLanesForTest (เกมจริงตั้ง false)
+--   • เงินต่อมอน → Economy.MonsterReward / MonsterRewardMultiplier (src/shared/Config/Economy.luau)
+--   • ความกว้าง/ระยะเลน → Map.Lane (ผังเดิม) · Map.Layout.LaneStart / LaneStopBefore (ผังจาก Tag) ใน src/shared/Config/Map.luau
+--   • หน้าตามอน (หู ตา ปาก) → ฟังก์ชัน makeBody ในไฟล์นี้ (แก้ได้ปลอดภัย ไม่มีผลกับเกมเพลย์)
+--
+-- คุยกับไฟล์ไหนบ้าง:
+--   • BaseService — ช่องไหนมีเจ้าของ (ปล่อยมอนเลนนั้น) · BossService — มีบอสอยู่ไหม (พักปล่อยมอน)
+--   • LayoutService — จุดบอส/แท่นป้อม/พื้นจากแมพ · Wallet — แจกเงินตอนมอนตาย
+--   • TurretService / TurretClassService — เรียก getAlive, positionOf, damage เพื่อเล็งและทำดาเมจ
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -18,6 +31,8 @@ local BossService = require(script.Parent.BossService)
 local LayoutService = require(script.Parent.LayoutService)
 local Wallet = require(script.Parent.Wallet)
 
+-- ===== ชนิดข้อมูล =====
+-- Monster = มอน 1 ตัว (hp เลือดตอนนี้ · damageBy = ใครตีไปเท่าไร ใช้แบ่งเงิน)
 export type Monster = {
 	model: Model,
 	part: BasePart, -- ตัวหลัก (ชิ้นอื่นเชื่อมกับชิ้นนี้)
@@ -39,6 +54,7 @@ export type Monster = {
 	damageBy: { [Player]: number },
 }
 
+-- Wave = สถานะการปล่อยมอนของ 1 เลน
 type Wave = {
 	index: number, -- wave ที่เท่าไรของเลนนี้
 	toSpawn: number, -- ยังเหลือปล่อยอีกกี่ตัว
@@ -46,11 +62,15 @@ type Wave = {
 	restUntil: number?, -- ตั้งค่าเมื่อ wave จบ (ไม่มีมอนเหลือ)
 }
 
+-- ===== สถานะระหว่างเกม (ระบบใช้เอง) =====
+-- monsters = มอนทุกตัวในแมพ · waves[ช่อง] = wave ของเลนนั้น · folder = Workspace.Monsters · rng = ตัวสุ่ม
 local monsters: { Monster } = {}
 local waves: { [number]: Wave } = {}
 local folder: Folder
 local rng = Random.new()
 
+-- ===== สร้างมอน =====
+-- สุ่มชนิดมอนตาม Weight (Weight 3 กับ 1 = ตัวแรกออกบ่อยกว่า 3 เท่า) · คืนชื่อชนิด เช่น "Small"
 local function pickKind(): string
 	local kinds = Combat.Monster.Types
 	local total = 0
@@ -67,6 +87,7 @@ local function pickKind(): string
 	return Combat.Monster.TypeOrder[1]
 end
 
+-- สร้างชิ้นกล่อง 1 ชิ้นของตัวมอน (ชน/แตะ/ยิง ray ไม่โดน ไม่มีเงา = เบาเครื่อง)
 local function voxel(parent: Instance, name: string, size: Vector3, color: Color3): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -92,6 +113,7 @@ local function makeBody(size: number, color: Color3): (Model, BasePart, Frame)
 	body.Anchored = true
 	model.PrimaryPart = body
 
+	-- ติดชิ้นประดับกับตัวหลัก: ขนาด/ตำแหน่งเป็นสัดส่วนของ size (มอนตัวใหญ่ → หูตาใหญ่ตาม)
 	local function attach(name: string, partSize: Vector3, offset: Vector3, partColor: Color3)
 		local piece = voxel(model, name, partSize * size, partColor)
 		piece.Anchored = false
@@ -111,6 +133,7 @@ local function makeBody(size: number, color: Color3): (Model, BasePart, Frame)
 	attach("EyeR", Vector3.new(0.14, 0.18, 0.04), Vector3.new(0.2, 0.08, -0.51), dark)
 	attach("Mouth", Vector3.new(0.5, 0.14, 0.04), Vector3.new(0, -0.2, -0.51), Color3.fromRGB(245, 240, 232))
 
+	-- หลอดเลือดลอยเหนือหัว (bar = แถบสีเขียว หดตามเลือด) · ไกลเกิน 120 studs ไม่แสดง
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(40, 6)
 	gui.StudsOffset = Vector3.new(0, size, 0)
@@ -132,6 +155,7 @@ local function makeBody(size: number, color: Color3): (Model, BasePart, Frame)
 	return model, body, bar
 end
 
+-- ===== ตำแหน่ง/พื้น =====
 -- ความสูงผิวพื้นที่รัศมี r (แอ่งกลางแมพลึกเป็นขั้น)
 local function groundAt(r: number): number
 	local depth = 0
@@ -143,6 +167,7 @@ local function groundAt(r: number): number
 	return Map.GroundY - depth
 end
 
+-- ปล่อยมอน 1 ตัวที่ต้นเลนของช่อง slot แล้วเพิ่มเข้า monsters · เรียกจาก stepWave
 local function spawnMonster(slot: number)
 	local kind = pickKind()
 	local def = Combat.Monster.Types[kind]
@@ -196,6 +221,8 @@ local function spawnMonster(slot: number)
 	table.insert(monsters, monster)
 end
 
+-- ===== รางวัล / นับมอน =====
+-- มอนตาย: แบ่งเงิน (MonsterReward × ตัวคูณชนิด) ให้ทุกคนที่ตีตามสัดส่วนดาเมจ
 local function reward(monster: Monster)
 	local total = 0
 	for _, amount in monster.damageBy do
@@ -210,6 +237,7 @@ local function reward(monster: Monster)
 	end
 end
 
+-- นับมอนที่ยังมีชีวิตในเลน slot (ใช้เช็กว่า wave จบหรือยัง)
 local function aliveIn(slot: number): number
 	local count = 0
 	for _, monster in monsters do
@@ -220,6 +248,7 @@ local function aliveIn(slot: number): number
 	return count
 end
 
+-- ===== API ให้ไฟล์อื่นเรียก =====
 local MonsterService = {}
 
 -- มอนที่ยังมีชีวิต (อ่านอย่างเดียว)
@@ -227,6 +256,7 @@ function MonsterService.getAlive(): { Monster }
 	return monsters
 end
 
+-- ตำแหน่งมอนตอนเวลา now: คำนวณจากเวลาที่เดินมาแล้ว (ไม่ต้องขยับโมเดลจริงก็รู้ตำแหน่ง) · t = 0 ต้นเลน → 1 ปลายเลน
 function MonsterService.positionOf(monster: Monster, now: number): Vector3
 	local t = if monster.legTime > 0 then math.clamp((now - monster.legStart) / monster.legTime, 0, 1) else 1
 	local flat = monster.from:Lerp(monster.to, t)
@@ -236,6 +266,7 @@ function MonsterService.positionOf(monster: Monster, now: number): Vector3
 	return Vector3.new(flat.X, ground + monster.lift, flat.Z)
 end
 
+-- ทำดาเมจ amount ใส่มอน (จด player ไว้แบ่งเงิน) · เลือดหมด = ลบโมเดล + แจกเงิน · เรียกจาก TurretService/TurretClassService
 function MonsterService.damage(monster: Monster, player: Player, amount: number)
 	if not monster.alive then
 		return
@@ -251,6 +282,8 @@ function MonsterService.damage(monster: Monster, player: Player, amount: number)
 	end
 end
 
+-- ===== ลูปเดิน + ลูปปล่อย wave =====
+-- Init: สร้างโฟลเดอร์ Monsters + ขยับมอนทุกเฟรม (Heartbeat) · วนจากท้ายไปหน้าเพื่อลบออกจากรายการได้ระหว่างวน
 function MonsterService.Init()
 	folder = Instance.new("Folder")
 	folder.Name = "Monsters"
@@ -270,6 +303,7 @@ function MonsterService.Init()
 			else
 				local position = MonsterService.positionOf(monster, now)
 				local direction = monster.to - monster.from
+				-- hop = เด้งขึ้นลงตอนเดิน (เร็วตามความเร็วมอน สูงสุด 0.4 studs) เฉพาะภาพ ไม่มีผลกับการเล็ง
 				local hop = math.abs(math.sin(now * monster.speed * 1.5)) * 0.4
 				local lifted = position + Vector3.new(0, hop, 0)
 				monster.part.CFrame = CFrame.lookAt(lifted, lifted + direction)
@@ -279,6 +313,7 @@ function MonsterService.Init()
 end
 
 -- คุมจังหวะ wave ของเลนเดียว
+-- ไม่มี wave → เริ่ม wave 1 · ยังเหลือต้องปล่อย → ปล่อยทีละตัวทุก SpawnGap · ปล่อยครบและตายหมด → พัก WaveDelay แล้วเริ่ม wave ถัดไป
 local function stepWave(slot: number, now: number)
 	local config = Combat.Monster
 	local wave = waves[slot]
@@ -301,6 +336,7 @@ local function stepWave(slot: number, now: number)
 	end
 end
 
+-- ลูปหลักทุก 0.1 วิ: หาเลนที่ต้องปล่อย → ถ้ามีบอสพักทุกเลน → ไม่งั้นเดิน wave ของแต่ละเลน
 function MonsterService.Start()
 	while true do
 		task.wait(0.1)

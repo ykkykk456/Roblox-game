@@ -9,14 +9,25 @@
 --   Fx       = ชนิดเอฟเฟกต์ที่ Client วาด (ดู TurretFx ใน Remotes.luau)
 --   Color    = สีหลักของป้อม/กระสุน
 --   Effect   = ความสามารถพิเศษของสายธาตุ (ใส่เฉพาะที่ใช้ · ดูรายละเอียดในแต่ละสาย)
+--   Name/Description = ข้อความที่ผู้เล่นเห็นในหน้าเลือกคลาส (แก้ได้อิสระ)
+--   ตัวอย่าง: Damage = 1.2 → แรงกว่าป้อมพื้นฐาน 20% · FireRate = 0.5 → ยิงช้าลงครึ่งหนึ่ง
+--
+-- อยากปรับ: ความแรงคลาส → Classes.<คลาส> · ความแรงสาย/ความสามารถ → Branches.<สาย>
+--   เลเวลที่เลือกสายได้ → BranchLevel · สีบอลไฟตามเลเวล → FireColors
+--   ⚠️ เปลี่ยน Kind ใน Effect หรือ Fx เป็นชื่อใหม่ ต้องแก้โค้ด Server/Client ด้วย (แก้แค่ตัวเลขได้เลย)
+-- ใครใช้: Util/ClassMath · Server = Network/TurretClassHandler (ผ่าน ClassMath: TurretService, TurretClassService, TurretLook)
+--   Client = UI/ClassUI (แสดงผลเท่านั้น)
 
 return table.freeze({
 	BranchLevel = 10, -- เลเวลป้อม (TurretLevel) ที่ปลดล็อกการเลือกสายธาตุ [Proposed]
+	-- ลำดับคลาสที่แสดงในหน้าเลือกคลาส (ต้องตรงกับชื่อใน Classes)
 	ClassOrder = table.freeze({ "Mage", "Archer", "Assassin", "Cannon" }),
 
 	-- ป้อมที่ยังไม่เลือกคลาส (ผู้เล่นใหม่/ข้อมูลเก่า) ยิงแบบนี้จนกว่าจะเลือก
 	Unchosen = table.freeze({ Damage = 1, FireRate = 1, Fx = "Tracer", Color = Color3.fromRGB(255, 220, 90) }),
 
+	-- ===== คลาสป้อม (เลือกได้ 1 คลาส) =====
+	-- Branches = สายธาตุที่คลาสนี้เลือกต่อได้ (ชื่อต้องตรงกับใน Branches ด้านล่าง)
 	Classes = table.freeze({
 		Mage = table.freeze({
 			Name = "นักเวท",
@@ -56,6 +67,8 @@ return table.freeze({
 		}),
 	}),
 
+	-- ===== สายธาตุ (เลือกได้เมื่อป้อมถึง BranchLevel) =====
+	-- Class = คลาสที่เป็นเจ้าของสายนี้ · Damage/FireRate = ตัวคูณทับของคลาส
 	Branches = table.freeze({
 		-- นักเวท
 		Lightning = table.freeze({

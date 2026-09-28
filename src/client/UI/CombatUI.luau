@@ -1,6 +1,14 @@
 -- HUD การต่อสู้: แถบบอส (บนกลาง) · ตารางดาเมจ (ซ้าย ใต้เหรียญ) · แผงป้อม (ล่างกลาง) (เจ้าของ: Client_UI_Scripter)
 -- ทุกค่าแสดงจาก Attribute ที่ Server ตั้ง (ReplicatedStorage.BossState + Player Attributes) — Client ไม่เป็นเจ้าของค่า
 -- ปุ่มบนจอใช้ได้ทั้งสัมผัส/เมาส์/Gamepad · ปุ่มลัดอยู่ใน TurretController
+--
+-- อยากปรับ:
+--   ย้าย/ขยายแถบบอส → หมวด "แถบบอส" ใน CombatUI.Init (bossFrame.Position / Size)
+--   ย้ายตารางดาเมจ → หมวด "ตารางดาเมจ" (board.Position / Size) · จำนวนแถว = for index = 1, 5
+--   ย้ายแผงป้อม/ปุ่มอัป/ปุ่มสกิล → หมวด "แผงป้อม" (panel.Position / Size)
+--   ข้อความที่แสดง → renderBoss / renderBoard / renderTurret · สี → UI/Theme.luau
+--   ปุ่มลัด U/Y (อัป) และ Q/X (สกิล) ที่โชว์บนปุ่ม → keyHint(...) ใน renderTurret (ปุ่มจริงผูกใน TurretController)
+-- ⚠️ ตัวเลขดาเมจ/ราคาบนจอเป็นแค่การแสดงผล · ดาเมจจริงและการหักเงินทำที่ Server เท่านั้น
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -18,9 +26,11 @@ local TurretController = require(script.Parent.Parent.Controllers.TurretControll
 
 local player = Players.LocalPlayer
 
+-- วินาทีต่อรอบอัปเดตนาฬิกานับถอยหลัง (ลด = ลื่นขึ้นแต่ทำงานถี่ขึ้น)
 local REFRESH_INTERVAL = 0.2
 local RESULT_SHOW_TIME = 8 -- วินาทีที่แสดงผลรอบล่าสุดหลังบอสจบ
 
+-- ชิ้น UI ที่ฟังก์ชัน render ต้องอัปเดต (สร้างใน Init) · bossState = ข้อมูลบอสจาก Server
 local bossState: Instance
 local bossTitle: TextLabel
 local bossFill: Frame
@@ -34,6 +44,8 @@ local upgradeButton: TextButton
 local skillButton: TextButton
 local lastResultAt = 0
 
+-- ===== ตัวช่วยจัดรูปข้อความ =====
+-- ย่อตัวเลขยาว: 1500 → "1.5K" · 2000000 → "2.0M"
 local function shortNumber(value: number): string
 	if value >= 1e6 then
 		return string.format("%.1fM", value / 1e6)
@@ -43,11 +55,13 @@ local function shortNumber(value: number): string
 	return tostring(math.floor(value))
 end
 
+-- แปลงวินาทีเป็นนาฬิกา "นาที:วินาที" เช่น 125 → "2:05"
 local function clock(seconds: number): string
 	local total = math.max(0, math.ceil(seconds))
 	return string.format("%d:%02d", total // 60, total % 60)
 end
 
+-- ข้อความบอกปุ่มลัดตามอุปกรณ์ เช่น " [U]" (คีย์บอร์ด) / " [Y]" (Gamepad) / "" (มือถือ)
 local function keyHint(keyboard: string, gamepad: string): string
 	if UserInputService.GamepadEnabled then
 		return ` [{gamepad}]`
@@ -57,11 +71,14 @@ local function keyHint(keyboard: string, gamepad: string): string
 	return ""
 end
 
+-- อ่าน Attribute ที่เป็นตัวเลข · ไม่มี/ไม่ใช่ตัวเลข → fallback
 local function numberAttr(instance: Instance, name: string, fallback: number): number
 	local value = instance:GetAttribute(name)
 	return if type(value) == "number" then value else fallback
 end
 
+-- ===== วาดข้อมูลบนจอ =====
+-- แถบบอส: บอสอยู่ = เวลาที่เหลือ + ดาเมจรวม · ไม่อยู่ = เตือนก่อนมา / ผลรอบล่าสุด / นับถอยหลังบอสถัดไป
 local function renderBoss()
 	local serverNow = workspace:GetServerTimeNow()
 	if bossState:GetAttribute("Active") == true then
@@ -86,6 +103,7 @@ local function renderBoss()
 	end
 end
 
+-- ตารางดาเมจ: อันดับ 1–5 จาก Attribute "Top" (JSON) + ดาเมจของเราเอง · ไม่มีข้อมูล = ซ่อนตาราง
 local function renderBoard()
 	local ok, top = pcall(HttpService.JSONDecode, HttpService, bossState:GetAttribute("Top") or "[]")
 	if not ok or type(top) ~= "table" then
@@ -104,6 +122,7 @@ local function renderBoard()
 	boardSelf.Text = `คุณ: {shortNumber(numberAttr(player, "BossDamage", 0))}`
 end
 
+-- แผงป้อม: เลเวล/ดาเมจ/อัตรายิง · ปุ่มอัป (ราคา · จาง = เงินไม่พอ) · ปุ่มสกิล (ทำงาน/รอคูลดาวน์/พร้อม)
 local function renderTurret()
 	local level = TurretMath.clampLevel(player:GetAttribute("TurretLevel"))
 	local boost = numberAttr(player, "FriendBoost", 0)
@@ -145,10 +164,13 @@ end
 
 local CombatUI = {}
 
+-- สร้าง HUD การต่อสู้ทั้งหมดตอนเริ่มเกม
 function CombatUI.Init()
 	local gui = Components.screen("CombatGui", 4)
 
-	-- แถบบอส (บนกลาง)
+	-- ===== แถบบอส (บนกลาง) =====
+	-- ตำแหน่ง = bossFrame.Position (ห่างขอบบน 12) · กว้าง 50% ของจอ สูง 64 · กว้างสุด 460 (UISizeConstraint)
+	-- ข้างในมี: bossTitle (ข้อความบน) · bossBarBack (พื้นแถบ) · bossFill (แถบสีแดงหดตามเวลา) · bossHpText (ตัวเลขบนแถบ)
 	local bossFrame = Instance.new("Frame")
 	bossFrame.Name = "Boss"
 	bossFrame.AnchorPoint = Vector2.new(0.5, 0)
@@ -189,7 +211,8 @@ function CombatUI.Init()
 		alignX = Enum.TextXAlignment.Center,
 	})
 
-	-- ตารางดาเมจ (ซ้าย ใต้เหรียญ — ขวากลางเป็นเมนู และขวาล่างเป็นปุ่มกระโดดบนมือถือ)
+	-- ===== ตารางดาเมจ (ซ้าย ใต้เหรียญ — ขวากลางเป็นเมนู และขวาล่างเป็นปุ่มกระโดดบนมือถือ) =====
+	-- ตำแหน่ง = board.Position (ใต้ป้ายเหรียญของ HudUI) · กว้าง 210 · สูงขยายตามจำนวนแถว
 	board = Instance.new("Frame")
 	board.Name = "DamageBoard"
 	board.Position = UDim2.fromOffset(12, 12 + Theme.ButtonHeight + 8)
@@ -218,7 +241,9 @@ function CombatUI.Init()
 		order = 10,
 	})
 
-	-- แผงป้อม (ล่างกลาง เหนือแถวคำแนะนำปุ่มลัดของ HudUI)
+	-- ===== แผงป้อม (ล่างกลาง เหนือแถวคำแนะนำปุ่มลัดของ HudUI) =====
+	-- ตำแหน่ง = panel.Position (ห่างขอบล่าง 48) · กว้าง 90% ของจอ แต่ไม่เกิน 420 (panelLimit)
+	-- แถวบน = turretInfo (ข้อมูลป้อม) · แถวล่าง = ปุ่มอัป (ซ้าย สีเขียว) + ปุ่มสกิล (ขวา) กว้างครึ่งละปุ่ม
 	local panel = Instance.new("Frame")
 	panel.Name = "Turret"
 	panel.AnchorPoint = Vector2.new(0.5, 1)
@@ -262,6 +287,7 @@ function CombatUI.Init()
 	)
 end
 
+-- เริ่มทำงาน: รอข้อมูลบอสจาก Server · ฟัง Attribute ที่เปลี่ยน · วนอัปเดตนาฬิกาทุก REFRESH_INTERVAL วินาที
 function CombatUI.Start()
 	bossState = ReplicatedStorage:WaitForChild("BossState")
 

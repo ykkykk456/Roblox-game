@@ -2,6 +2,7 @@
 -- Client ส่งแค่ "เจตนา" (id ที่อยากได้) · Server ตรวจสิทธิ์ เลเวล และคลาสเอง แล้วตั้ง Attribute
 -- TurretClass / TurretBranch กลับมา — UI อ่านผลจาก Attribute เท่านั้น ไม่ถือว่าเลือกสำเร็จเอง
 -- สเปก: design/turret-classes.md
+-- ใครใช้: UI/ClassUI · ตัวรับฝั่ง Server: src/server/Network/TurretClassHandler.luau
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,6 +10,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
 local ClassController = {}
 
+-- ส่ง id ไป Server ผ่าน Remote ชื่อ name · id ว่าง/ไม่ใช่ข้อความ → ไม่ส่ง
 local function fire(name: string, id: string)
 	if type(id) ~= "string" or id == "" then
 		return

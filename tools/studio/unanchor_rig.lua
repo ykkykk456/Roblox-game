@@ -3,17 +3,22 @@
 -- วิธีใช้: กด Stop ก่อน → คลิกเลือกโมเดลใน Explorer (เช่น Boss_rabbit) → View → Command Bar → วางทั้งไฟล์นี้ → Enter → Ctrl + S
 --   ไม่ได้เลือกอะไร = หาโมเดลชื่อ Boss_rabbit / boss_slambot ให้เอง
 -- ปลดทุกชิ้น ยกเว้น "ตัวราก" 1 ชิ้น (HumanoidRootPart → PrimaryPart → ชิ้นใหญ่สุด) ที่ยังยึดไว้ ตัวจะได้ไม่ร่วงตอนพรีวิว · Ctrl + Z ย้อนได้
+-- ไฟล์นี้อยู่นอก src/ → Rojo ไม่ sync เข้าเกม ต้องคัดลอกไปวางเองทุกครั้ง
+-- ⚠️ ถ้าเป็นบอส Slambot อ่าน docs/boss-slambot-known-good.md ก่อน (บอสตัวนี้ถูกล็อกไว้)
 
 local Selection = game:GetService("Selection")
 local ServerStorage = game:GetService("ServerStorage")
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
+-- ชื่อโมเดลที่หาให้อัตโนมัติเมื่อไม่ได้เลือกอะไร · มีบอสใหม่ → เพิ่มชื่อที่นี่
 local NAMES = { "Boss_rabbit", "boss_slambot" }
 
+-- ทำชื่อให้เทียบง่าย: ตัวเล็ก ตัดสัญลักษณ์ ตัดคำว่า "boss"
 local function simple(name)
 	return (string.gsub(string.gsub(string.lower(name), "[^%w]", ""), "boss", ""))
 end
 
+-- หาโมเดลเป้าหมาย: ดูสิ่งที่เลือกใน Explorer ก่อน (เลือกชิ้นลูกก็ได้ จะใช้โมเดลที่ครอบอยู่) · ไม่ได้เลือก → หาตามชื่อใน NAMES
 local function findModel()
 	for _, item in Selection:Get() do
 		local model = if item:IsA("Model") then item else item:FindFirstAncestorOfClass("Model")
@@ -41,6 +46,8 @@ if not model then
 	return
 end
 
+-- ===== สำรวจโมเดล =====
+-- เก็บทุกชิ้น · หาตัวราก · นับชิ้นส่วนริก (counts) ไว้รายงานว่าทำท่าได้ไหม
 local parts, root, biggest = {}, nil, nil
 local counts = { Humanoid = 0, AnimationController = 0, Motor6D = 0, Bone = 0, AnimationConstraint = 0 }
 for _, item in model:GetDescendants() do
@@ -59,6 +66,7 @@ for _, item in model:GetDescendants() do
 end
 root = root or model.PrimaryPart or biggest
 
+-- ===== ปลด Anchored (บันทึกประวัติไว้ให้ Ctrl + Z ย้อนได้) =====
 local _, recording = pcall(function()
 	return ChangeHistoryService:TryBeginRecording("Unanchor rig")
 end)
@@ -77,6 +85,7 @@ if recording then
 	end)
 end
 
+-- ===== สรุปผล + เตือนถ้าริกไม่พร้อมทำท่า =====
 print(`✅ {model:GetFullName()}: ปลด Anchored {freed} ชิ้น · ตัวรากที่ยังยึดไว้ = {if root then root.Name else "-"}`)
 print(
 	`ℹ️ ริก: Humanoid {counts.Humanoid} · AnimationController {counts.AnimationController} · Motor6D {counts.Motor6D}`

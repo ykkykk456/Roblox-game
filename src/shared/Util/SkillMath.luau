@@ -1,9 +1,12 @@
 -- สูตรสกิลและโอกาสกาชา (ฟังก์ชันบริสุทธิ์) — Server ใช้คำนวณจริง · Client ใช้แสดงผลเท่านั้น
+-- ตัวเลขทั้งหมดอยู่ที่ Config/Skills.luau · แก้ไฟล์นี้เมื่ออยากเปลี่ยน "สูตร" เช่น เลเวลเพิ่มพลังแบบไหน
+-- ใครใช้: Server = Services/SkillService, TurretService · Client = UI/GachaUI
 
 local Skills = require(script.Parent.Parent.Config.Skills)
 
 local SkillMath = {}
 
+-- บังคับเลเวลสกิลให้อยู่ในช่วง 1..MaxLevel (ค่าเสีย/ไม่ใช่ตัวเลข → 1)
 function SkillMath.clampLevel(level: any): number
 	if type(level) ~= "number" or level ~= level then
 		return 1
@@ -19,6 +22,7 @@ function SkillMath.multiplier(base: number?, level: number): number
 	return 1 + (base - 1) * (1 + Skills.PowerPerLevel * (level - 1))
 end
 
+-- ตัวคูณนัดใหญ่ (Burst) ที่เลเวลนี้ · nil = สกิลนี้ไม่มี Burst → 0
 function SkillMath.burst(base: number?, level: number): number
 	if not base then
 		return 0
@@ -56,6 +60,7 @@ function SkillMath.odds(): { [string]: number }
 	return result
 end
 
+-- ข้อมูลระดับความหายาก (แถวใน Config.Rarities) ของสกิล id · ไม่เจอ → แถวแรก
 function SkillMath.rarity(id: string): any
 	local skill = Skills.List[id]
 	for _, rarity in Skills.Rarities do

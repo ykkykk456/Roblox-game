@@ -1,6 +1,12 @@
 -- แผงกาชาสกิล: ตั๋ว · ปุ่มสุ่ม · โอกาสได้แต่ละสกิล · คลังสกิล (ใช้/อัปขั้น) (เจ้าของ: Client_UI_Scripter)
 -- เปิดจากปุ่มเมนู "กาชา" ใน HudUI (Panels "Gacha") · ทุกค่าแสดงจาก Attribute ที่ Server ตั้ง
 -- ปุ่ม "ใช้/อัป" ที่เป็นสีจางคือบอกใบ้ว่ายังทำไม่ได้ — Server เป็นคนตัดสินจริงเสมอ
+--
+-- อยากปรับ:
+--   ชื่อ/คำอธิบาย/โอกาสสกิล → shared/Config/Skills.luau · ขนาดการสุ่ม (1, 10) → Config/Economy.Gacha.RollSizes
+--   ขนาด/ตำแหน่ง/สีของแต่ละชิ้น → ดูหมวดใน buildRow (การ์ดสกิล) และ GachaUI.Init (ส่วนบนของแผง)
+--   ข้อความที่แสดงผลของสกิล → effectText
+-- ⚠️ Client แค่ส่งคำขอผ่าน Controllers/SkillController · ไม่สุ่มเอง ไม่ให้ตั๋ว/สกิลเอง
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
@@ -16,13 +22,17 @@ local SkillController = require(script.Parent.Parent.Controllers.SkillController
 
 local player = Players.LocalPlayer
 
+-- ชิ้น UI ของการ์ดสกิล 1 ใบ ที่ต้องอัปเดตภายหลัง
 type Row = { level: TextLabel, detail: TextLabel, equip: TextButton, upgrade: TextButton }
 
+-- ป้าย/ปุ่มที่ render() ต้องอัปเดต (สร้างใน Init)
 local ticketLabel: TextLabel
 local resultLabel: TextLabel
 local rollButtons: { [number]: TextButton } = {}
 local rows: { [string]: Row } = {}
 
+-- ===== อ่านข้อมูลที่ Server ส่งมา (Attribute) =====
+-- สกิลที่มี: อ่าน Attribute "Skills" (ข้อความ JSON) → { [id] = { Level, Copies } } · อ่านไม่ได้ → {}
 local function ownedSkills(): { [string]: any }
 	local raw = player:GetAttribute("Skills")
 	if type(raw) ~= "string" then
@@ -32,11 +42,14 @@ local function ownedSkills(): { [string]: any }
 	return if ok and type(decoded) == "table" then decoded else {}
 end
 
+-- จำนวนตั๋วกาชา จาก Attribute "GachaTickets" (ไม่มี = 0)
 local function tickets(): number
 	local value = player:GetAttribute("GachaTickets")
 	return if type(value) == "number" then value else 0
 end
 
+-- ===== ข้อความ + วาดหน้าจอ =====
+-- สร้างข้อความอธิบายผลสกิลที่เลเวลนี้ เช่น "ยิงเร็ว ×3.00 · 5 วิ · คูลดาวน์ 30 วิ"
 local function effectText(def: any, level: number): string
 	local parts = {}
 	if def.FireRate then
@@ -58,6 +71,8 @@ local function effectText(def: any, level: number): string
 	return `{table.concat(parts, " · ")} · {timing}คูลดาวน์ {def.Cooldown} วิ`
 end
 
+-- อัปเดตทั้งแผงตามข้อมูลล่าสุด: ตั๋ว · ปุ่มสุ่ม (จาง = ตั๋วไม่พอ) · การ์ดสกิลทุกใบ
+-- เรียกเมื่อ Attribute Skills / EquippedSkill / GachaTickets เปลี่ยน
 local function render()
 	local have = tickets()
 	ticketLabel.Text = `🎟 ตั๋วกาชา: {have}`
@@ -98,6 +113,7 @@ local function render()
 	end
 end
 
+-- แสดงผลสุ่มล่าสุดใต้ปุ่มสุ่ม (results มาจาก Server ผ่าน SkillController.Result)
 local function showResults(results: { any })
 	local names = {}
 	for _, result in results do
@@ -110,10 +126,13 @@ local function showResults(results: { any })
 	resultLabel.Text = if #names > 0 then `ได้รับ → {table.concat(names, " · ")}` else ""
 end
 
+-- ===== การ์ดสกิล 1 ใบ =====
+-- สร้างการ์ดของสกิล id ใน content (order = ลำดับในรายการ) แล้วเก็บไว้ใน rows ให้ render() อัปเดต
 local function buildRow(content: Instance, id: string, order: number)
 	local def = Skills.List[id]
 	local rarity = SkillMath.rarity(id)
 
+	-- กรอบการ์ด: สูง 92 พิกเซล · ขอบสีตามความหายาก (rarity.Color) หนา 2
 	local card = Instance.new("Frame")
 	card.Name = id
 	card.BackgroundColor3 = Theme.Colors.Surface
@@ -127,6 +146,7 @@ local function buildRow(content: Instance, id: string, order: number)
 	stroke.Thickness = 2
 	stroke.Parent = card
 
+	-- แถวบน: ชื่อสกิล (ซ้าย 65%) · เลเวล (ขวา 35%) · แถวสอง: รายละเอียดผลสกิล (y = 24)
 	Components.label(card, `{def.Name}  [{rarity.Name}]`, {
 		size = UDim2.new(0.65, 0, 0, 22),
 		bold = true,
@@ -145,6 +165,7 @@ local function buildRow(content: Instance, id: string, order: number)
 		color = Theme.Colors.TextMuted,
 	})
 
+	-- แถวปุ่ม (y = 46 · ชิดขวา): ปุ่ม "ใช้" + ปุ่ม "อัป" (สีเขียว) กว้างปุ่มละ 110 พิกเซล
 	local buttons = Instance.new("Frame")
 	buttons.BackgroundTransparency = 1
 	buttons.Position = UDim2.fromOffset(0, 46)
@@ -176,16 +197,20 @@ end
 
 local GachaUI = {}
 
+-- สร้างแผงกาชาตอนเริ่มเกม (ซ่อนไว้จนกดปุ่ม "กาชา")
+-- ลำดับจากบนลงล่างในแผงกำหนดด้วย order (1 ตั๋ว → 2 ปุ่มสุ่ม → 3 ผลสุ่ม → 4 โอกาส → 5 หัวข้อ → 11+ การ์ด)
 function GachaUI.Init()
 	local gui = Components.screen("GachaGui", 10)
 	local frame, content, closeButton = Components.panel(gui, "🎰 กาชาสกิลป้อม", Panels.close)
 
+	-- ===== ป้ายจำนวนตั๋ว =====
 	ticketLabel = Components.label(
 		content,
 		"",
 		{ size = UDim2.new(1, -10, 0, 28), bold = true, color = Theme.Colors.Coin, order = 1 }
 	)
 
+	-- ===== ปุ่มสุ่ม (1 ปุ่มต่อค่าใน RollSizes · แบ่งความกว้างเท่ากัน) =====
 	local rollRow = Instance.new("Frame")
 	rollRow.BackgroundTransparency = 1
 	rollRow.Size = UDim2.new(1, -10, 0, Theme.ButtonHeight)
@@ -204,6 +229,7 @@ function GachaUI.Init()
 		end)
 	end
 
+	-- ===== ข้อความผลสุ่มล่าสุด (สูงขยายตามข้อความ) =====
 	resultLabel = Components.label(content, "", {
 		size = UDim2.new(1, -10, 0, 0),
 		bold = true,
@@ -215,7 +241,7 @@ function GachaUI.Init()
 	resultLabel.TextWrapped = true
 	resultLabel.TextTruncate = Enum.TextTruncate.None
 
-	-- โอกาสได้ (แสดงให้ผู้เล่นเห็นเสมอ)
+	-- ===== โอกาสได้ (แสดงให้ผู้เล่นเห็นเสมอ) =====
 	local oddsLines = {}
 	local odds = SkillMath.odds()
 	for _, id in Skills.Order do
@@ -231,6 +257,7 @@ function GachaUI.Init()
 	oddsLabel.TextWrapped = true
 	oddsLabel.TextTruncate = Enum.TextTruncate.None
 
+	-- ===== หัวข้อ + การ์ดสกิลทุกใบ (ลำดับตาม Skills.Order) =====
 	Components.label(
 		content,
 		"สกิลของฉัน (ได้ซ้ำ = วัตถุดิบอัปขั้น)",
@@ -247,6 +274,7 @@ function GachaUI.Init()
 	Panels.register("Gacha", frame, closeButton)
 end
 
+-- เริ่มฟังการเปลี่ยนแปลงจาก Server แล้ววาดหน้าจอครั้งแรก
 function GachaUI.Start()
 	for _, name in { "Skills", "EquippedSkill", "GachaTickets" } do
 		player:GetAttributeChangedSignal(name):Connect(render)

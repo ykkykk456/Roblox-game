@@ -1,5 +1,9 @@
 -- หน้าตั้งค่า: เสียง · ภาพ · หน้าจอ · รีเซ็ต
 -- เปิดจากปุ่มใน HUD หรือกด M (คีย์บอร์ด) / Select (Gamepad)
+-- ค่าจริงเก็บ/ใช้ที่ Controllers/SettingsController · ไฟล์นี้แค่สร้างปุ่ม/แถบเลื่อน
+-- อยากเพิ่มตัวเลือก → เพิ่มค่าใน SettingsController ก่อน แล้วเพิ่ม Components.slider/toggle ในหมวดที่ต้องการ
+--   ช่วงแถบเลื่อน = { min, max, step } · ลำดับบนจอ = ลำดับบรรทัดในโค้ด (nextOrder)
+-- อยากเปลี่ยนปุ่มลัด → Enum.KeyCode ใน SettingsUI.Start · ขนาด/ตำแหน่งแผงกำหนดใน Components.panel
 
 local ContextActionService = game:GetService("ContextActionService")
 
@@ -12,10 +16,12 @@ local PANEL_NAME = "Settings"
 
 local SettingsUI = {}
 
+-- สร้างหน้าตั้งค่าทั้งหมดตอนเริ่มเกม (ซ่อนไว้จนกดเปิด)
 function SettingsUI.Init()
 	local gui = Components.screen("SettingsGui", 10)
 	local frame, content, closeButton = Components.panel(gui, "ตั้งค่า", Panels.close)
 
+	-- ตัวช่วย: นับลำดับบนจอ · หัวข้อหมวด · ผูกตัวควบคุมกับค่า key
 	local order = 0
 	local function nextOrder(): number
 		order += 1
@@ -32,6 +38,7 @@ function SettingsUI.Init()
 
 	local setters: { [string]: (any) -> () } = {}
 
+	-- ===== หมวดเสียง =====
 	section("🔊 เสียง")
 	setters.MusicVolume = Components.slider(
 		content,
@@ -50,6 +57,7 @@ function SettingsUI.Init()
 		nextOrder()
 	)
 
+	-- ===== หมวดภาพ =====
 	section("🖥 ภาพ")
 	setters.Shadows = Components.toggle(content, "เงา", Settings.get("Shadows"), bind("Shadows"), nextOrder())
 	setters.FieldOfView = Components.slider(
@@ -61,9 +69,11 @@ function SettingsUI.Init()
 		nextOrder()
 	)
 
+	-- ===== หมวดหน้าจอ =====
 	section("📊 หน้าจอ")
 	setters.ShowFps = Components.toggle(content, "แสดง FPS", Settings.get("ShowFps"), bind("ShowFps"), nextOrder())
 
+	-- ===== ปุ่มคืนค่าเริ่มต้น (สีแดง = Theme.Colors.Danger · กว้างเต็มแผง) =====
 	Components.button(content, "คืนค่าเริ่มต้น", {
 		size = UDim2.new(1, -10, 0, Theme.ButtonHeight),
 		color = Theme.Colors.Danger,
@@ -81,6 +91,7 @@ function SettingsUI.Init()
 	Panels.register(PANEL_NAME, frame, closeButton)
 end
 
+-- ผูกปุ่มลัด M / Select ให้เปิด-ปิดหน้าตั้งค่า
 function SettingsUI.Start()
 	ContextActionService:BindAction("ToggleSettings", function(_, state)
 		if state == Enum.UserInputState.Begin then

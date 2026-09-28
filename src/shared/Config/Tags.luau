@@ -2,6 +2,8 @@
 -- เพิ่ม tag ใหม่ที่นี่ก่อน แล้วค่อยไปติด tag ให้ชิ้นส่วนใน Studio (Tag Editor ในแท็บ Properties > Tags)
 -- โค้ดอ้างอิงผ่าน Tags.X เสมอ ห้ามพิมพ์ชื่อ tag เป็นข้อความตรงๆ
 -- ชิ้นในฐานมี Attribute "BaseSlot" (number) บอกว่าเป็นของฐานไหน
+-- ใครใช้: src/server/Services/MapService, LayoutService
+-- ⚠️ เปลี่ยนชื่อ tag ที่นี่ → ต้องไปแก้ tag ที่ติดไว้ใน Studio ให้ตรงด้วย ไม่งั้นเกมหาชิ้นไม่เจอ
 
 return table.freeze({
 	-- สร้างโดย MapService (ยังไม่มีระบบอ่าน · รอ /roblox-feature)

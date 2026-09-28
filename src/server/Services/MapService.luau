@@ -4,6 +4,17 @@
 -- ฐาน (ลานฐาน บ้าน ป้าย spawn สวนหลังบ้าน) = สร้างตอนเกมรันตาม Config/Map · ของตกแต่งสร้างมือใน Studio ได้
 -- ชิ้นที่ระบบอื่นต้องหาเจอ ติด tag จาก Config/Tags + Attribute "BaseSlot"
 -- สไตล์บล็อก (ยืนยัน 2026-09-25/26): ผิวบน Studs + สีบล็อก · ใส่ texture ภาพได้ถ้าตั้ง Map.Style.TextureAssetId
+--
+-- มี 2 โหมด (เลือกเองอัตโนมัติ):
+--   • แมพสร้างมือ (เจอ Tag BossSpawn/Turret1-6 → LayoutService.hasLayout()) → สร้างแค่จุดเกิดล่องหนหน้าบ้าน
+--   • ผังวงกลมเดิม (ไม่เจอ Tag) → สร้างฐานครบชุดด้วย buildBase ตาม Config/Map
+-- อยากปรับ:
+--   • ขนาดแมพ / แอ่ง / ถนน → src/shared/Config/Map.luau (Radius / Pit / Road) แล้วรัน python3 tools/gen_map.py ให้พื้นตรงกัน
+--   • ตำแหน่ง/ขนาดฐาน · จำนวนฐาน · สีฐาน → Config/Map.luau (Base / BaseCount / SlotColors)
+--   • สีพื้น/บ้าน / ภาพลายบล็อก → Config/Map.luau (Style) · สีของชิ้นอื่นในฐาน → ตาราง COLORS ด้านล่าง
+--   • ตำแหน่งของในฐาน (จุดขาย กล่องกระสุน ฯลฯ) → ตัวเลข atPad(...) ใน buildBase
+-- คุยกับ: LayoutService (ผังจาก Tag) · BaseService (เรียก spawnOf) · Util/MapMath (คำนวณพิกัดฐาน) · Config/Tags (ชื่อ tag)
+-- ห้ามแก้: ชื่อ tag / Attribute "BaseSlot" ที่ติดให้ชิ้นในฐาน — ระบบอื่น (ขายของ กระสุน อัปเกรด) หาชิ้นด้วยสิ่งนี้
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,6 +25,8 @@ local Tags = require(ReplicatedStorage.Shared.Config.Tags)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 local LayoutService = require(script.Parent.LayoutService)
 
+-- ===== ค่าคงที่ =====
+-- สีของชิ้นในฐาน (ผังวงกลม) · แก้ได้ปลอดภัย · Color3.fromRGB(แดง, เขียว, น้ำเงิน) ค่า 0–255
 local COLORS = {
 	Floor = Map.Style.Floor,
 	PadFloor = Color3.fromRGB(233, 227, 211),
@@ -24,9 +37,14 @@ local COLORS = {
 	Altar = Color3.fromRGB(138, 60, 200),
 }
 
+-- ===== สถานะ =====
+-- folder = โฟลเดอร์ workspace.Map ที่สร้างแล้ว (nil = ยังไม่สร้าง) · spawns[ช่อง] = SpawnLocation ของช่องนั้น
 local folder: Folder? = nil
 local spawns: { [number]: SpawnLocation } = {}
 
+-- ===== ตัวช่วยสร้างชิ้น =====
+-- สร้าง Part ยึดอยู่กับที่ (Anchored) ขนาด/ตำแหน่ง/สีตามที่ส่งมา แล้วใส่ใน parent · คืน Part นั้น
+-- CanTouch = false ไว้ก่อน (ประหยัดการคำนวณ) · ชิ้นที่ต้องแตะได้ให้เรียก tag() เพิ่ม
 local function block(parent: Instance, name: string, size: Vector3, cframe: CFrame, color: Color3): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -58,8 +76,10 @@ local function texture(part: BasePart, faces: { Enum.NormalId })
 	end
 end
 
+-- ทุกหน้ายกเว้นด้านล่าง (ใช้กับบ้าน)
 local ALL_SIDES = { Enum.NormalId.Top, Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
 
+-- ติด tag ให้ระบบอื่นหาเจอ + เปิดให้แตะได้ + จดว่าเป็นของฐานไหน (Attribute "BaseSlot")
 local function tag(part: BasePart, tagName: string, slot: number?)
 	CollectionService:AddTag(part, tagName)
 	part.CanTouch = true
@@ -97,8 +117,10 @@ local function ring(
 end
 
 -- ชิ้นที่ค้างจาก Rojo รุ่นเก่า (หญ้า/Baseplate) — ลบตอนเกมรัน · ต้องลบใน Studio เองด้วยถึงจะหายถาวร
+-- ===== พื้นแมพ =====
 local LEGACY = { "Grass", "Baseplate" }
 
+-- ลบชิ้นเก่าในรายการ LEGACY ออกจาก workspace ตอนรัน (พร้อมเตือนให้ลบใน Studio)
 local function cleanupLegacy()
 	for _, name in LEGACY do
 		local old = workspace:FindFirstChild(name)
@@ -116,6 +138,7 @@ local function buildFallbackFloor(parent: Instance)
 	block(parent, "FallbackFloor", Vector3.new(size, 2, size), CFrame.new(0, Map.GroundY - 1, 0), COLORS.Floor)
 end
 
+-- เตรียมพื้น: ติด tag LootZone ให้บล็อกในแอ่ง · ไม่มี MapGround → ใช้พื้นสำรอง · เพิ่มกำแพงใสรอบขอบ
 local function buildGround(parent: Instance)
 	cleanupLegacy()
 	local ground = workspace:FindFirstChild("MapGround")
@@ -148,6 +171,9 @@ local function buildGround(parent: Instance)
 	end
 end
 
+-- ===== ฐานผู้เล่น (ผังวงกลม ใช้เมื่อแมพไม่มี Tag) =====
+-- สร้างฐานช่อง slot ครบชุด: ลาน · บ้าน+หลังคา+ป้ายชื่อ · จุดขาย · กล่องกระสุน · ป้ายอัปเกรด · แท่นเรียก · จุดเกิด · สวนหลังบ้าน
+-- out = ทิศพุ่งออกจากกลางแมพไปทางฐานนี้
 local function buildBase(parent: Instance, slot: number)
 	local color = Map.SlotColors[slot]
 	local base, g = Map.Base, Map.GroundY
@@ -168,6 +194,7 @@ local function buildBase(parent: Instance, slot: number)
 		return at(base.Distance + du * layoutScale, dv * layoutScale, y)
 	end
 
+	-- ลานฐาน: ขอบสีประจำฐาน + พื้นลานสีอ่อนทับด้านบน · padTop = ความสูงผิวลาน (ใช้วางของทุกชิ้นด้านล่าง)
 	local padTop = g + 0.45
 	block(model, "PadEdge", Vector3.new(base.Size, 0.4, base.Size), at(base.Distance, 0, g + 0.2), color)
 	local padFloor =
@@ -175,6 +202,7 @@ local function buildBase(parent: Instance, slot: number)
 	padFloor.TopSurface = Enum.SurfaceType.Studs
 	texture(padFloor, { Enum.NormalId.Top })
 
+	-- บ้าน + หลังคาสีฐาน + ป้าย "ฐาน N" ลอยเหนือหลังคา (เห็นไม่เกิน 250 studs)
 	local house = block(model, "House", Vector3.new(14, 9, 14), atPad(10, -10, padTop + 4.5), COLORS.Wall)
 	house.TopSurface = Enum.SurfaceType.Studs
 	house.FrontSurface = Enum.SurfaceType.Studs
@@ -198,12 +226,14 @@ local function buildBase(parent: Instance, slot: number)
 	label.Text = `ฐาน {slot}`
 	label.Parent = gui
 
+	-- ของที่ระบบอื่นใช้ (ติด tag): จุดขาย · กล่องกระสุน · ป้ายอัปเกรด (เสา + ป้าย) · แท่นเรียก
 	tag(block(model, "SellPad", Vector3.new(8, 0.3, 8), atPad(-8, -12, padTop + 0.15), COLORS.Sell), Tags.SellPad, slot)
 	tag(block(model, "AmmoCrate", Vector3.new(4, 3, 4), atPad(-19, -8, padTop + 1.5), COLORS.Crate), Tags.AmmoCrate, slot)
 	block(model, "UpgradePost", Vector3.new(1, 5, 1), atPad(-16, -17, padTop + 2.5), COLORS.Post)
 	tag(block(model, "UpgradeBoard", Vector3.new(5, 3.5, 0.6), atPad(-16, -17, padTop + 5.5), color), Tags.UpgradeBoard, slot)
 	tag(block(model, "SummonAltar", Vector3.new(6, 2, 6), atPad(16, 3, padTop + 1), COLORS.Altar), Tags.SummonAltar, slot)
 
+	-- จุดเกิดของฐานนี้ · Duration = 0 = ไม่มีเกราะกันดาเมจตอนเกิด · Neutral = ทุกคนเกิดได้ (BaseService ตั้ง RespawnLocation ให้เอง)
 	local spawnPad = Instance.new("SpawnLocation")
 	spawnPad.Name = "Spawn"
 	spawnPad.Anchored = true
@@ -217,6 +247,7 @@ local function buildBase(parent: Instance, slot: number)
 	spawnPad.Parent = model
 	spawns[slot] = spawnPad
 
+	-- สวนหลังบ้าน: วงแหวนบางส่วนหลังฐาน กว้าง ±Yard.HalfAngle
 	local angle = MapMath.angle(slot)
 	local yard = Map.Yard
 	local yardColor = color:Lerp(Color3.new(1, 1, 1), 0.55)
@@ -228,6 +259,7 @@ local function buildBase(parent: Instance, slot: number)
 	model.Parent = parent
 end
 
+-- ===== API =====
 local MapService = {}
 
 -- สร้างแมพครั้งเดียว (เรียกซ้ำได้) · ระบบอื่นเรียกก่อนใช้ตำแหน่งในแมพ
@@ -263,6 +295,7 @@ function MapService.ensureBuilt()
 	end
 	root.Parent = workspace
 
+	-- เช็ก SpawnLocation ที่ไม่ได้มาจากโค้ดนี้ (เช่น ที่ Studio ใส่มาให้) — อาจทำให้เกิดผิดที่
 	for _, other in workspace:GetDescendants() do
 		if other:IsA("SpawnLocation") and not other:IsDescendantOf(root) then
 			warn(`[MapService] เจอ SpawnLocation เก่าที่ {other:GetFullName()} — ผู้เล่นอาจเกิดผิดที่ ลบออกใน Studio ได้`)
@@ -270,21 +303,26 @@ function MapService.ensureBuilt()
 	end
 end
 
+-- คืน SpawnLocation ของช่อง slot (สร้างแมพให้ก่อนถ้ายัง) · nil ถ้าช่องนั้นไม่มี · BaseService เรียกตอนแจกบ้าน
 function MapService.spawnOf(slot: number): SpawnLocation?
 	MapService.ensureBuilt()
 	return spawns[slot]
 end
 
+-- ===== ยึดแมพกันร่วง (Anchored) =====
 -- ล็อกแมพที่สร้างมือใน Studio ไม่ให้ร่วงตอนรัน (ตอนแก้งานฟิสิกส์ยังไม่ทำงาน ของที่ลืม Anchored จึงดูปกติ)
 -- ข้าม: ตัวละคร/บอส/ริก (Humanoid, AnimationController, HumanoidRootPart, ข้อต่อ, ชื่อใน Combat.Boss.Rotation) · โฟลเดอร์ที่โค้ดสร้างเอง · attribute Physics = true
 -- ยึดถาวรในไฟล์เกม: รัน tools/studio/anchor_map.lua ใน Command Bar
+-- โฟลเดอร์ที่โค้ดสร้างเองตอนรัน → ไม่ต้องยึด (มีทั้งของที่ต้องขยับได้)
 local RUNTIME_FOLDERS = { Map = true, Monsters = true, Turrets = true }
 
 -- ริก = โมเดลที่ขยับได้ (ตัวละคร/บอส) ห้ามยึด
+-- ทำชื่อให้เทียบง่าย: ตัวเล็ก ตัดสัญลักษณ์/ช่องว่าง ตัดคำว่า "boss" (เช่น "Boss_Slambot" → "slambot")
 local function simpleName(name: string): string
 	return (string.gsub(string.gsub(string.lower(name), "[^%w]", ""), "boss", ""))
 end
 
+-- true ถ้าโมเดลเป็นตัวละคร/บอส/ริก: ชื่อตรงกับบอสใน Combat.Boss.Rotation · มี Humanoid/AnimationController/HumanoidRootPart · มีข้อต่อ
 local function isRig(model: Model): boolean
 	for _, entry in Combat.Boss.Rotation do
 		if simpleName(model.Name) == simpleName(entry.Model) then
@@ -306,6 +344,7 @@ local function isRig(model: Model): boolean
 	return false
 end
 
+-- true ถ้าชิ้นนี้อยู่ในโมเดลที่เป็นริก (ไล่ขึ้นไปทีละชั้นจนถึง workspace)
 local function isCharacterPart(part: BasePart): boolean
 	local node = part.Parent
 	while node and node ~= workspace do
@@ -317,6 +356,8 @@ local function isCharacterPart(part: BasePart): boolean
 	return false
 end
 
+-- ยึดทุกชิ้นใน workspace ที่ยังไม่ Anchored ยกเว้น: โฟลเดอร์ runtime · Attribute Physics = true · ชิ้นของริก
+-- top = โฟลเดอร์/โมเดลชั้นบนสุดใต้ workspace ที่ชิ้นนี้อยู่
 local function anchorMap()
 	local count = 0
 	for _, item in workspace:GetDescendants() do
@@ -338,6 +379,7 @@ local function anchorMap()
 	end
 end
 
+-- เรียกตอนเซิร์ฟเวอร์เริ่ม: ยึดแมพก่อน แล้วสร้างพื้น/ฐาน/จุดเกิด
 function MapService.Init()
 	anchorMap()
 	MapService.ensureBuilt()

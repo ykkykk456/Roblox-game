@@ -5,6 +5,13 @@
 -- TurretFx (Server → Client): { { Kind, From: Vector3, To: Vector3, Color: Color3, Radius: number?, Duration: number? } }
 --   Kind = ค่า Fx ใน Config/Skill_class_default · Kind ที่ไม่รู้จัก → วาดเป็น Tracer
 -- ประสิทธิภาพ (มือถือ): ชิ้นส่วน Neon แบบ Anchored + Debris · จำกัดจำนวนต่ออีเวนต์ + จำนวนชิ้นพร้อมกัน · ไม่วาดที่ไกลกล้อง
+--
+-- อยากปรับ:
+--   หน้าตากระสุนของแต่ละคลาส/สาย → ฟังก์ชัน drawXxx ในหมวด "วาดตาม Kind" (ขนาด = Vector3 · ความเร็ว = ตัวเลขท้าย projectile เป็น studs/วินาที)
+--   เพิ่มเอฟเฟกต์ชนิดใหม่ → เขียน drawXxx ใหม่ + เพิ่มใน DRAWERS + ตั้ง Fx ใน Config/Skill_class_default ให้ตรงชื่อ
+--   เครื่องกระตุก → ลด MAX_ACTIVE_PARTS / MAX_FX_PER_EVENT / CULL_DISTANCE
+--   เปลี่ยนปุ่มลัด → Enum.KeyCode ใน TurretController.Init (ข้อความบอกปุ่มบนจออยู่ที่ UI/CombatUI keyHint)
+-- ใครใช้: UI/CombatUI (ปุ่มอัป/ปุ่มสกิล) · ตัวรับฝั่ง Server: src/server/Network/TurretHandler.luau
 
 local ContextActionService = game:GetService("ContextActionService")
 local Debris = game:GetService("Debris")
@@ -13,19 +20,26 @@ local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 
+-- ===== ค่าคงที่ของเอฟเฟกต์ =====
 local MAX_FX_PER_EVENT = 60 -- รายการที่วาดต่อ 1 อีเวนต์ (ที่เกินทิ้ง)
 local MAX_ACTIVE_PARTS = 300 -- ชิ้นเอฟเฟกต์ที่มีอยู่พร้อมกันทั้งหมด
 local MAX_LENGTH = 300 -- เส้นทาง From→To ยาวเกินนี้ไม่วาด (ข้อมูลผิดปกติ)
+-- พิกัดที่ใหญ่เกินนี้ถือว่าข้อมูลเสีย (studs)
 local MAX_COORD = 1e5
 local CULL_DISTANCE = 450 -- ทั้งต้นและปลายไกลกล้องเกินนี้ = ไม่วาด
+-- ความยาวชื่อ Kind สูงสุด (ตัวอักษร) · รัศมีหลุมดำสูงสุด (studs) · เวลาหลุมดำนานสุด (วินาที)
 local MAX_KIND_LENGTH = 32
 local MAX_RADIUS = 40
 local MAX_DURATION = 8
+-- สีสำรองเมื่อ Server ไม่ส่งสีมา · สีขาว · สีแกนหลุมดำ
 local DEFAULT_COLOR = Color3.fromRGB(255, 220, 90)
 local WHITE = Color3.new(1, 1, 1)
 local VOID_COLOR = Color3.fromRGB(12, 6, 22)
+-- ลำแสงรุ้ง (สาย Alchemist): อยู่นานกี่วินาที · เปลี่ยนสีกี่ครั้งระหว่างนั้น
 local BEAM_TIME = 0.25
 local RAINBOW_STEPS = 6
+
+-- ข้อมูลเอฟเฟกต์ 1 รายการ (หลังตรวจแล้ว)
 
 type Fx = {
 	Kind: string,
@@ -36,6 +50,7 @@ type Fx = {
 	Duration: number?,
 }
 
+-- โฟลเดอร์เก็บชิ้นเอฟเฟกต์ใน Workspace · จำนวนชิ้นที่มีอยู่ตอนนี้ · ตัวสุ่ม (ใช้ทำสายฟ้าหยัก)
 local effects: Folder
 local active = 0
 local random = Random.new()
@@ -66,6 +81,7 @@ local function makePart(shape: Enum.PartType, size: Vector3, cframe: CFrame, col
 	return part
 end
 
+-- เปลี่ยนค่าของชิ้นแบบนุ่มนวลภายใน seconds วินาที (style/direction ไม่ใส่ = เส้นตรง)
 local function tween(
 	instance: Instance,
 	seconds: number,
@@ -147,39 +163,47 @@ end
 
 -- ---------------------------------------------------------------- วาดตาม Kind
 
+-- Tracer: เส้นกระสุนธรรมดา (ป้อมที่ยังไม่เลือกคลาส / Kind ที่ไม่รู้จัก)
 local function drawTracer(fx: Fx)
 	segment(fx.From, fx.To, 0.25, fx.Color, 0.06)
 end
 
+-- Gatling: ปืนกล (สาย Gatling)
 local function drawGatling(fx: Fx)
 	-- ยิงรัวมาก: เส้นบางอายุสั้นที่สุด
 	segment(fx.From, fx.To, 0.12, fx.Color, 0.045)
 end
 
+-- Bolt: ลูกเวทกลม + แตกตอนถึง (คลาสนักเวท)
 local function drawBolt(fx: Fx)
 	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 0.9, fx.Color, 170)
 	task.delay(travel, burst, fx.To, 1.2, fx.Color, 0.15)
 end
 
+-- Arrow: ลูกธนูยาวบาง (คลาสนักธนู)
 local function drawArrow(fx: Fx)
 	projectile(fx.From, fx.To, Enum.PartType.Block, Vector3.new(0.15, 0.15, 2.4), fx.Color, 230)
 end
 
+-- Dagger: มีดสั้น (คลาสนักฆ่า)
 local function drawDagger(fx: Fx)
 	-- ใบมีดแบนสั้น
 	projectile(fx.From, fx.To, Enum.PartType.Block, Vector3.new(0.1, 0.55, 1.3), fx.Color, 170)
 end
 
+-- Shell: ลูกปืนใหญ่ + ระเบิดตอนถึง (คลาสปืนใหญ่)
 local function drawShell(fx: Fx)
 	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 1.4, fx.Color, 120)
 	task.delay(travel, burst, fx.To, 2.5, fx.Color, 0.2)
 end
 
+-- Wind: เส้นลม (สายลม)
 local function drawWind(fx: Fx)
 	-- เส้นลมบาง ค้างนานกว่ากระสุนปกติเล็กน้อยแล้วจาง
 	segment(fx.From, fx.To, 0.1, fx.Color, 0.15, true)
 end
 
+-- Lightning: สายฟ้า (สายสายฟ้า)
 local function drawLightning(fx: Fx)
 	-- สายฟ้าหยัก: แบ่งเป็นท่อนๆ แต่ละจุดต่อเบี่ยงแบบสุ่มตั้งฉากกับทิศยิง
 	local delta = fx.To - fx.From
@@ -202,6 +226,7 @@ local function drawLightning(fx: Fx)
 	burst(fx.To, 1.2, fx.Color, 0.12)
 end
 
+-- Beam: ลำแสงรุ้ง (สายนักแปรธาตุ)
 local function drawBeam(fx: Fx)
 	-- ลำแสงรุ้ง: หลายท่อนต่างสี แล้วหมุนเฉดสีระหว่างที่แสดง · แกนกลางสีขาว
 	local pieces = 5
@@ -233,6 +258,7 @@ local function drawBeam(fx: Fx)
 	end)
 end
 
+-- Poison: ลูกพิษ (สายพิษ)
 local function drawPoison(fx: Fx)
 	-- ลูกพิษโค้งขึ้นแล้วตกใส่เป้า (2 ช่วง) + กระเซ็นเป็นวงเขียว
 	local length = (fx.To - fx.From).Magnitude
@@ -257,6 +283,7 @@ local function drawPoison(fx: Fx)
 	end)
 end
 
+-- BlackHole: หลุมดำ (สายมืด) · ขนาด/เวลามาจาก Radius/Duration ที่ Server ส่ง
 local function drawBlackHole(fx: Fx)
 	-- หลุมดำที่ To: แกนมืด + เปลือกเรืองแสง + วงแสดงรัศมี · โผล่ → เต้นเป็นจังหวะ → หดหายตอนหมดเวลา
 	local radius = math.clamp(fx.Radius or 8, 1, MAX_RADIUS)
@@ -311,6 +338,7 @@ local function drawBlackHole(fx: Fx)
 	end)
 end
 
+-- Fireball: บอลไฟ (สายไฟ)
 local function drawFireball(fx: Fx)
 	-- บอลไฟสีตามเลเวล (Server ส่งสีมาใน Color) + ระเบิดเล็กตอนถึง
 	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 1.8, fx.Color, 95)
@@ -320,6 +348,7 @@ local function drawFireball(fx: Fx)
 	end)
 end
 
+-- ตารางจับคู่ ชื่อ Kind → ฟังก์ชันวาด (ชื่อต้องตรงกับ Fx ใน Config/Skill_class_default)
 local DRAWERS: { [string]: (Fx) -> () } = {
 	Tracer = drawTracer,
 	Bolt = drawBolt,
@@ -337,6 +366,8 @@ local DRAWERS: { [string]: (Fx) -> () } = {
 
 -- ---------------------------------------------------------------- ตรวจข้อมูลจาก Server
 
+-- ข้อมูลจากเครือข่ายเชื่อไม่ได้ 100% → ตรวจก่อนวาดทุกครั้ง
+-- true ถ้าเป็น Vector3 ที่ไม่ใช่ NaN และไม่ไกลเกิน MAX_COORD
 local function validVector(value: any): boolean
 	return typeof(value) == "Vector3"
 		and value.X == value.X
@@ -347,6 +378,7 @@ local function validVector(value: any): boolean
 		and math.abs(value.Z) < MAX_COORD
 end
 
+-- คืนตัวเลขถ้าเป็นตัวเลขปกติ (ไม่ใช่ NaN/อนันต์) ไม่งั้น nil
 local function optionalNumber(value: any): number?
 	if type(value) == "number" and value == value and math.abs(value) ~= math.huge then
 		return value
@@ -354,6 +386,7 @@ local function optionalNumber(value: any): number?
 	return nil
 end
 
+-- แปลงข้อมูลดิบ 1 รายการเป็น Fx ที่ปลอดภัย · ข้อมูลเสีย/เส้นยาวผิดปกติ → nil (ไม่วาด)
 local function readFx(raw: any): Fx?
 	if type(raw) ~= "table" then
 		return nil
@@ -379,6 +412,7 @@ local function readFx(raw: any): Fx?
 	}
 end
 
+-- true ถ้าต้นหรือปลายเส้นอยู่ใกล้กล้องภายใน CULL_DISTANCE (ไกลกว่านั้นไม่ต้องวาด)
 local function isNearCamera(fx: Fx): boolean
 	local camera = workspace.CurrentCamera
 	if not camera then
@@ -388,6 +422,7 @@ local function isNearCamera(fx: Fx): boolean
 	return (fx.From - eye).Magnitude <= CULL_DISTANCE or (fx.To - eye).Magnitude <= CULL_DISTANCE
 end
 
+-- รับรายการเอฟเฟกต์จาก Server (Remote TurretFx) → ตรวจ → วาดตาม Kind · เกินโควตาหยุดวาด
 local function onTurretFx(list: any)
 	if type(list) ~= "table" then
 		return
@@ -407,26 +442,33 @@ local function onTurretFx(list: any)
 	end
 end
 
+-- ---------------------------------------------------------------- คำขอไป Server + ปุ่มลัด
+
 local TurretController = {}
 
+-- ส่ง Remote ชื่อ name ไป Server (ไม่มีข้อมูลแนบ · Server ตัดสินเองว่าทำได้ไหม)
 local function fire(name: string)
 	local remote = Remotes.get(name) :: RemoteEvent
 	remote:FireServer()
 end
 
+-- ขออัปเลเวลป้อม (ปุ่มบนจอ / U / Y) · Server เช็กเงินและหักเงินเอง
 function TurretController.requestUpgrade()
 	fire("UpgradeTurret")
 end
 
+-- ขอใช้สกิลที่เลือกไว้ (ปุ่มบนจอ / Q / X) · Server เช็กคูลดาวน์เอง
 function TurretController.requestSkill()
 	fire("UseTurretSkill")
 end
 
+-- ตอนเริ่มเกม: สร้างโฟลเดอร์ TurretEffects + ผูกปุ่มลัด
 function TurretController.Init()
 	effects = Instance.new("Folder")
 	effects.Name = "TurretEffects"
 	effects.Parent = workspace
 
+	-- ปุ่มลัดสกิล: Q (คีย์บอร์ด) / X (Gamepad)
 	ContextActionService:BindAction("TurretSkill", function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then
 			TurretController.requestSkill()
@@ -434,6 +476,7 @@ function TurretController.Init()
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.Q, Enum.KeyCode.ButtonX)
 
+	-- ปุ่มลัดอัปเกรด: U (คีย์บอร์ด) / Y (Gamepad)
 	ContextActionService:BindAction("TurretUpgrade", function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then
 			TurretController.requestUpgrade()
@@ -442,6 +485,7 @@ function TurretController.Init()
 	end, false, Enum.KeyCode.U, Enum.KeyCode.ButtonY)
 end
 
+-- เริ่มฟังเอฟเฟกต์การยิงจาก Server
 function TurretController.Start()
 	local remote = Remotes.get("TurretFx") :: RemoteEvent
 	remote.OnClientEvent:Connect(onTurretFx)

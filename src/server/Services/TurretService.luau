@@ -8,6 +8,22 @@
 -- เลือดป้อม: บอสทุบพื้น (BossService.Slammed) → ลดเลือดทุกป้อม · หมด = ช็อต หยุดยิง/หยุดชาร์จ Combat.Turret.StunSeconds แล้วฟื้นเต็ม
 --   บอสจบ = เลือดเต็มทันที · ไม่บันทึกลง DataStore (ยืนยัน 2026-09-26)
 -- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางหน้าฐานของตัวเอง (BaseService)
+--
+-- ===== อยากปรับอะไร → ไปแก้ที่ไหน (ไม่ต้องแก้ไฟล์นี้) =====
+--   • ระยะยิง / ดาเมจ / อัตรายิง / เลเวลสูงสุด / เลือดป้อม / เวลาช็อต → Combat.Turret.* (src/shared/Config/Combat.luau)
+--   • รอบคำนวณการยิงต่อวินาที → Combat.TickRate
+--   • ราคาอัปเลเวล → Economy.Turret.* (src/shared/Config/Economy.luau) · สูตรอยู่ที่ src/shared/Util/TurretMath.luau
+--   • ตัวคูณคลาส/สายธาตุ, effect (DoT, ลดเกราะ, หลุมดำ, ชาร์จลม) → src/shared/Config/Skill_class_default.luau
+--   • บอสทุบแรงแค่ไหน → Combat.Boss.SlamDamage · ตำแหน่งป้อม → แท่น Tag TurretN ในแมพ หรือ Map.Base.TurretDistance
+--   • หน้าตาป้อม → TurretLook.luau
+--
+-- คุยกับไฟล์ไหนบ้าง:
+--   • TurretHandler (Network) — เรียก upgrade / useSkill หลังตรวจ Guard แล้ว
+--   • BaseService — แจ้งว่าใครได้/เสียฐาน · BossService — จุดบอส + สัญญาณทุบพื้น · MonsterService — รายชื่อมอน + ทำดาเมจ
+--   • TurretClassService — คลาส/สาย, ดาเมจบอส, effect ต่อเนื่อง · SkillService — สกิลกาชา · FriendBoostService — โบนัสเพื่อน
+--   • PlayerData — เลเวลป้อม + เงิน · Remote "TurretFx" — ส่งภาพกระสุนให้ Client วาด
+--
+-- ⚠️ ระวัง: upgrade หักเงิน (ต้องทำใน PlayerData.update เท่านั้น) · อย่าให้ Client ส่งดาเมจ/เป้ามาเอง (กฎ Server Authority)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,11 +44,17 @@ local TurretClassService = require(script.Parent.TurretClassService)
 local TurretLook = require(script.Parent.TurretLook)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
+-- ===== ค่าคงที่ =====
+-- GROUND_Y = ความสูงพื้นจาก Map.GroundY (ห้ามแก้ที่นี่) · HEAD_HEIGHT = ความสูงหัวป้อมจาก TurretLook (แก้ที่ TurretLook)
+-- MAX_SHOTS_PER_TICK = ยิงได้สูงสุดกี่นัดต่อ 1 รอบคำนวณ (ปรับได้): ลดลง = ป้อมยิงเร็วมากๆ จะโดนตัดนัดทิ้ง · เพิ่ม = เร็วได้เต็มที่
+-- STUNNED_COLOR = สีเทาของป้อมว่าง (ปรับได้ปลอดภัย)
 local GROUND_Y = Map.GroundY
 local HEAD_HEIGHT = TurretLook.HEAD_HEIGHT
 local MAX_SHOTS_PER_TICK = 5 -- กันอัตรายิงสูงเกินรอบคำนวณ: รวมหลายนัดเป็นครั้งเดียว
 local STUNNED_COLOR = Color3.fromRGB(110, 110, 116)
 
+-- ===== ชนิดข้อมูล =====
+-- Turret = ป้อม 1 ตัวของผู้เล่น (hp = เลือดตอนนี้ · nextFireAt = เวลาที่ยิงนัดถัดไปได้)
 type Turret = {
 	owner: Player,
 	slot: number,
@@ -52,19 +74,25 @@ type Target = { position: Vector3, monster: any?, isBoss: boolean }
 -- เอฟเฟกต์ที่ส่งให้ Client (ดู TurretFx ใน Remotes.luau)
 type Fx = { Kind: string, From: Vector3, To: Vector3, Color: Color3, Radius: number?, Duration: number? }
 
+-- ===== สถานะระหว่างเกม =====
+-- turrets = ป้อมของผู้เล่นแต่ละคน · folder = โฟลเดอร์ Workspace.Turrets ที่เก็บโมเดลป้อมทั้งหมด
 local turrets: { [Player]: Turret } = {}
 local folder: Folder
 
+-- ===== ตัวช่วย: เลเวล/ค่าพลัง/ชิ้นส่วน =====
+-- เลเวลป้อมของผู้เล่น (จาก PlayerData) · ยังโหลดข้อมูลไม่เสร็จ = Lv.1
 local function levelOf(player: Player): number
 	local data = PlayerData.get(player)
 	return TurretMath.clampLevel(if data then data.TurretLevel else 1)
 end
 
+-- ค่าพลังรวมของป้อม (ตัวคูณดาเมจ/อัตรายิง/effect) ตามคลาส + สาย + เลเวลของผู้เล่น
 local function statsOf(player: Player): ClassMath.Stats
 	local classId, branchId = TurretClassService.get(player)
 	return ClassMath.stats(classId, branchId, levelOf(player))
 end
 
+-- สร้างชิ้น Part ยึดอยู่กับที่ (Anchored) ใส่ใน parent · ใช้สร้างป้อมว่าง
 local function newPart(name: string, size: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -79,6 +107,7 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 	return part
 end
 
+-- อัปเดตป้ายเหนือป้อม: ชื่อเจ้าของ · เลเวล · เลือด (หรือ "ช็อต!")
 local function refreshLabel(turret: Turret)
 	local status = if turret.stunnedUntil > 0 then "⚡ ช็อต!" else `❤ {math.ceil(turret.hp)}`
 	turret.look.label.Text = `{turret.owner.DisplayName} · Lv.{levelOf(turret.owner)} · {status}`
@@ -97,9 +126,11 @@ local function bossPoint(): Vector3
 	return if LayoutService.hasLayout() then LayoutService.bossCenter() else Vector3.zero
 end
 
+-- ===== ป้อมว่าง / สร้างป้อม =====
 -- ป้อมว่าง (ช่องที่ยังไม่มีเจ้าของ): โชว์ไว้เฉยๆ สีเทา ไม่ยิง (ยืนยัน 2026-09-27)
 local idleTurrets: { [number]: Model } = {}
 
+-- สร้างป้อมว่างสีเทาที่ช่อง slot (ถ้ามีอยู่แล้วไม่สร้างซ้ำ)
 local function buildIdle(slot: number)
 	if idleTurrets[slot] then
 		return
@@ -134,6 +165,7 @@ local function buildIdle(slot: number)
 	idleTurrets[slot] = model
 end
 
+-- ลบป้อมว่างที่ช่อง slot (เรียกตอนมีคนมาเป็นเจ้าของ)
 local function removeIdle(slot: number)
 	local model = idleTurrets[slot]
 	if model then
@@ -154,6 +186,7 @@ local function buildLook(owner: Player, slot: number): TurretLook.Look
 	return look
 end
 
+-- สร้างข้อมูลป้อมใหม่ของ owner ที่ช่อง slot: เลือดเต็ม ยังไม่ช็อต · คืนตาราง Turret
 local function build(owner: Player, slot: number): Turret
 	local now = os.clock()
 	local turret: Turret = {
@@ -202,6 +235,8 @@ local function onBaseChanged(player: Player, slot: number?)
 	end
 end
 
+-- ===== เลือดป้อม (โดนบอสทุบ) =====
+-- ฟื้นป้อมเป็นเลือดเต็ม + เลิกช็อต + เปลี่ยนสีกลับ
 local function setHealthy(turret: Turret)
 	turret.hp = Combat.Turret.MaxHp
 	turret.stunnedUntil = 0
@@ -236,6 +271,7 @@ local function updateHealth(now: number)
 	end
 end
 
+-- ===== การเล็งและการยิง =====
 -- เลือกเป้า: บอสในระยะก่อน → มอนที่ใกล้ที่สุดในระยะ · nil ถ้าไม่มี
 local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): Target?
 	local range = Combat.Turret.Range
@@ -360,6 +396,9 @@ local function stepWind(
 	end
 end
 
+-- ===== รอบคำนวณหลัก =====
+-- ทำงานทุก 1/Combat.TickRate วินาที (จาก Start): ฟื้นเลือด → อัปเดต effect → ให้ป้อมแต่ละตัวเลือกเป้าและยิง
+-- สุดท้ายส่งภาพกระสุนทั้งหมดของรอบนี้ให้ Client ครั้งเดียว (ประหยัดกว่าส่งทีละนัด)
 local function tick(fxRemote: RemoteEvent)
 	local now = os.clock()
 	local serverNow = workspace:GetServerTimeNow()
@@ -390,6 +429,8 @@ local function tick(fxRemote: RemoteEvent)
 			continue
 		end
 
+		-- ป้อมยิงเร็วกว่ารอบคำนวณ → รวมหลายนัดในรอบเดียว (count นัด, ไม่เกิน MAX_SHOTS_PER_TICK)
+		-- แล้วเลื่อนเวลานัดถัดไป · math.max(..., now - interval) กันการสะสมนัดค้างนานเกินไป
 		local fireRateMul = SkillService.modifiers(owner, serverNow)
 		local rate = TurretMath.fireRate(levelOf(owner)) * stats.FireRate * fireRateMul
 		local interval = 1 / rate
@@ -404,11 +445,13 @@ local function tick(fxRemote: RemoteEvent)
 	end
 end
 
+-- ===== API ให้ไฟล์อื่นเรียก =====
 local TurretService = {}
 
 -- เรียกจาก TurretHandler หลังผ่าน Guard แล้ว · คืน true ถ้าอัปสำเร็จ
 function TurretService.upgrade(player: Player): boolean
 	local upgraded = false
+	-- หักเงิน + เพิ่มเลเวลใน PlayerData.update (บันทึกอย่างปลอดภัย) · เลเวลเต็มหรือเงินไม่พอ = ไม่ทำอะไร
 	PlayerData.update(player, function(data)
 		local level = TurretMath.clampLevel(data.TurretLevel)
 		if level >= Combat.Turret.MaxLevel then
@@ -485,6 +528,7 @@ function TurretService.useSkill(player: Player): boolean
 	return true
 end
 
+-- เรียกครั้งเดียวตอนเซิร์ฟเริ่ม: สร้างโฟลเดอร์ Turrets, ต่อสัญญาณจากไฟล์อื่น, สร้างป้อมว่าง/ป้อมของคนที่มีฐานแล้ว
 function TurretService.Init()
 	folder = Instance.new("Folder")
 	folder.Name = "Turrets"
@@ -507,6 +551,7 @@ function TurretService.Init()
 	PlayerData.Changed:Connect(rebuildIfNeeded)
 end
 
+-- ลูปยิงหลัก: เรียก tick ทุก 1/Combat.TickRate วินาทีตลอดเกม
 function TurretService.Start()
 	local fxRemote = Remotes.get("TurretFx") :: RemoteEvent
 	local step = 1 / Combat.TickRate

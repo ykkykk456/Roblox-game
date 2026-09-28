@@ -9,6 +9,14 @@
 --     Branch = การ์ดสายธาตุของคลาสตัวเอง (กดยืนยัน 2 ครั้ง เพราะเลือกแล้วล็อก) · เด้งเองครั้งแรกเมื่อเลเวลถึง
 --     Info   = หลังเลือกสายแล้ว: ดูข้อมูลคลาส/สายอย่างเดียว
 --   การ์ดเรียงแนวตั้งในแผงที่เลื่อนได้ → ใช้ได้บนจอมือถือแคบ · ทุกปุ่มสูง ≥ 44 px (Theme.ButtonHeight)
+--
+-- อยากปรับ:
+--   ชื่อ/คำอธิบาย/สี/ตัวคูณของคลาส-สาย → shared/Config/Skill_class_default.luau (ไม่ต้องแก้ไฟล์นี้)
+--   ย้าย/ขยายปุ่ม HUD → ClassUI.Init (hudButton: position / size · กว้างสุด 300 ที่ limit)
+--   หน้าตาการ์ด → card() · แถบสถิติ → statBar() · แถบสีบอลไฟ → fireStrip()
+--   ข้อความบนแต่ละมุมมอง → buildClassView / buildBranchView / buildInfoView
+--   ปุ่มลัด C / LB → Enum.KeyCode ใน ClassUI.Init (ข้อความบอกปุ่ม → keyHint)
+-- ⚠️ ปุ่ม "เลือก" แค่ส่งคำขอผ่าน Controllers/ClassController · Server ตรวจสิทธิ์/เลเวลเองแล้วตั้ง Attribute กลับมา
 
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
@@ -24,14 +32,20 @@ local ClassController = require(script.Parent.Parent.Controllers.ClassController
 
 local player = Players.LocalPlayer
 
+-- ===== ค่าคงที่ =====
+-- ชื่อแผงใน Panels
 local PANEL_NAME = "Class"
 local CONFIRM_SECONDS = 3 -- เวลาที่ปุ่ม "ยืนยัน?" รอการกดครั้งที่สอง
+-- วินาทีต่อรอบเช็กเด้งแผง/อัปเดตปุ่ม HUD
 local REFRESH_INTERVAL = 0.5
+-- ความกว้างปุ่มด้านขวาของการ์ด (พิกเซล)
 local ACTION_WIDTH = 96
+-- สีแถบ ⚔ ดาเมจ / ⚡ อัตรายิง ในการ์ด
 local DAMAGE_COLOR = Color3.fromRGB(235, 96, 80)
 local RATE_COLOR = Color3.fromRGB(255, 204, 64)
 local WHITE = Color3.new(1, 1, 1)
 
+-- มุมมองของแผง (ดูคำอธิบายด้านบน) · State = สถานะป้อมที่อ่านจาก Attribute
 type View = "Class" | "Branch" | "Info"
 type State = {
 	known: boolean, -- Server ส่ง TurretClass มาแล้ว (ข้อมูลผู้เล่นโหลดเสร็จ)
@@ -40,15 +54,21 @@ type State = {
 	locked: boolean, -- มีสายแล้ว = เปลี่ยนคลาส/สายไม่ได้
 	level: number,
 }
+-- ปุ่มบนการ์ด: text = ข้อความ · primary = สีเขียว · dim = ตัวหนังสือจาง · onClick = กดแล้วทำอะไร
 type Action = { text: string, primary: boolean?, dim: boolean?, onClick: (() -> ())? }
+-- ค่าสูงสุดของกลุ่มที่แสดง (ใช้คำนวณความยาวแถบสถิติ)
 type Scale = { damage: number, rate: number }
 
+-- ===== ตัวแปรสถานะของหน้าจอ =====
+-- ชิ้น UI หลัก (สร้างใน Init)
 local frame: Frame
 local content: ScrollingFrame
 local closeButton: TextButton
 local hudButton: TextButton
 local hudStroke: UIStroke
 
+-- มุมมองที่แสดงอยู่ · lastSignature = กันวาดซ้ำเมื่อไม่มีอะไรเปลี่ยน · firstFocus = ปุ่มแรกสำหรับ Gamepad
+-- prompted* = เด้งแผงให้เองไปแล้วหรือยัง · confirm* = สถานะปุ่ม "ยืนยัน?" ของการเลือกสาย
 local view: View = "Class"
 local lastSignature = ""
 local firstFocus: GuiObject? = nil
@@ -58,6 +78,8 @@ local awaitingClass = false -- ส่งคำขอเปลี่ยนคล�
 local confirmId: string? = nil
 local confirmToken = 0
 
+-- ===== อ่านสถานะ + เลือกมุมมอง =====
+-- อ่านสถานะป้อมจาก Attribute ที่ Server ตั้ง (ค่าเสีย/ไม่มีใน Config → ถือว่ายังไม่เลือก)
 local function readState(): State
 	local class = player:GetAttribute("TurretClass")
 	local branch = player:GetAttribute("TurretBranch")
@@ -80,6 +102,7 @@ local function canChooseBranch(state: State): boolean
 	return state.class ~= "" and not state.locked and state.level >= ClassConfig.BranchLevel
 end
 
+-- มุมมองที่ควรเปิดเมื่อกดปุ่ม: มีสายแล้ว → Info · เลือกสายได้ → Branch · อื่นๆ → Class
 local function defaultView(state: State): View
 	if state.locked then
 		return "Info"
@@ -89,6 +112,7 @@ local function defaultView(state: State): View
 	return "Class"
 end
 
+-- ปรับมุมมองที่อยากเปิด (wanted) ให้ถูกกับสถานะจริง เช่น ยังเลือกสายไม่ได้ → กลับไป Class
 local function resolveView(state: State, wanted: View): View
 	if state.locked then
 		return "Info"
@@ -111,15 +135,19 @@ local function fireIndex(level: number): number?
 	return found
 end
 
+-- ===== ตัวช่วยแสดงผล =====
+-- ทำสีให้สว่างขึ้น 35% (ใช้กับชื่อ/ขอบการ์ด)
 local function tint(color: Color3): Color3
 	-- สีคลาสบางสีมืด (นักฆ่า) → ผสมขาวให้อ่านออกบนพื้นมืด
 	return color:Lerp(WHITE, 0.35)
 end
 
+-- แสดงตัวคูณแบบสั้น ปัด 2 ตำแหน่ง เช่น 1.2 → "1.2" · 3.50 → "3.5"
 local function formatMultiplier(value: number): string
 	return string.format("%g", math.floor(value * 100 + 0.5) / 100)
 end
 
+-- ข้อความบอกปุ่มลัดบนปุ่ม HUD: " [LB]" (Gamepad) / " [C]" (คีย์บอร์ด) / "" (มือถือ)
 local function keyHint(): string
 	if UserInputService.GamepadEnabled then
 		return " [LB]"
@@ -129,6 +157,7 @@ local function keyHint(): string
 	return ""
 end
 
+-- ป้ายข้อความหลายบรรทัด (ตัดคำ + สูงขยายตามข้อความ) ใน parent · order = ลำดับบนจอ
 local function wrapped(parent: Instance, text: string, textSize: number, color: Color3, order: number): TextLabel
 	local label = Components.label(parent, text, {
 		size = UDim2.new(1, -10, 0, 0),
@@ -142,6 +171,7 @@ local function wrapped(parent: Instance, text: string, textSize: number, color: 
 	return label
 end
 
+-- หาค่า Damage/FireRate สูงสุดใน defs (ให้แถบของค่าสูงสุดยาวเต็ม)
 local function scaleOf(defs: { any }): Scale
 	local scale = { damage = 0.001, rate = 0.001 }
 	for _, def in defs do
@@ -153,6 +183,7 @@ end
 
 -- แถบสถิติแบบง่าย: ความยาว = ค่า ÷ ค่าสูงสุดในกลุ่มที่แสดงอยู่
 local function statBar(parent: Instance, icon: string, value: number, maxValue: number, color: Color3, order: number)
+	-- แถวสูง 16 พิกเซล: ป้ายตัวเลข (ซ้าย กว้าง 64) + แถบ (ต่อจากป้าย สูง 8)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Size = UDim2.new(1, 0, 0, 16)
@@ -186,6 +217,7 @@ end
 local function card(parent: Instance, def: any, order: number, scale: Scale, action: Action?): TextButton?
 	local accent = tint(def.Color)
 
+	-- กรอบการ์ด: สูงขยายตามเนื้อหา · ขอบสีคลาส/สาย หนา 2
 	local box = Instance.new("Frame")
 	box.BackgroundColor3 = Theme.Colors.Surface
 	box.Size = UDim2.new(1, -10, 0, 0)
@@ -200,6 +232,7 @@ local function card(parent: Instance, def: any, order: number, scale: Scale, act
 	stroke.Thickness = 2
 	stroke.Parent = box
 
+	-- ฝั่งซ้าย (ข้อมูล) เรียงลงล่าง: ชื่อ → คำอธิบาย → แถบ ⚔ → แถบ ⚡ · เว้นขวาไว้ให้ปุ่ม
 	local info = Instance.new("Frame")
 	info.BackgroundTransparency = 1
 	info.Size = UDim2.new(1, if action then -(ACTION_WIDTH + 8) else 0, 0, 0)
@@ -207,6 +240,7 @@ local function card(parent: Instance, def: any, order: number, scale: Scale, act
 	info.Parent = box
 	Components.list(info, 4)
 
+	-- แถวชื่อ: จุดสี (14×14) + ชื่อ (ตัวหนา ขนาด 17)
 	local nameRow = Instance.new("Frame")
 	nameRow.BackgroundTransparency = 1
 	nameRow.Size = UDim2.new(1, 0, 0, 22)
@@ -246,6 +280,7 @@ local function card(parent: Instance, def: any, order: number, scale: Scale, act
 	if not action then
 		return nil
 	end
+	-- ปุ่มด้านขวา กลางแนวตั้ง (กว้าง ACTION_WIDTH)
 	local button = Components.button(box, action.text, {
 		size = UDim2.fromOffset(ACTION_WIDTH, Theme.ButtonHeight),
 		position = UDim2.fromScale(1, 0.5),
@@ -264,6 +299,7 @@ end
 local function fireStrip(parent: Instance, order: number, currentLevel: number?)
 	wrapped(parent, "🔥 สีบอลไฟเปลี่ยนตามเลเวลป้อม", 14, Theme.Colors.Coin, order)
 
+	-- แถบสูง 56 พิกเซล แบ่งช่องเท่ากันตามจำนวนแถวใน FireColors · ช่องที่ใช้อยู่มีขอบสีทอง
 	local strip = Instance.new("Frame")
 	strip.BackgroundTransparency = 1
 	strip.Size = UDim2.new(1, -10, 0, 56)
@@ -314,6 +350,7 @@ local function fireStrip(parent: Instance, order: number, currentLevel: number?)
 	end
 end
 
+-- ปุ่มกว้างเต็มแผง สำหรับสลับมุมมอง (เช่น "ไปเลือกสายธาตุ" / "เปลี่ยนคลาส")
 local function navButton(text: string, order: number, onClick: () -> ()): TextButton
 	return Components.button(content, text, {
 		size = UDim2.new(1, -10, 0, Theme.ButtonHeight),
@@ -322,7 +359,11 @@ local function navButton(text: string, order: number, onClick: () -> ()): TextBu
 	}, onClick)
 end
 
+-- ประกาศไว้ก่อน (ตัวจริงอยู่ด้านล่าง) เพราะปุ่มในมุมมองต้องเรียก render
 local render: (force: boolean?) -> ()
+
+-- ===== 3 มุมมองของแผง =====
+-- มุมมอง Class: หัวข้อ + (ปุ่มไปเลือกสาย ถ้าได้) + การ์ดทุกคลาสพร้อมปุ่ม "เลือก"
 
 local function buildClassView(state: State)
 	local current = ClassConfig.Classes[state.class]
@@ -363,6 +404,7 @@ local function buildClassView(state: State)
 	end
 end
 
+-- มุมมอง Branch: การ์ดสายของคลาสตัวเอง · กด "เลือก" 1 ครั้ง = "ยืนยัน?" · กดซ้ำภายใน CONFIRM_SECONDS = ส่งคำขอ
 local function buildBranchView(state: State)
 	local classDef = ClassConfig.Classes[state.class]
 	wrapped(
@@ -387,6 +429,7 @@ local function buildBranchView(state: State)
 			continue
 		end
 		local button: TextButton
+		-- ไม่กดยืนยันภายในเวลา → คืนปุ่มเป็น "เลือก"
 		local function resetLater(token: number)
 			task.delay(CONFIRM_SECONDS, function()
 				if confirmToken == token and button.Parent then
@@ -430,6 +473,7 @@ local function buildBranchView(state: State)
 	end)
 end
 
+-- มุมมอง Info: แสดงการ์ดคลาส + สายที่เลือกแล้ว (ไม่มีปุ่ม)
 local function buildInfoView(state: State)
 	wrapped(content, "🔒 เลือกสายธาตุแล้ว · ป้อมของคุณตอนนี้", 15, Theme.Colors.Text, 1)
 
@@ -457,6 +501,8 @@ local function buildInfoView(state: State)
 	end
 end
 
+-- ===== วาดแผง + ปุ่ม HUD =====
+-- ล้างเนื้อหาในแผงแล้วสร้างมุมมองใหม่ · force = true → วาดใหม่เสมอ · false → วาดเฉพาะเมื่อสถานะเปลี่ยน
 render = function(force: boolean?)
 	local state = readState()
 	view = resolveView(state, view)
@@ -497,6 +543,7 @@ render = function(force: boolean?)
 	end
 end
 
+-- อัปเดตปุ่ม HUD: ข้อความตามสถานะ · สีเขียวเมื่อมีสิ่งที่ต้องเลือก · ซ่อนจนข้อมูลโหลดเสร็จ
 local function renderHud()
 	local state = readState()
 	hudButton.Visible = state.known
@@ -522,6 +569,8 @@ local function renderHud()
 	hudStroke.Color = if classDef then tint(classDef.Color) else Theme.Colors.SurfaceHover
 end
 
+-- ===== เปิด/ปิดแผง =====
+-- เปิดแผงที่มุมมอง wanted
 local function openView(wanted: View)
 	view = wanted
 	render(true)
@@ -531,6 +580,7 @@ local function openView(wanted: View)
 	end
 end
 
+-- เปิด-ปิดแผง (ปุ่ม HUD / ปุ่มลัด C / LB)
 local function toggle()
 	local state = readState()
 	if not state.known then
@@ -563,6 +613,7 @@ local function checkPrompts()
 	end
 end
 
+-- เรียกเมื่อ Attribute ป้อมเปลี่ยน: อัปเดตปุ่ม HUD + แผง (ถ้าเปิดอยู่) + เช็กเด้งแผง
 local function onStateChanged()
 	renderHud()
 	if Panels.current() == PANEL_NAME then
@@ -573,7 +624,9 @@ end
 
 local ClassUI = {}
 
+-- สร้างปุ่ม HUD + แผงคลาส + ผูกปุ่มลัดตอนเริ่มเกม
 function ClassUI.Init()
+	-- ===== ปุ่ม HUD (ตำแหน่ง = position · ขนาด = size · ขอบสี = hudStroke) =====
 	-- ปุ่ม HUD: กลางล่าง เหนือแผงป้อมของ CombatUI (แผงนั้นสูงจากขอบล่าง 48 + 94 px)
 	-- ซ้ายบน = เหรียญ/ตารางดาเมจ · ขวากลาง = เมนู HudUI · ขวาล่าง = ปุ่มกระโดดมือถือ → กลางล่างว่าง
 	local hudGui = Components.screen("ClassHudGui", 4)
@@ -597,10 +650,12 @@ function ClassUI.Init()
 	hudStroke.Color = Theme.Colors.SurfaceHover
 	hudStroke.Parent = hudButton
 
+	-- ===== แผงคลาส (ขนาด/ตำแหน่งแผงกำหนดใน Components.panel) =====
 	local gui = Components.screen("ClassGui", 10)
 	frame, content, closeButton = Components.panel(gui, "🏰 คลาสป้อม", Panels.close)
 	Panels.register(PANEL_NAME, frame, closeButton)
 
+	-- ===== ปุ่มลัด C (คีย์บอร์ด) / LB (Gamepad) =====
 	ContextActionService:BindAction("TurretClassPanel", function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then
 			toggle()
@@ -609,6 +664,7 @@ function ClassUI.Init()
 	end, false, Enum.KeyCode.C, Enum.KeyCode.ButtonL1)
 end
 
+-- เริ่มฟัง Attribute TurretClass / TurretBranch / TurretLevel จาก Server
 function ClassUI.Start()
 	player:GetAttributeChangedSignal("TurretClass"):Connect(function()
 		if awaitingClass and Panels.current() == PANEL_NAME and view == "Class" then

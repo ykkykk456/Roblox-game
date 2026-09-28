@@ -5,11 +5,22 @@
 --   barrel = หมุนตามเป้าเต็มทิศ (yaw + pitch)
 --   spin   = เหมือน barrel แต่หมุนรอบแกนลำกล้องทุกครั้งที่เล็ง (Gatling)
 -- [Proposed] หน้าตาเป็นร่างแรก · ยังไม่ได้ดูใน Studio
+--
+-- ===== อยากปรับอะไร → ไปแก้ที่ไหน =====
+--   • สีหลักของคลาส/สาย (accent) → Color ใน src/shared/Config/Skill_class_default.luau
+--   • รูปทรงป้อมแต่ละคลาส → ฟังก์ชัน buildMage / buildArcher / buildGatling / buildAssassin / buildCannon ในไฟล์นี้
+--     (ขนาด = Vector3.new(กว้าง, สูง, ยาว) · ตำแหน่ง = CFrame.new(ขวา, ขึ้น, หน้า) · ค่า Z ติดลบ = ไปทางปากกระบอก)
+--   • สีโลหะ/ไม้/ฐาน/สีตอนช็อต → ค่าคงที่ด้านล่าง
+--
+-- คุยกับไฟล์ไหนบ้าง: TurretService เรียก build / aim / setStunned / muzzleOf / keyOf · ClassMath ให้สีและสายที่ถูกต้อง
+-- ไฟล์นี้แค่ "หน้าตา" ไม่มีผลกับดาเมจ → แก้รูปทรง/สีได้ปลอดภัย (ห้ามเปลี่ยนชื่อ "Head" และ query = true ของชิ้นหัว)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ClassMath = require(ReplicatedStorage.Shared.Util.ClassMath)
 
+-- ===== ค่าคงที่ (สีปรับได้ปลอดภัย) =====
+-- HEAD_HEIGHT: TurretService ใช้ด้วย · เพิ่ม = ป้อมสูงขึ้น (ฐานยาวขึ้น, จุดยิงสูงขึ้น) · ต้องมากกว่า 1
 local HEAD_HEIGHT = 5 -- ความสูงจุดหมุนหัวป้อมจากฐาน (เท่าป้อมเดิม)
 local PEDESTAL_COLOR = Color3.fromRGB(70, 74, 86)
 local UNCHOSEN_HEAD = Color3.fromRGB(60, 160, 170)
@@ -18,8 +29,11 @@ local STEEL = Color3.fromRGB(190, 195, 205)
 local WOOD = Color3.fromRGB(120, 80, 45)
 local BRONZE = Color3.fromRGB(176, 120, 60)
 local STUNNED_COLOR = Color3.fromRGB(110, 110, 116)
+-- GATLING_SPIN_STEP: เพิ่ม = ลำกล้อง Gatling หมุนเร็วขึ้น · 0 = ไม่หมุน
 local GATLING_SPIN_STEP = math.rad(40) -- องศาที่ลำกล้อง Gatling หมุนต่อการเล็งหนึ่งครั้ง
 
+-- ===== ชนิดข้อมูล =====
+-- Piece = ชิ้นส่วน 1 ชิ้น + ตำแหน่งเทียบหัวป้อม + กลุ่มการหมุน · Look = ข้อมูลหน้าตาป้อมทั้งตัว (TurretService ถือไว้)
 type Piece = { part: BasePart, offset: CFrame, group: "head" | "barrel" | "spin" }
 
 export type Look = {
@@ -36,6 +50,8 @@ export type Look = {
 	key: string, -- คลาส|สาย|ขั้นสีไฟ · เปลี่ยน = ต้องสร้างใหม่
 }
 
+-- ===== ตัวช่วยสร้างชิ้นส่วน =====
+-- สร้าง Part ยึดอยู่กับที่ ใส่ใน parent · คืน Part
 local function newPart(name: string, size: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -51,6 +67,7 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 end
 
 -- ตัวช่วยสร้างหัวป้อม: add(...) = ชิ้นประดับ (ชนไม่ได้ ยิง ray ไม่โดน)
+--   opts: shape = รูปทรง (Ball/Cylinder) · material = วัสดุ · tint = เปลี่ยนเป็นเทาตอนช็อต · query = ให้ ray ชนได้ (ใช้กับชิ้นหัว)
 local function builder(model: Model, pieces: { Piece }, tinted: { [BasePart]: Color3 })
 	return function(
 		group: "head" | "barrel" | "spin",
@@ -81,6 +98,7 @@ end
 -- ทรงกระบอกของ Roblox ยาวตามแกน X → หมุนให้ยาวตามแกน Z (ทิศยิง) [Verified: Cylinder shape axis = X]
 local ALONG_Z = CFrame.Angles(0, math.pi / 2, 0)
 
+-- ใส่แสงเรืองรอบชิ้น part (range = รัศมีแสงเป็น studs)
 local function glow(part: BasePart, color: Color3, range: number)
 	local light = Instance.new("PointLight")
 	light.Color = color
@@ -89,11 +107,13 @@ local function glow(part: BasePart, color: Color3, range: number)
 	light.Parent = part
 end
 
+-- Add = ชนิดของฟังก์ชัน add · Built = ผลของ build* แต่ละแบบ (หัว, ลำกล้อง, muzzle = ระยะจุดหมุนถึงปากกระบอก)
 type Add = typeof(builder(Instance.new("Model"), {}, {}))
 type Built = { head: BasePart, barrel: BasePart, muzzle: number }
 
 -- ===== หน้าตาแต่ละแบบ (accent = สีหลักของคลาส/สายจาก Config) =====
 
+-- ยังไม่เลือกคลาส: หัวกล่องสีฟ้าอมเขียว + ลำกล้องธรรมดา
 local function buildUnchosen(add: Add): Built
 	local head = add("head", "Head", Vector3.new(3, 2.5, 3), UNCHOSEN_HEAD, CFrame.new(), { tint = true, query = true })
 	local barrel = add("barrel", "Barrel", Vector3.new(0.8, 0.8, 4), DARK_METAL, CFrame.new(0, 0, -3))
@@ -296,6 +316,7 @@ local function buildCannon(add: Add, accent: Color3, branchId: string, classColo
 	return { head = head, barrel = barrel, muzzle = 5.2 }
 end
 
+-- ===== API ให้ TurretService เรียก =====
 local TurretLook = {}
 
 TurretLook.HEAD_HEIGHT = HEAD_HEIGHT
@@ -334,6 +355,7 @@ function TurretLook.setStunned(look: Look, stunned: boolean)
 	end
 end
 
+-- จุดปากกระบอกในโลก (จุดเริ่มกระสุนที่ส่งให้ Client วาด): จากหัวป้อมไปทางเป้า muzzleDistance studs
 function TurretLook.muzzleOf(look: Look, target: Vector3): Vector3
 	local direction = target - look.headPosition
 	if direction.Magnitude < 0.01 then
@@ -358,6 +380,7 @@ function TurretLook.build(foot: Vector3, classId: string, branchId: string, leve
 	local branch = ClassMath.validBranch(classId, branchId) -- ไม่ตรงคลาส/ข้อมูลเสีย = ไม่มีสาย
 	local accent = stats.Color
 
+	-- เลือกหน้าตาตามคลาส · ชื่อคลาส/สายต้องตรงกับ Config (สะกดผิด = ได้หน้าตา "ยังไม่เลือก")
 	local built: Built
 	if class == "Mage" then
 		built = buildMage(add, accent, branch)
@@ -371,6 +394,7 @@ function TurretLook.build(foot: Vector3, classId: string, branchId: string, leve
 		built = buildUnchosen(add)
 	end
 
+	-- ป้ายชื่อเหนือหัว (ข้อความ TurretService ใส่ให้ใน refreshLabel) · ไกลเกิน 150 studs ไม่แสดง
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(180, 28)
 	gui.StudsOffset = Vector3.new(0, 3.5, 0)

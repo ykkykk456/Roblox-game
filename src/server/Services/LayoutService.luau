@@ -3,6 +3,13 @@
 -- อ่านอย่างเดียว ไม่แก้บล็อกของแมพ (ยกเว้น Map.Layout.HideBossMarker ทำ BossSpawn โปร่งใสตอนรัน)
 -- ไม่เจอ Tag → hasLayout() = false → ระบบอื่นใช้ผังวงกลมเดิมจาก Config/Map
 -- โหลดครั้งแรกที่มีคนเรียก (ไม่พึ่งลำดับ Init)
+--
+-- อยากปรับ:
+--   • ย้ายจุดบอส/ป้อม/บ้าน → ย้ายบล็อกที่ติด Tag ใน Studio เลย ไม่ต้องแก้โค้ด (ใช้ tools/studio/check_layout.lua ตรวจ)
+--   • จำนวนช่องสูงสุด / ระยะจุดเกิดจากบ้าน / ซ่อนบล็อกบอส → src/shared/Config/Map.luau (Layout.MaxSlots / SpawnGap / HideBossMarker)
+--   • ชื่อ Tag → src/shared/Config/Tags.luau (BossSpawn / TurretPrefix / HousePrefix)
+-- คุยกับ: BaseService, MapService, PitService, TurretService, MonsterService, BossService (อ่านตำแหน่งจากที่นี่)
+-- ดูข้อความ [LayoutService] ใน Output เพื่อรู้ว่าเกมใช้ผังจากแมพหรือผังวงกลม
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -11,12 +18,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local Tags = require(ReplicatedStorage.Shared.Config.Tags)
 
+-- ===== สถานะ (เติมครั้งเดียวใน load) =====
 local loaded = false
+-- บล็อก BossSpawn (nil = ไม่เจอ)
 local bossMarker: Instance? = nil
+-- [เลขช่อง] = บล็อกแท่นป้อม / บล็อกบ้าน
 local turretMarkers: { [number]: Instance } = {}
 local houseMarkers: { [number]: Instance } = {}
+-- เลขช่องที่มีแท่นป้อมจริง เช่น { 1, 2, 4 }
 local slotList: { number } = {}
 
+-- ===== ตัวช่วยเรขาคณิต =====
 -- กล่องครอบ (ใช้ได้ทั้ง Part และ Model)
 local function boxOf(item: Instance): (CFrame, Vector3)
 	if item:IsA("BasePart") then
@@ -27,6 +39,7 @@ local function boxOf(item: Instance): (CFrame, Vector3)
 	return CFrame.new(), Vector3.zero
 end
 
+-- ความสูงผิวบนสุดของบล็อก (ไล่ดูมุมกล่องทั้ง 8 มุม จึงถูกต้องแม้บล็อกถูกหมุน/เอียง)
 local function topY(item: Instance): number
 	local cf, size = boxOf(item)
 	local half = size / 2
@@ -41,6 +54,8 @@ local function topY(item: Instance): number
 	return highest
 end
 
+-- ===== หาบล็อกจาก Tag =====
+-- หาบล็อกที่ติด Tag ชื่อ name ใน workspace · ไม่มี Tag → หาจากชื่อบล็อกแทน · เจอหลายชิ้น → ใช้ชิ้นแรกและเตือน
 local function find(name: string): Instance?
 	local found = {}
 	for _, item in CollectionService:GetTagged(name) do
@@ -60,6 +75,8 @@ local function find(name: string): Instance?
 	return found[1]
 end
 
+-- อ่านผังจากแมพครั้งเดียว (เรียกซ้ำได้ ครั้งถัดไปจะข้าม) · พิมพ์สรุป/คำเตือนลง Output
+-- ถ้าตั้ง HideBossMarker → ทำบล็อกจุดบอสโปร่งใส ไม่ชน และไม่โดน Raycast
 local function load()
 	if loaded then
 		return
@@ -74,6 +91,7 @@ local function load()
 		end
 	end
 
+	-- ต้องมีทั้ง BossSpawn และป้อมอย่างน้อย 1 จุด ไม่งั้นใช้ผังวงกลมเดิม
 	if not bossMarker and #slotList == 0 then
 		print("[LayoutService] ไม่เจอ Tag BossSpawn / Turret1-6 — ใช้ผังวงกลมเดิม")
 		return
@@ -113,6 +131,7 @@ local function load()
 	end
 end
 
+-- ===== API (ทุกฟังก์ชันเรียก load() เองก่อน จึงเรียกเมื่อไรก็ได้) =====
 local LayoutService = {}
 
 -- มีผังจากแมพครบ (BossSpawn + ป้อมอย่างน้อย 1 จุด)
@@ -128,6 +147,7 @@ function LayoutService.slots(): { number }
 end
 
 -- ความสูงผิวพื้นใต้จุด (x, z) · ยิงลำแสงลงมา ข้ามตัวละคร/มอน/ป้อม/ของที่ระบุ
+-- ยิงจากความสูง 1000 ลงไป 2000 studs · ไม่โดนอะไรเลย → คืน Map.GroundY
 function LayoutService.floorAt(position: Vector3, ignore: { Instance }?): number
 	load()
 	local exclude: { Instance } = {}
@@ -157,6 +177,7 @@ function LayoutService.floorAt(position: Vector3, ignore: { Instance }?): number
 end
 
 -- จุดบอส (บนพื้น)
+-- ต้องเช็ก hasLayout() ก่อนเรียก (ไม่มี BossSpawn แล้วเรียก = error)
 function LayoutService.bossCenter(): Vector3
 	load()
 	local cf = boxOf(bossMarker :: Instance)
@@ -173,6 +194,7 @@ function LayoutService.turretTop(slot: number): Vector3
 end
 
 -- จุดเกิดผู้เล่นหน้าบ้าน (ฝั่งที่หันไปทางป้อม) · ไม่มีบ้าน → ข้างป้อมฝั่งตรงข้ามบอส
+-- MapService ใช้วาง SpawnLocation ของแต่ละช่อง
 function LayoutService.spawnPoint(slot: number): Vector3
 	load()
 	local turret = LayoutService.turretTop(slot)
@@ -183,17 +205,20 @@ function LayoutService.spawnPoint(slot: number): Vector3
 		local center = Vector3.new(cf.Position.X, 0, cf.Position.Z)
 		local toward = Vector3.new(turret.X, 0, turret.Z) - center
 		local dir = if toward.Magnitude > 0.1 then toward.Unit else Vector3.new(0, 0, -1)
+		-- reach = ระยะจากกลางบ้านถึงขอบบ้านในทิศ dir (คิดการหมุนของบ้านด้วย) แล้วเว้นอีก SpawnGap
 		local reach = math.abs(cf.RightVector:Dot(dir)) * size.X / 2 + math.abs(cf.LookVector:Dot(dir)) * size.Z / 2
 		point = center + dir * (reach + Map.Layout.SpawnGap)
 	else
 		local boss = LayoutService.bossCenter()
 		local away = Vector3.new(turret.X - boss.X, 0, turret.Z - boss.Z)
 		local dir = if away.Magnitude > 0.1 then away.Unit else Vector3.new(0, 0, 1)
+		-- 10 studs ถัดจากป้อม ออกไปฝั่งที่หันหลังให้บอส
 		point = Vector3.new(turret.X, 0, turret.Z) + dir * 10
 	end
 	return Vector3.new(point.X, LayoutService.floorAt(point), point.Z)
 end
 
+-- เรียกตอนเซิร์ฟเวอร์เริ่ม · อ่านผังทันทีเพื่อให้ข้อความสรุปขึ้น Output ตั้งแต่ต้น
 function LayoutService.Init()
 	load()
 end

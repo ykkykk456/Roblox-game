@@ -1,5 +1,7 @@
 -- คำนวณตำแหน่งบนแมพหลุมอุกกาบาตจาก Config/Map (ใช้ได้ทั้ง Server และ Client)
 -- พิกัดท้องถิ่นของฐาน: u = ระยะจากกลางแมพ · v = ระยะไปทางขวาเมื่อยืนหันหลังให้หลุม
+-- อยากย้ายฐาน/ป้อม → แก้ตัวเลขใน Config/Map ไม่ต้องแก้ไฟล์นี้
+-- ใครใช้: Server = Services/MapService, TurretService, MonsterService
 
 local Map = require(script.Parent.Parent.Config.Map)
 
@@ -16,11 +18,13 @@ function MapMath.axes(slot: number): (Vector3, Vector3)
 	return Vector3.new(math.cos(angle), 0, math.sin(angle)), Vector3.new(-math.sin(angle), 0, math.cos(angle))
 end
 
+-- ตำแหน่งจริงในโลกของจุด (u, v) ในฐานช่อง slot · y = ความสูง (ไม่ใส่ = 0)
 function MapMath.point(slot: number, u: number, v: number, y: number?): Vector3
 	local out, right = MapMath.axes(slot)
 	return out * u + right * v + Vector3.new(0, y or 0, 0)
 end
 
+-- ตำแหน่งจากมุม (เรเดียน) + ระยะจากกลางแมพ (studs) · ใช้วางของเป็นวงกลม
 function MapMath.polar(angle: number, radius: number, y: number?): Vector3
 	return Vector3.new(math.cos(angle) * radius, y or 0, math.sin(angle) * radius)
 end

@@ -6,13 +6,23 @@
 --   FireRate / Damage / BossDamage = ตัวคูณระหว่างสกิลทำงาน (BossDamage ใช้เฉพาะตอนยิงบอส)
 --   Burst = ยิงทันที 1 ครั้งแรงเท่ากับ ดาเมจป้อม × Burst (ต้องมีเป้าในระยะถึงจะกดได้)
 -- เลเวลสกิลเพิ่ม "ส่วนที่เกิน 1" ของตัวคูณ และ Burst ทีละ PowerPerLevel (ดู Util/SkillMath)
+--
+-- อยากปรับ: โอกาสสุ่ม → Rarities.Weight · ความแรง/เวลา/คูลดาวน์สกิล → List.<ชื่อสกิล>
+--   เพิ่มสกิลใหม่ → เพิ่มใน List + ใส่ชื่อใน Order (ผลของสกิลต้องเป็นแบบที่มีอยู่แล้วข้างบน ไม่งั้นต้องแก้ Server)
+-- ใครใช้: Server = Services/SkillService, StatsService · Network/SkillHandler · Data/PlayerData · Util/SkillMath
+--   Client = UI/GachaUI, CombatUI (แสดงผลเท่านั้น · ผลสุ่มจริงทำที่ Server)
+-- ⚠️ ไฟล์ shared = ผู้เล่นอ่านได้ ห้ามใส่ความลับ
 
 return table.freeze({
 	StarterSkill = "Overdrive", -- ผู้เล่นทุกคนมีตั้งแต่เริ่ม
+	-- ===== เลเวลสกิล =====
+	-- เลเวลสูงสุดของสกิล
 	MaxLevel = 5,
 	PowerPerLevel = 0.25, -- +25% ของพลังสกิลต่อเลเวล
 	CopiesToUpgrade = table.freeze({ 1, 2, 3, 4 }), -- [เลเวลปัจจุบัน] = จำนวนสกิลซ้ำที่ใช้อัปไปเลเวลถัดไป
 
+	-- ===== ระดับความหายาก (โอกาสสุ่ม) =====
+	-- Weight = โอกาส (%) · Color = สีกรอบ/ชื่อในหน้ากาชา
 	-- น้ำหนักรวม = 100 → เท่ากับ % โดยตรง · ในระดับเดียวกันแบ่งโอกาสเท่ากัน
 	Rarities = table.freeze({
 		table.freeze({ Id = "Common", Name = "ธรรมดา", Weight = 60, Color = Color3.fromRGB(170, 176, 190) }),
@@ -29,6 +39,9 @@ return table.freeze({
 	-- ลำดับการแสดงผล
 	Order = table.freeze({ "Overdrive", "HeavyRounds", "BossBreaker", "Barrage", "Overload" }),
 
+	-- ===== รายการสกิล =====
+	-- Duration = วินาทีที่สกิลทำงาน (0 = ทำทันทีครั้งเดียว) · Cooldown = วินาทีก่อนกดใหม่ได้
+	-- FireRate/Damage/BossDamage = ตัวคูณ (3 = ×3) · Burst = ตัวคูณนัดใหญ่ · Rarity = Id ใน Rarities
 	List = table.freeze({
 		Overdrive = table.freeze({
 			Name = "Overdrive",

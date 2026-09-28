@@ -6,11 +6,16 @@
 --   3. ตรวจริก R15: Humanoid, HumanoidRootPart, ชิ้นส่วน 15 ชิ้น, ข้อต่อ Motor6D, สคริปต์แฝง
 --   4. สร้างโฟลเดอร์ Slambot > Animations พร้อม Animation 3 ตัว (Idle, Walk, Slam) ให้ใส่ AnimationId
 -- เสร็จแล้วกด Ctrl + S เพื่อบันทึก (Rojo ไม่บันทึก ServerStorage ให้)
+-- ไฟล์นี้อยู่นอก src/ → Rojo ไม่ sync เข้าเกม ต้องคัดลอกไปวางเองทุกครั้ง · รันซ้ำได้ (ของที่มีแล้วจะไม่สร้างซ้ำ)
+-- ⚠️ บอส Slambot ถูกล็อกไว้: อ่าน docs/boss-slambot-known-good.md ก่อนแก้สคริปต์นี้หรือตัวโมเดล
+--   ห้ามแก้ให้ต่างจากเดิม ยกเว้นเพิ่มท่าทาง (เพิ่มชื่อใน ANIMATIONS ด้านล่าง)
 
 local ServerStorage = game:GetService("ServerStorage")
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
+-- ===== ค่าคงที่ =====
 local MODEL_NAME = "boss_slambot" -- ชื่อโมเดลที่ Import จาก boss_slambot.fbx
+-- ชื่อชิ้นส่วนที่ริก R15 ต้องมี (ขาดชิ้นไหน = แจ้ง ❌)
 local PARTS = {
 	"HumanoidRootPart", "LowerTorso", "UpperTorso", "Head",
 	"LeftUpperArm", "LeftLowerArm", "LeftHand", "RightUpperArm", "RightLowerArm", "RightHand",
@@ -24,8 +29,10 @@ local JOINTS = {
 	LeftHip = "LeftUpperLeg", LeftKnee = "LeftLowerLeg", LeftAnkle = "LeftFoot",
 	RightHip = "RightUpperLeg", RightKnee = "RightLowerLeg", RightAnkle = "RightFoot",
 }
+-- ชื่อท่าที่จะสร้างช่องรอใส่ AnimationId · เพิ่มท่าใหม่ได้โดยเพิ่มชื่อในรายการนี้
 local ANIMATIONS = { "Idle", "Walk", "Slam" }
 
+-- problems = นับปัญหา · ok() พิมพ์บรรทัดสีปกติ · bad() พิมพ์บรรทัดสีแดงและนับปัญหา
 local problems = 0
 local function ok(text) print("✅ " .. text) end
 local function bad(text)
@@ -38,6 +45,7 @@ local _, recording = pcall(function()
 	return ChangeHistoryService:TryBeginRecording("Setup Slambot")
 end)
 
+-- ===== ขั้น 1: โฟลเดอร์ ServerStorage > Bosses =====
 local bosses = ServerStorage:FindFirstChild("Bosses")
 if not bosses then
 	bosses = Instance.new("Folder")
@@ -50,6 +58,7 @@ end
 local function simple(name)
 	return (string.gsub(string.gsub(string.lower(name), "[^%w]", ""), "boss", ""))
 end
+-- หาโมเดลบอส (ชื่อตรงแบบยืดหยุ่น + มี HumanoidRootPart) ในทุกชั้นของ container · ไม่เจอ = nil
 local function findIn(container)
 	for _, item in container:GetDescendants() do
 		if item:IsA("Model") and simple(item.Name) == simple(MODEL_NAME)
@@ -60,6 +69,7 @@ local function findIn(container)
 	return nil
 end
 
+-- ===== ขั้น 2: ย้ายโมเดลเข้า Bosses และตั้งชื่อให้ตรง =====
 local model = findIn(bosses)
 local inWorkspace = findIn(workspace)
 if not model and inWorkspace then
@@ -74,6 +84,7 @@ if model and model.Name ~= MODEL_NAME then
 	model.Name = MODEL_NAME
 end
 
+-- ===== ขั้น 3: ตรวจริก =====
 if not model then
 	bad("ไม่เจอโมเดลชื่อ " .. MODEL_NAME .. " ที่มี HumanoidRootPart ทั้งใน Workspace และ ServerStorage > Bosses")
 elseif not model:IsA("Model") then
@@ -94,6 +105,7 @@ else
 		end
 	end
 
+	-- ข้อต่อที่ขาดแค่แจ้งเป็นข้อมูล (ไม่นับเป็นปัญหา) เพราะเกมซ่อมเองตอนบอสเกิด
 	local missingJoints = 0
 	for joint, partName in JOINTS do
 		local part = model:FindFirstChild(partName, true)
@@ -120,6 +132,7 @@ else
 		end
 	end
 
+	-- AnimSaves = ที่ Animation Editor เก็บท่าที่ทำไว้ (แค่แสดงรายชื่อ ไม่แก้อะไร)
 	local saves = model:FindFirstChild("AnimSaves")
 	if saves then
 		local names = {}
@@ -131,6 +144,7 @@ else
 		print("ℹ️ ไม่เจอ AnimSaves ในโมเดล (ท่าที่ทำไว้อาจเก็บที่อื่น — ไม่เป็นไร ถ้า Publish แล้วได้เลข ID)")
 	end
 
+	-- ===== ขั้น 4: โฟลเดอร์ Animations + ช่อง Animation ของแต่ละท่า =====
 	local folder = model:FindFirstChild("Animations")
 	if not folder then
 		folder = Instance.new("Folder")
@@ -152,6 +166,7 @@ else
 	end
 end
 
+-- ===== จบ: ปิดการบันทึกประวัติ (Ctrl + Z) และสรุปผล =====
 if recording then
 	pcall(function()
 		ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)

@@ -1,5 +1,10 @@
 -- HUD หลัก: เหรียญ (มุมซ้ายบน) · เมนู (ขวากลาง) · FPS (ซ้ายล่าง) · คำแนะนำปุ่มลัด (กลางล่าง)
 -- เหรียญแสดงจาก Attribute "Coins" ที่ Server ตั้งให้ (StatsService) — Client แค่แสดง ไม่เป็นเจ้าของค่า
+-- อยากย้าย/ขยายของบนจอ → แก้ Position / Size ในหมวดของชิ้นนั้นด้านล่าง
+--   UDim2.fromOffset(x, y) = พิกเซล · UDim2.new(สัดส่วนX, พิกเซลX, สัดส่วนY, พิกเซลY) (สัดส่วน 1 = สุดจอ)
+--   AnchorPoint = จุดยึดของชิ้น (0,0 = มุมซ้ายบน · 1,0.5 = ขวากลาง)
+-- อยากเพิ่มปุ่มเมนู → เพิ่ม Components.button ในหมวดเมนู + ขยาย menu.Size
+-- สี/ฟอนต์ → UI/Theme.luau
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -13,6 +18,7 @@ local Settings = require(script.Parent.Parent.Controllers.SettingsController)
 
 local player = Players.LocalPlayer
 
+-- ป้ายที่ต้องใช้ต่อใน Start()
 local fpsLabel: TextLabel
 local hintLabel: TextLabel?
 
@@ -30,10 +36,12 @@ end
 
 local HudUI = {}
 
+-- สร้าง HUD ทั้งหมดตอนเริ่มเกม
 function HudUI.Init()
 	local gui = Components.screen("HudGui", 5)
 
-	-- เหรียญ
+	-- ===== ป้ายเหรียญ (มุมซ้ายบน) =====
+	-- ตำแหน่ง = badge.Position · ขนาด = badge.Size · สีตัวเลข = Theme.Colors.Coin
 	local badge = Instance.new("Frame")
 	badge.Name = "Coins"
 	badge.Position = UDim2.fromOffset(12, 12)
@@ -48,6 +56,7 @@ function HudUI.Init()
 		bold = true,
 		color = Theme.Colors.Coin,
 	})
+	-- อัปเดตตัวเลขเมื่อ Server เปลี่ยน Attribute "Coins"
 	local function renderCoins()
 		local coins = player:GetAttribute("Coins")
 		coinLabel.Text = if typeof(coins) == "number" then `💰 {coins}` else "💰 …"
@@ -55,7 +64,9 @@ function HudUI.Init()
 	player:GetAttributeChangedSignal("Coins"):Connect(renderCoins)
 	renderCoins()
 
-	-- เมนู
+	-- ===== ปุ่มเมนู (ขวากลาง) =====
+	-- ตำแหน่ง = menu.Position · ขนาดกล่อง = menu.Size (สูงพอสำหรับ 4 ปุ่ม) · ระยะห่างปุ่ม = Components.list(menu, 8)
+	-- order = ลำดับปุ่มจากบนลงล่าง
 	local menu = Instance.new("Frame")
 	menu.Name = "Menu"
 	menu.BackgroundTransparency = 1
@@ -77,10 +88,12 @@ function HudUI.Init()
 		Panels.toggle("Gacha") -- แผงสร้างใน GachaUI
 	end)
 
+	-- แผงชั่วคราวของปุ่มที่ยังไม่มีระบบ
 	placeholderPanel(gui, "Shop", "ร้านค้า", "ร้านค้ากำลังพัฒนา\nจะเปิดเมื่อมีระบบเงินและไอเทม")
 	placeholderPanel(gui, "Bag", "กระเป๋า", "กระเป๋ากำลังพัฒนา\nจะแสดงไอเทมที่คุณมี")
 
-	-- FPS
+	-- ===== ตัวนับ FPS (ซ้ายล่าง · แสดงเมื่อเปิดในตั้งค่า) =====
+	-- ตำแหน่ง/ขนาด = position / size ด้านล่าง
 	fpsLabel = Components.label(gui, "FPS: -", {
 		size = UDim2.fromOffset(120, 28),
 		position = UDim2.new(0, 12, 1, -12),
@@ -95,7 +108,7 @@ function HudUI.Init()
 		end
 	end)
 
-	-- คำแนะนำปุ่มลัด (ไม่แสดงบนจอสัมผัสอย่างเดียว)
+	-- ===== คำแนะนำปุ่มลัด (กลางล่าง · ไม่แสดงบนจอสัมผัสอย่างเดียว) =====
 	local hint = if UserInputService.GamepadEnabled
 		then "กด Select เพื่อเปิดตั้งค่า"
 		elseif UserInputService.KeyboardEnabled then "กด M เพื่อเปิดตั้งค่า"
@@ -113,6 +126,7 @@ function HudUI.Init()
 	end
 end
 
+-- เริ่มทำงาน: ค่อยๆ ซ่อนคำแนะนำหลัง 6 วินาที + นับ FPS ทุก 1 วินาที
 function HudUI.Start()
 	if hintLabel then
 		task.delay(6, function()

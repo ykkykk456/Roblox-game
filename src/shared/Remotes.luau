@@ -3,10 +3,18 @@
 -- Server: สร้าง Instance ทั้งหมดใน ReplicatedStorage.Remotes ตอน require ครั้งแรก
 -- Client: รอ Instance ที่ Server สร้าง
 -- ฝั่ง Server ต้องรับทุก Remote ผ่าน src/server/Network/Guard.luau เท่านั้น
+--
+-- Remote คืออะไร: "ท่อส่งข้อความ" ระหว่างเครื่องผู้เล่น (Client) กับเซิร์ฟเวอร์ (Server)
+--   RemoteEvent = ส่งทางเดียว ไม่รอคำตอบ · RemoteFunction = ส่งแล้วรอคำตอบ
+-- อยากเพิ่ม Remote → เพิ่ม 1 บรรทัดใน NAMES ด้านล่าง แล้วไปเขียนตัวรับใน src/server/Network/ (ผ่าน Guard)
+-- ใครใช้ไฟล์นี้: src/server/Network/*Handler.luau · Services/TurretService, SkillService ·
+--   src/client/Controllers/TurretController, SkillController, ClassController
+-- ⚠️ ไฟล์ shared = ผู้เล่นอ่านได้ · ข้อมูลที่ Client ส่งมาเชื่อไม่ได้ ต้องตรวจที่ Server เสมอ
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+-- ===== รายชื่อ Remote ทั้งหมด (ชื่อ = ชนิด) =====
 local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	-- ตัวอย่าง: BuyItem = "RemoteEvent",
 	UpgradeTurret = "RemoteEvent", -- Client → Server: ขออัปเลเวลป้อม (ไม่มี argument)
@@ -23,8 +31,11 @@ local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	GachaResult = "RemoteEvent", -- Server → Client: ผลการสุ่ม { { id, new } } สำหรับแสดงผลเท่านั้น
 }
 
+-- ===== สร้าง/หาโฟลเดอร์ Remotes =====
+-- ชื่อโฟลเดอร์ใน ReplicatedStorage ที่เก็บ Remote ทุกตัว
 local FOLDER_NAME = "Remotes"
 
+-- Server สร้าง Remote ทุกตัวตาม NAMES · Client รอจนโฟลเดอร์ที่ Server สร้างโผล่มา
 local folder: Instance
 if RunService:IsServer() then
 	folder = Instance.new("Folder")
@@ -41,6 +52,8 @@ end
 
 local Remotes = {}
 
+-- ดึง Remote ตามชื่อ เช่น Remotes.get("UpgradeTurret") → คืน RemoteEvent/RemoteFunction
+-- ชื่อที่ไม่มีใน NAMES จะ error ทันที (กันพิมพ์ชื่อผิด)
 function Remotes.get(name: string): Instance
 	assert(NAMES[name], `Remote "{name}" ยังไม่ได้ประกาศใน Remotes.luau`)
 	return folder:WaitForChild(name)

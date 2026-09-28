@@ -6,6 +6,16 @@
 --   BlackHole  = หลุมดำ 1 หลุมต่อเจ้าของป้อม · ดาเมจบอส/มอนที่อยู่ในรัศมีทุกรอบ
 -- ป้อมช็อตไม่หยุด effect ที่ปล่อยไปแล้ว · บอสจากไป = ล้าง effect ที่ติดบอส
 -- update(now) ถูกเรียกจากรอบ tick ของ TurretService เท่านั้น (ไม่มี loop ของตัวเอง กันนับซ้ำ)
+--
+-- ===== อยากปรับอะไร → ไปแก้ที่ไหน (ไม่ต้องแก้ไฟล์นี้) =====
+--   • ตัวคูณดาเมจ/อัตรายิงของคลาส-สาย, เลเวลที่เลือกสายได้, ค่า effect (DotPerSecond, ArmorBreak, Radius, Seconds …)
+--     → src/shared/Config/Skill_class_default.luau · กฎการเลือก → src/shared/Util/ClassMath.luau
+--
+-- คุยกับไฟล์ไหนบ้าง:
+--   • TurretClassHandler (Network) — เรียก choose / chooseBranch · TurretService — เรียก get, damageBoss, apply*, update
+--   • BossService — นับดาเมจบอส · MonsterService — ทำดาเมจมอน · PlayerData — เก็บคลาส/สายของผู้เล่น (บันทึกลง DataStore)
+--
+-- ⚠️ ห้ามแก้: การเปลี่ยนคลาส/สายต้องอยู่ใน PlayerData.update และตรวจกฎซ้ำเสมอ (ห้ามเชื่อค่าที่ Client ส่งมา)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,11 +26,16 @@ local BossService = require(script.Parent.BossService)
 local MonsterService = require(script.Parent.MonsterService)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
+-- ===== ค่าคงที่ =====
+-- MAX_STEP (ปรับได้): เซิร์ฟค้างนานแค่ไหนก็นับดาเมจต่อเนื่องได้ไม่เกินเท่านี้ต่อรอบ · ลด = ปลอดภัยขึ้นแต่ดาเมจหายเมื่อเซิร์ฟกระตุก
 local MAX_STEP = 0.5 -- วินาทีสูงสุดที่นับต่อรอบ (กันเซิร์ฟกระตุกแล้วดาเมจก้อนใหญ่)
 
+-- BOSS = ตารางว่างที่ใช้เป็น "ป้ายชื่อ" แทนบอสในตาราง DoT (ห้ามแก้)
 -- เป้าของ DoT: ตาราง Monster จาก MonsterService หรือ BOSS
 local BOSS = table.freeze({})
 
+-- ===== ชนิดข้อมูล =====
+-- Dot = ดาเมจต่อเนื่อง 1 ตัว (perSecond ต่อวินาที ตั้งแต่ startAt ถึง untilAt)
 type Dot = { perSecond: number, startAt: number, untilAt: number }
 type Hole = {
 	position: Vector3,
@@ -32,6 +47,9 @@ type Hole = {
 	onBoss: boolean,
 }
 
+-- ===== สถานะ effect ที่กำลังทำงาน =====
+-- dots[ผู้ยิง][เป้า] = DoT · holes[เจ้าของ] = หลุมดำ · armor = ค่าลดเกราะบอสตอนนี้ (value 0.2 = บอสโดนแรงขึ้น 20%)
+-- lastUpdate = เวลาที่ update ทำงานครั้งก่อน · changedEvent = สัญญาณคลาส/สายเปลี่ยน
 local dots: { [Player]: { [any]: Dot } } = {}
 local holes: { [Player]: Hole } = {}
 local armor = { value = 0, untilAt = 0 }
@@ -39,10 +57,12 @@ local lastUpdate: number? = nil
 local changedEvent = Instance.new("BindableEvent")
 
 -- ช่วงเวลาที่ effect ทำงานจริงในรอบนี้ (from, now]
+-- คืนจำนวนวินาทีที่ซ้อนกันระหว่างรอบนี้กับช่วงที่ effect ยังทำงาน (ไม่ติดลบ)
 local function activeSeconds(from: number, now: number, startAt: number, untilAt: number): number
 	return math.max(0, math.min(now, untilAt) - math.max(from, startAt))
 end
 
+-- ===== API: เลือกคลาส/สาย =====
 local TurretClassService = {}
 
 -- ยิงเมื่อคลาส/สายของผู้เล่นเปลี่ยน: (player) · TurretService ใช้สร้างหน้าตาป้อมใหม่
@@ -96,6 +116,7 @@ function TurretClassService.chooseBranch(player: Player, branchId: string): bool
 	return changed
 end
 
+-- ===== API: ดาเมจบอส + effect ของสาย =====
 -- ตัวคูณดาเมจที่บอสได้รับ (ลดเกราะจากสายพิษ) · ใช้กับดาเมจบอสทุกแหล่ง
 function TurretClassService.bossDamageMultiplier(now: number): number
 	if now < armor.untilAt and BossService.isActive() then
@@ -164,6 +185,7 @@ function TurretClassService.holeOf(owner: Player, now: number): Hole?
 	return if hole and now < hole.untilAt then hole else nil
 end
 
+-- ===== อัปเดตทุกรอบ =====
 -- ล้าง effect ที่ติดบอส (บอสจากไป)
 local function clearBoss()
 	armor.value = 0
@@ -180,6 +202,7 @@ end
 
 -- เรียกทุกรอบ tick ของ TurretService: ทำดาเมจ DoT/หลุมดำ ตามเวลาที่ผ่านไป
 function TurretClassService.update(now: number)
+	-- from = เวลาเริ่มของรอบนี้ (ครั้งแรกเริ่มจาก now = ยังไม่นับอะไร · ไม่ย้อนเกิน MAX_STEP)
 	local from = math.max(lastUpdate or now, now - MAX_STEP)
 	lastUpdate = now
 	local bossActive = BossService.isActive()
@@ -227,6 +250,7 @@ function TurretClassService.update(now: number)
 	end
 end
 
+-- ผู้เล่นออกเกม → ลบ DoT/หลุมดำของคนนั้นทิ้ง (ไม่ทำดาเมจแทนคนที่ไม่อยู่แล้ว)
 function TurretClassService.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		dots[player] = nil

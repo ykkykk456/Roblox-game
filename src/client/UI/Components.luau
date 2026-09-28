@@ -1,5 +1,8 @@
 -- ชิ้นส่วน UI ที่ใช้ซ้ำ (ปุ่ม แผง สไลเดอร์ สวิตช์) — ทุกชิ้นรองรับ เมาส์ / สัมผัส / Gamepad
 -- โมดูล helper: ไม่มี Init/Start (loader require แล้วข้ามไป)
+-- ใครใช้: UI ทุกไฟล์ (HudUI, SettingsUI, GachaUI, ClassUI, CombatUI)
+-- ⚠️ แก้ไฟล์นี้ = ทุกหน้าจอเปลี่ยนตาม · อยากแก้แค่หน้าเดียว → ส่ง options (size/position/color) จากไฟล์หน้านั้นแทน
+-- สี/ฟอนต์/ความสูงปุ่ม → UI/Theme.luau
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -9,16 +12,20 @@ local Theme = require(script.Parent.Theme)
 
 local Components = {}
 
+-- ===== ตัวช่วยพื้นฐาน =====
+-- เปลี่ยนค่าของชิ้นแบบนุ่มนวล (ความเร็ว = Theme.TweenTime)
 local function tween(instance: Instance, goal: { [string]: any })
 	TweenService:Create(instance, TweenInfo.new(Theme.TweenTime, Enum.EasingStyle.Quad), goal):Play()
 end
 
+-- ทำให้มุมของ parent โค้งมน (ไม่ใส่ radius = Theme.Corner)
 function Components.corner(parent: Instance, radius: UDim?)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = radius or Theme.Corner
 	corner.Parent = parent
 end
 
+-- เว้นขอบด้านในของ parent ทุกด้านเท่ากัน pixels พิกเซล
 function Components.padding(parent: Instance, pixels: number)
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, pixels)
@@ -28,6 +35,7 @@ function Components.padding(parent: Instance, pixels: number)
 	padding.Parent = parent
 end
 
+-- เรียงลูกของ parent ต่อกันอัตโนมัติ (ค่าเริ่มแนวตั้ง) ห่างกัน spacing พิกเซล · เรียงตาม LayoutOrder
 function Components.list(parent: Instance, spacing: number, direction: Enum.FillDirection?): UIListLayout
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = direction or Enum.FillDirection.Vertical
@@ -49,6 +57,9 @@ function Components.screen(name: string, displayOrder: number?): ScreenGui
 	return gui
 end
 
+-- ===== ป้ายข้อความ =====
+-- ตัวเลือกของ label (ไม่ใส่ = ค่าเริ่มต้น): size/position = ขนาด/ตำแหน่ง · bold = ตัวหนา
+-- textSize = ขนาดตัวอักษร · color = สีตัวอักษร · alignX = ชิดซ้าย/กลาง/ขวา · order = ลำดับในรายการ
 type LabelOptions = {
 	size: UDim2?,
 	position: UDim2?,
@@ -59,6 +70,7 @@ type LabelOptions = {
 	order: number?,
 }
 
+-- สร้างป้ายข้อความโปร่งใสใน parent · ค่าเริ่ม: กว้างเต็ม สูง Theme.ButtonHeight ชิดซ้าย
 function Components.label(parent: Instance, text: string, options: LabelOptions?): TextLabel
 	local opts: LabelOptions = options or {}
 	local label = Instance.new("TextLabel")
@@ -76,6 +88,8 @@ function Components.label(parent: Instance, text: string, options: LabelOptions?
 	return label
 end
 
+-- ===== ปุ่ม =====
+-- ตัวเลือกของปุ่ม: anchor = จุดยึด · color = สีพื้น · hoverColor = สีตอนชี้/เลือก (อื่นๆ เหมือน LabelOptions)
 type ButtonOptions = {
 	size: UDim2?,
 	position: UDim2?,
@@ -87,6 +101,8 @@ type ButtonOptions = {
 	noHover: boolean?, -- ปิดการเปลี่ยนสีอัตโนมัติ (ปุ่มที่คุมสีเอง เช่น สวิตช์)
 }
 
+-- สร้างปุ่มใน parent · กดแล้วเรียก onClick · เปลี่ยนสีเมื่อเมาส์ชี้หรือ Gamepad เลือก
+-- ค่าเริ่ม: กว้างเต็ม สูง Theme.ButtonHeight สี Theme.Colors.Surface
 function Components.button(parent: Instance, text: string, options: ButtonOptions?, onClick: (() -> ())?): TextButton
 	local opts: ButtonOptions = options or {}
 	local baseColor = opts.color or Theme.Colors.Surface
@@ -106,6 +122,7 @@ function Components.button(parent: Instance, text: string, options: ButtonOption
 	button.Parent = parent
 	Components.corner(button)
 
+	-- เปลี่ยนสีปุ่มเป็นสี hover (on = true) หรือกลับสีเดิม
 	local function highlight(on: boolean)
 		if opts.noHover then
 			return
@@ -130,8 +147,10 @@ function Components.button(parent: Instance, text: string, options: ButtonOption
 	return button
 end
 
--- แผงหน้าต่างกลางจอ: คืน (frame, content) · content เรียงของแนวตั้งและเลื่อนได้เมื่อยาวเกินจอ
+-- ===== แผงหน้าต่าง =====
+-- แผงหน้าต่างกลางจอ: คืน (frame, content, closeButton) · content เรียงของแนวตั้งและเลื่อนได้เมื่อยาวเกินจอ
 function Components.panel(parent: Instance, title: string, onClose: () -> ()): (Frame, ScrollingFrame, TextButton)
+	-- กรอบแผง: กลางจอ · กว้าง 90% สูง 80% ของจอ (แก้ Position/Size ตรงนี้ = ทุกแผงเปลี่ยน)
 	local frame = Instance.new("Frame")
 	frame.Name = title
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -144,21 +163,25 @@ function Components.panel(parent: Instance, title: string, onClose: () -> ()): (
 	Components.corner(frame)
 	Components.padding(frame, Theme.Padding)
 
+	-- ขนาดแผงใหญ่สุด 480 × 440 พิกเซล (จอใหญ่จะไม่ขยายเกินนี้)
 	local limit = Instance.new("UISizeConstraint")
 	limit.MaxSize = Vector2.new(480, 440)
 	limit.Parent = frame
 
+	-- เส้นขอบแผง (หนา 1 พิกเซล)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Theme.Colors.SurfaceHover
 	stroke.Thickness = 1
 	stroke.Parent = frame
 
+	-- หัวข้อแผง (ซ้ายบน)
 	Components.label(frame, title, {
 		size = UDim2.new(1, -Theme.ButtonHeight - 8, 0, Theme.ButtonHeight),
 		bold = true,
 		textSize = Theme.TitleSize,
 	})
 
+	-- ปุ่มปิด ✕ (มุมขวาบน · ชี้แล้วเป็นสีแดง)
 	local closeButton = Components.button(frame, "✕", {
 		size = UDim2.fromOffset(Theme.ButtonHeight, Theme.ButtonHeight),
 		position = UDim2.fromScale(1, 0),
@@ -167,6 +190,7 @@ function Components.panel(parent: Instance, title: string, onClose: () -> ()): (
 	}, onClose)
 	closeButton.Name = "Close"
 
+	-- พื้นที่เนื้อหาใต้หัวข้อ (เลื่อนขึ้นลงได้ · ของข้างในห่างกัน 8 พิกเซล)
 	local content = Instance.new("ScrollingFrame")
 	content.Name = "Content"
 	content.BackgroundTransparency = 1
@@ -183,6 +207,7 @@ function Components.panel(parent: Instance, title: string, onClose: () -> ()): (
 	return frame, content, closeButton
 end
 
+-- ===== ตัวควบคุมในหน้าตั้งค่า (สวิตช์ + สไลเดอร์) =====
 -- แถวหนึ่งบรรทัด: ชื่อด้านซ้าย 40% · ตัวควบคุมด้านขวา 60% (คืน frame ฝั่งขวา)
 local function row(parent: Instance, labelText: string, order: number?): Frame
 	local container = Instance.new("Frame")
@@ -208,6 +233,7 @@ function Components.toggle(parent: Instance, labelText: string, value: boolean, 
 	local current = value
 	local button: TextButton
 
+	-- วาดสวิตช์ตามค่า: เปิด = สี Accent · ปิด = สี Surface
 	local function render()
 		button.Text = if current then "เปิด" else "ปิด"
 		button.BackgroundColor3 = if current then Theme.Colors.Accent else Theme.Colors.Surface
@@ -239,6 +265,7 @@ function Components.slider(
 	local current = value
 	local stepWidth = Theme.ButtonHeight
 
+	-- แถบเลื่อน (อยู่ระหว่างปุ่ม − กับ + · สูง 10 พิกเซล)
 	local bar = Instance.new("TextButton")
 	bar.Name = "Bar"
 	bar.Text = ""
@@ -251,24 +278,28 @@ function Components.slider(
 	bar.Parent = right
 	Components.corner(bar, UDim.new(1, 0))
 
+	-- ส่วนที่เติมสีในแถบ (ยาวตามค่าปัจจุบัน)
 	local fill = Instance.new("Frame")
 	fill.BackgroundColor3 = Theme.Colors.Accent
 	fill.BorderSizePixel = 0
 	fill.Parent = bar
 	Components.corner(fill, UDim.new(1, 0))
 
+	-- ตัวเลขค่าปัจจุบัน (ขวาสุด กว้าง 44 พิกเซล)
 	local valueLabel = Components.label(right, "", {
 		size = UDim2.new(0, 44, 1, 0),
 		position = UDim2.new(1, -44, 0, 0),
 		alignX = Enum.TextXAlignment.Right,
 	})
 
+	-- วาดแถบเติมสี + ตัวเลขตามค่าปัจจุบัน
 	local function render()
 		local alpha = (current - range.min) / (range.max - range.min)
 		fill.Size = UDim2.fromScale(alpha, 1)
 		valueLabel.Text = tostring(current)
 	end
 
+	-- ตั้งค่าใหม่ (ปัดให้ลง step และไม่เกิน min–max) · notify = true → แจ้ง onChanged
 	local function setValue(newValue: number, notify: boolean)
 		local snapped = range.min + math.floor((newValue - range.min) / range.step + 0.5) * range.step
 		snapped = math.clamp(snapped, range.min, range.max)
@@ -282,6 +313,7 @@ function Components.slider(
 		end
 	end
 
+	-- ปุ่ม − (ซ้าย) / + (ขวา) ลด-เพิ่มทีละ step
 	Components.button(right, "−", {
 		size = UDim2.new(0, stepWidth, 1, 0),
 	}, function()
@@ -294,6 +326,7 @@ function Components.slider(
 		setValue(current + range.step, true)
 	end)
 
+	-- ลากแถบด้วยเมาส์/นิ้ว: แปลงตำแหน่ง x บนจอเป็นค่า
 	local dragging = false
 	local function updateFromX(x: number)
 		local alpha = math.clamp((x - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
