@@ -11,7 +11,12 @@ local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	-- ตัวอย่าง: BuyItem = "RemoteEvent",
 	UpgradeTurret = "RemoteEvent", -- Client → Server: ขออัปเลเวลป้อม (ไม่มี argument)
 	UseTurretSkill = "RemoteEvent", -- Client → Server: ขอใช้สกิลป้อม (ไม่มี argument)
-	TurretFired = "RemoteEvent", -- Server → Client: ตำแหน่งกระสุนสำหรับวาดเอฟเฟกต์เท่านั้น
+	-- Server → Client: เอฟเฟกต์การยิงสำหรับวาดเท่านั้น (แทน TurretFired เดิม) · ส่งรวมทุกป้อมต่อรอบคำนวณ
+	-- payload: { { Kind: string, From: Vector3, To: Vector3, Color: Color3, Radius: number?, Duration: number? } }
+	-- Kind = ค่า Fx ใน Config/Skill_class_default (ไม่รู้จัก → วาดเป็น Tracer) · BlackHole: To = จุดหลุม + Radius + Duration
+	TurretFx = "RemoteEvent",
+	ChooseTurretClass = "RemoteEvent", -- Client → Server: (classId: string) เลือกคลาสป้อม
+	ChooseTurretBranch = "RemoteEvent", -- Client → Server: (branchId: string) เลือกสายธาตุ
 	RollGacha = "RemoteEvent", -- Client → Server: (count: number) สุ่มสกิลด้วยตั๋ว
 	EquipSkill = "RemoteEvent", -- Client → Server: (skillId: string) เลือกสกิลที่ใช้
 	UpgradeSkill = "RemoteEvent", -- Client → Server: (skillId: string) อัปขั้นด้วยสกิลซ้ำ

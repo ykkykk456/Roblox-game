@@ -10,6 +10,7 @@ local UserInputService = game:GetService("UserInputService")
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local Skills = require(ReplicatedStorage.Shared.Config.Skills)
+local ClassMath = require(ReplicatedStorage.Shared.Util.ClassMath)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local Components = require(script.Parent.Components)
 local Theme = require(script.Parent.Theme)
@@ -107,8 +108,10 @@ local function renderTurret()
 	local level = TurretMath.clampLevel(player:GetAttribute("TurretLevel"))
 	local boost = numberAttr(player, "FriendBoost", 0)
 	local boostText = if boost > 0 then ` · 👥 +{math.floor(boost * 100 + 0.5)}%` else ""
-	local rateText = string.format("%.1f", TurretMath.fireRate(level))
-	local damageText = shortNumber(TurretMath.damage(level))
+	-- รวมตัวคูณคลาส/สายธาตุ (ClassMath) เพื่อแสดงผลเท่านั้น · ดาเมจจริงคำนวณที่ Server
+	local stats = ClassMath.stats(player:GetAttribute("TurretClass"), player:GetAttribute("TurretBranch"), level)
+	local rateText = string.format("%.1f", TurretMath.fireRate(level) * stats.FireRate)
+	local damageText = shortNumber(TurretMath.damage(level) * stats.Damage)
 	turretInfo.Text =
 		`🔫 ป้อม Lv.{level} · ดาเมจ {damageText} · ยิง {rateText}/วิ{boostText}`
 
@@ -267,7 +270,7 @@ function CombatUI.Start()
 	end)
 	bossState:GetAttributeChangedSignal("Top"):Connect(renderBoard)
 	player:GetAttributeChangedSignal("BossDamage"):Connect(renderBoard)
-	for _, name in { "TurretLevel", "Coins", "FriendBoost", "EquippedSkill" } do
+	for _, name in { "TurretLevel", "Coins", "FriendBoost", "EquippedSkill", "TurretClass", "TurretBranch" } do
 		player:GetAttributeChangedSignal(name):Connect(renderTurret)
 	end
 	renderBoard()

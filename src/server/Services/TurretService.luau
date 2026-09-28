@@ -1,14 +1,17 @@
 -- ป้อมของผู้เล่น: วาง · เล็ง · ยิง · อัปเลเวล · ใช้สกิล (เจ้าของ: Gameplay_Scripter)
 -- คลังสกิล/กาชา/คูลดาวน์อยู่ที่ SkillService · ที่นี่แค่นำผลสกิลมาใช้ตอนยิง
+-- คลาส/สายธาตุ + effect ต่อเนื่องอยู่ที่ TurretClassService · หน้าตาป้อมสร้างที่ TurretLook (design/turret-classes.md)
 -- Server เลือกเป้าและคำนวณดาเมจเองทั้งหมด · Client ส่งได้แค่ "ขออัป" / "ขอใช้สกิล" (ผ่าน TurretHandler)
 -- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ
--- เลือดป้อม: บอสทุบพื้น (BossService.Slammed) → ลดเลือดทุกป้อม · หมด = ช็อต หยุดยิง Combat.Turret.StunSeconds แล้วฟื้นเต็ม
+-- ดาเมจต่อนัด = TurretMath.damage × ตัวคูณคลาส/สาย × สกิลกาชา × Friend boost (× ลดเกราะ เมื่อตีบอส)
+-- อัตรายิง   = TurretMath.fireRate × ตัวคูณคลาส/สาย × สกิลกาชา · สายลมยิงเป็นชุด (ชาร์จ → รัว) แทน
+-- เลือดป้อม: บอสทุบพื้น (BossService.Slammed) → ลดเลือดทุกป้อม · หมด = ช็อต หยุดยิง/หยุดชาร์จ Combat.Turret.StunSeconds แล้วฟื้นเต็ม
 --   บอสจบ = เลือดเต็มทันที · ไม่บันทึกลง DataStore (ยืนยัน 2026-09-26)
--- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางหน้าฐานของตัวเอง (BaseService) · หน้าตาเป็น Part ธรรมดา
--- (ตาม IDEA.md หน้าตาไม่เปลี่ยนตามเลเวล — จะเปลี่ยนตามอุปกรณ์แต่งปืนในเฟสหลัง)
+-- [Proposed] prototype: ผู้เล่น 1 คน = ป้อม 1 ตัว วางหน้าฐานของตัวเอง (BaseService)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local ClassMath = require(ReplicatedStorage.Shared.Util.ClassMath)
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
@@ -21,27 +24,33 @@ local LayoutService = require(script.Parent.LayoutService)
 local FriendBoostService = require(script.Parent.FriendBoostService)
 local MonsterService = require(script.Parent.MonsterService)
 local SkillService = require(script.Parent.SkillService)
+local TurretClassService = require(script.Parent.TurretClassService)
+local TurretLook = require(script.Parent.TurretLook)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 local GROUND_Y = Map.GroundY
-local HEAD_HEIGHT = 5
-local BARREL_LENGTH = 4
+local HEAD_HEIGHT = TurretLook.HEAD_HEIGHT
 local MAX_SHOTS_PER_TICK = 5 -- กันอัตรายิงสูงเกินรอบคำนวณ: รวมหลายนัดเป็นครั้งเดียว
-local HEAD_COLOR = Color3.fromRGB(60, 160, 170)
 local STUNNED_COLOR = Color3.fromRGB(110, 110, 116)
 
 type Turret = {
 	owner: Player,
 	slot: number,
-	model: Model,
-	head: BasePart,
-	barrel: BasePart,
-	label: TextLabel,
-	headPosition: Vector3,
+	look: TurretLook.Look,
 	nextFireAt: number,
 	hp: number,
 	stunnedUntil: number, -- os.clock() · 0 = ไม่ช็อต
+	-- สายลม (ChargeBurst): เริ่มชาร์จเมื่อไร · เหลือกี่ดอกในชุด · ดอกถัดไปยิงเมื่อไร
+	chargeStartAt: number,
+	burstLeft: number,
+	nextBurstAt: number,
 }
+
+-- เป้าที่เลือกแล้ว: monster = nil เมื่อเป็นบอส
+type Target = { position: Vector3, monster: any?, isBoss: boolean }
+
+-- เอฟเฟกต์ที่ส่งให้ Client (ดู TurretFx ใน Remotes.luau)
+type Fx = { Kind: string, From: Vector3, To: Vector3, Color: Color3, Radius: number?, Duration: number? }
 
 local turrets: { [Player]: Turret } = {}
 local folder: Folder
@@ -49,6 +58,11 @@ local folder: Folder
 local function levelOf(player: Player): number
 	local data = PlayerData.get(player)
 	return TurretMath.clampLevel(if data then data.TurretLevel else 1)
+end
+
+local function statsOf(player: Player): ClassMath.Stats
+	local classId, branchId = TurretClassService.get(player)
+	return ClassMath.stats(classId, branchId, levelOf(player))
 end
 
 local function newPart(name: string, size: Vector3, color: Color3, parent: Instance): Part
@@ -65,17 +79,9 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 	return part
 end
 
-local function aim(turret: Turret, target: Vector3)
-	local flat = Vector3.new(target.X, turret.headPosition.Y, target.Z)
-	if (flat - turret.headPosition).Magnitude > 0.01 then
-		turret.head.CFrame = CFrame.lookAt(turret.headPosition, flat)
-	end
-	turret.barrel.CFrame = CFrame.lookAt(turret.headPosition, target) * CFrame.new(0, 0, -BARREL_LENGTH / 2 - 1)
-end
-
 local function refreshLabel(turret: Turret)
 	local status = if turret.stunnedUntil > 0 then "⚡ ช็อต!" else `❤ {math.ceil(turret.hp)}`
-	turret.label.Text = `{turret.owner.DisplayName} · Lv.{levelOf(turret.owner)} · {status}`
+	turret.look.label.Text = `{turret.owner.DisplayName} · Lv.{levelOf(turret.owner)} · {status}`
 end
 
 -- ฐานป้อม (ระดับพื้น): บนแท่น Tag TurretN ของแมพ · ไม่มี Tag → หน้าฐานผังวงกลมเดิม
@@ -136,57 +142,50 @@ local function removeIdle(slot: number)
 	end
 end
 
+-- สร้างหน้าตาป้อมตามคลาส/สายปัจจุบันของเจ้าของ
+local function buildLook(owner: Player, slot: number): TurretLook.Look
+	local classId, branchId = TurretClassService.get(owner)
+	local look = TurretLook.build(footOf(slot), classId, branchId, levelOf(owner), bossPoint())
+	look.model.Name = `Turret_{owner.UserId}`
+	look.model:SetAttribute("OwnerUserId", owner.UserId)
+	look.model:SetAttribute("TurretClass", classId)
+	look.model:SetAttribute("TurretBranch", branchId)
+	look.model.Parent = folder
+	return look
+end
+
 local function build(owner: Player, slot: number): Turret
-	local base = footOf(slot)
-	local headPosition = base + Vector3.new(0, HEAD_HEIGHT, 0)
-
-	local model = Instance.new("Model")
-	model.Name = `Turret_{owner.UserId}`
-	model:SetAttribute("OwnerUserId", owner.UserId)
-
-	local pedestal = newPart("Pedestal", Vector3.new(HEAD_HEIGHT - 1, 6, 6), Color3.fromRGB(70, 74, 86), model)
-	pedestal.Shape = Enum.PartType.Cylinder
-	pedestal.CFrame = CFrame.new(base + Vector3.new(0, (HEAD_HEIGHT - 1) / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2)
-
-	local head = newPart("Head", Vector3.new(3, 2.5, 3), HEAD_COLOR, model)
-	head.CanCollide = false
-	local barrel = newPart("Barrel", Vector3.new(0.8, 0.8, BARREL_LENGTH), Color3.fromRGB(40, 42, 50), model)
-	barrel.CanCollide = false
-	barrel.CanQuery = false
-
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(180, 28)
-	gui.StudsOffset = Vector3.new(0, 3, 0)
-	gui.MaxDistance = 150
-	gui.Parent = head
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.4
-	label.Parent = gui
-
-	model.PrimaryPart = pedestal
-	model.Parent = folder
-
+	local now = os.clock()
 	local turret: Turret = {
 		owner = owner,
 		slot = slot,
-		model = model,
-		head = head,
-		barrel = barrel,
-		label = label,
-		headPosition = headPosition,
+		look = buildLook(owner, slot),
 		nextFireAt = 0,
 		hp = Combat.Turret.MaxHp,
 		stunnedUntil = 0,
+		chargeStartAt = now,
+		burstLeft = 0,
+		nextBurstAt = 0,
 	}
-	local target = bossPoint()
-	aim(turret, Vector3.new(target.X, headPosition.Y, target.Z)) -- หันเข้าหาจุดบอส
 	refreshLabel(turret)
 	return turret
+end
+
+-- คลาส/สายเปลี่ยน หรือสายไฟข้ามขั้นสี → สร้างหน้าตาใหม่ (เลือด/ช็อตคงเดิม · ชาร์จลมเริ่มใหม่)
+local function rebuildIfNeeded(player: Player)
+	local turret = turrets[player]
+	if not turret then
+		return
+	end
+	local classId, branchId = TurretClassService.get(player)
+	if TurretLook.keyOf(classId, branchId, levelOf(player)) ~= turret.look.key then
+		turret.look.model:Destroy()
+		turret.look = buildLook(player, turret.slot)
+		turret.chargeStartAt = os.clock()
+		turret.burstLeft = 0
+		TurretLook.setStunned(turret.look, turret.stunnedUntil > 0)
+	end
+	refreshLabel(turret)
 end
 
 -- ได้ฐาน = ได้ป้อมหน้าฐาน · เสียฐาน (ออกเกม) = ลบป้อม
@@ -194,7 +193,7 @@ local function onBaseChanged(player: Player, slot: number?)
 	local turret = turrets[player]
 	if turret and turret.slot ~= slot then
 		turrets[player] = nil
-		turret.model:Destroy()
+		turret.look.model:Destroy()
 		buildIdle(turret.slot) -- เจ้าของออก → กลับเป็นป้อมว่าง
 	end
 	if slot and not turrets[player] then
@@ -206,7 +205,7 @@ end
 local function setHealthy(turret: Turret)
 	turret.hp = Combat.Turret.MaxHp
 	turret.stunnedUntil = 0
-	turret.head.Color = HEAD_COLOR
+	TurretLook.setStunned(turret.look, false)
 	refreshLabel(turret)
 end
 
@@ -218,7 +217,7 @@ local function onSlammed(damage: number)
 			turret.hp = math.max(turret.hp - damage, 0)
 			if turret.hp <= 0 then
 				turret.stunnedUntil = now + Combat.Turret.StunSeconds
-				turret.head.Color = STUNNED_COLOR
+				TurretLook.setStunned(turret.look, true)
 			end
 			refreshLabel(turret)
 		end
@@ -237,76 +236,171 @@ local function updateHealth(now: number)
 	end
 end
 
--- คืน (ตำแหน่งเป้า, ฟังก์ชันทำดาเมจ, เป็นบอสไหม) หรือ nil ถ้าไม่มีเป้าในระยะ
-local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): (Vector3?, ((number) -> ())?, boolean)
+-- เลือกเป้า: บอสในระยะก่อน → มอนที่ใกล้ที่สุดในระยะ · nil ถ้าไม่มี
+local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): Target?
 	local range = Combat.Turret.Range
-	if bossPosition and (bossPosition - turret.headPosition).Magnitude <= range then
-		return bossPosition, function(amount)
-			BossService.damage(turret.owner, amount)
-		end, true
+	local origin = turret.look.headPosition
+	if bossPosition and (bossPosition - origin).Magnitude <= range then
+		return { position = bossPosition, monster = nil, isBoss = true }
 	end
 	local best, bestPosition, bestDistance = nil, nil, range
 	for _, monster in MonsterService.getAlive() do
 		if monster.alive then
 			local position = MonsterService.positionOf(monster, now)
-			local distance = (position - turret.headPosition).Magnitude
+			local distance = (position - origin).Magnitude
 			if distance <= bestDistance then
 				best, bestPosition, bestDistance = monster, position, distance
 			end
 		end
 	end
-	if best then
-		local monster = best
-		return bestPosition, function(amount)
-			MonsterService.damage(monster, turret.owner, amount)
-		end, false
+	if best and bestPosition then
+		return { position = bestPosition, monster = best, isBoss = false }
 	end
-	return nil, nil, false
+	return nil
 end
 
--- ตำแหน่งปากกระบอกปืนเมื่อยิงไปที่เป้า
-local function muzzleOf(turret: Turret, target: Vector3): Vector3
-	return turret.headPosition + (target - turret.headPosition).Unit * (BARREL_LENGTH + 1)
+-- ดาเมจต่อนัด (ยังไม่รวมลดเกราะ ซึ่งใส่ตอนทำดาเมจบอส): (ใส่มอน, ใส่บอส)
+local function shotDamage(owner: Player, level: number, stats: ClassMath.Stats, serverNow: number): (number, number)
+	local _, damageMul, bossDamageMul = SkillService.modifiers(owner, serverNow)
+	local base = TurretMath.damage(level) * stats.Damage * damageMul * (1 + FriendBoostService.get(owner))
+	local effect = stats.Effect
+	local bossBonus = if effect and effect.Kind == "BossBonus" then effect.BossDamage else 1 -- นักแปรธาตุ: เฉพาะบอส
+	return base, base * bossDamageMul * bossBonus
 end
 
-local function tick(firedRemote: RemoteEvent)
+-- ยิงใส่เป้า count นัด: ดาเมจตรง + effect ของสาย + เอฟเฟกต์ภาพ
+local function hit(
+	turret: Turret,
+	stats: ClassMath.Stats,
+	target: Target,
+	count: number,
+	fx: { Fx },
+	now: number,
+	serverNow: number
+)
+	local owner = turret.owner
+	local base, bossShot = shotDamage(owner, levelOf(owner), stats, serverNow)
+	local perShot = if target.isBoss then bossShot else base
+
+	TurretLook.aim(turret.look, target.position)
+	if target.isBoss then
+		TurretClassService.damageBoss(owner, perShot * count, now)
+	elseif target.monster then
+		MonsterService.damage(target.monster, owner, perShot * count)
+	end
+
+	local entry: Fx = {
+		Kind = stats.Fx,
+		From = TurretLook.muzzleOf(turret.look, target.position),
+		To = target.position,
+		Color = stats.Color,
+	}
+	local effect = stats.Effect
+	if effect then
+		if effect.Kind == "Dot" then
+			TurretClassService.applyDot(owner, target.monster, perShot * effect.DotPerSecond, effect.DotSeconds, now)
+		elseif effect.Kind == "ArmorBreak" then
+			if target.isBoss then
+				TurretClassService.applyArmorBreak(effect.ArmorBreak, effect.ArmorSeconds, now)
+			end
+		elseif effect.Kind == "BlackHole" then
+			TurretClassService.spawnBlackHole(
+				owner,
+				target.position,
+				effect.Radius,
+				effect.Seconds,
+				base * effect.DotPerSecond,
+				bossShot * effect.DotPerSecond,
+				target.isBoss,
+				now
+			)
+			entry.Radius = effect.Radius
+			entry.Duration = effect.Seconds
+		end
+	end
+	table.insert(fx, entry)
+end
+
+-- สายลม: ชาร์จ ChargeSeconds → ยิงรัว BurstCount ดอก ห่างกัน BurstGap → ชาร์จใหม่
+-- [Proposed] สกิลกาชาเพิ่มอัตรายิง = ชาร์จเร็วขึ้น · เลเวลป้อมเพิ่มแค่ดาเมจ (Config ไม่ได้ระบุ)
+local function stepWind(
+	turret: Turret,
+	stats: ClassMath.Stats,
+	bossPosition: Vector3?,
+	fx: { Fx },
+	now: number,
+	serverNow: number
+)
+	local effect = stats.Effect
+	if turret.burstLeft <= 0 then
+		local fireRateMul = SkillService.modifiers(turret.owner, serverNow)
+		if now - turret.chargeStartAt < effect.ChargeSeconds / fireRateMul then
+			return
+		end
+		if not pickTarget(turret, bossPosition, now) then
+			return -- ชาร์จเต็มแล้ว รอเป้า
+		end
+		turret.burstLeft = effect.BurstCount
+		turret.nextBurstAt = now
+	end
+	local fired = 0
+	while turret.burstLeft > 0 and now >= turret.nextBurstAt and fired < MAX_SHOTS_PER_TICK do
+		local target = pickTarget(turret, bossPosition, now)
+		if not target then
+			turret.nextBurstAt = now -- เป้าหาย: ค้างดอกที่เหลือไว้ยิงเมื่อเจอเป้า
+			return
+		end
+		hit(turret, stats, target, 1, fx, now, serverNow)
+		turret.burstLeft -= 1
+		turret.nextBurstAt += effect.BurstGap
+		fired += 1
+	end
+	if turret.burstLeft <= 0 then
+		turret.chargeStartAt = now
+	end
+end
+
+local function tick(fxRemote: RemoteEvent)
 	local now = os.clock()
 	local serverNow = workspace:GetServerTimeNow()
 	local bossPosition = BossService.getTarget()
-	local shots = {}
+	local fx: { Fx } = {}
 	updateHealth(now)
+	TurretClassService.update(now) -- DoT/หลุมดำ/ลดเกราะ (เรียกที่นี่ที่เดียว)
 
 	for owner, turret in turrets do
+		local stats = statsOf(owner)
+		local effect = stats.Effect
 		if turret.stunnedUntil > 0 then
 			turret.nextFireAt = now -- ช็อต: ไม่ยิง และไม่สะสมนัดค้างไว้ยิงทีเดียวหลังฟื้น
+			turret.chargeStartAt = now -- ช็อต = หยุดชาร์จ (ลม) เริ่มใหม่หลังฟื้น
+			turret.burstLeft = 0
+			continue
+		end
+		if effect and effect.Kind == "ChargeBurst" then
+			stepWind(turret, stats, bossPosition, fx, now, serverNow)
 			continue
 		end
 		if now < turret.nextFireAt then
 			continue
 		end
-		local targetPosition, dealDamage, isBoss = pickTarget(turret, bossPosition, now)
-		if not targetPosition or not dealDamage then
+		local target = pickTarget(turret, bossPosition, now)
+		if not target then
 			turret.nextFireAt = now -- ไม่มีเป้า: พร้อมยิงทันทีที่เจอ แต่ไม่สะสมนัดค้าง
 			continue
 		end
 
-		local level = levelOf(owner)
-		local fireRateMul, damageMul, bossDamageMul = SkillService.modifiers(owner, serverNow)
-		local rate = TurretMath.fireRate(level) * fireRateMul
+		local fireRateMul = SkillService.modifiers(owner, serverNow)
+		local rate = TurretMath.fireRate(levelOf(owner)) * stats.FireRate * fireRateMul
 		local interval = 1 / rate
 		local count = math.min(1 + math.floor((now - turret.nextFireAt) / interval), MAX_SHOTS_PER_TICK)
 		turret.nextFireAt = math.max(turret.nextFireAt, now - interval) + count * interval
 
-		local multiplier = damageMul * (if isBoss then bossDamageMul else 1) * (1 + FriendBoostService.get(owner))
-		aim(turret, targetPosition)
-		dealDamage(TurretMath.damage(level) * multiplier * count)
-
-		table.insert(shots, muzzleOf(turret, targetPosition))
-		table.insert(shots, targetPosition)
+		hit(turret, stats, target, count, fx, now, serverNow)
 	end
 
-	if #shots > 0 then
-		firedRemote:FireAllClients(shots)
+	if #fx > 0 then
+		fxRemote:FireAllClients(fx)
 	end
 end
 
@@ -328,9 +422,8 @@ function TurretService.upgrade(player: Player): boolean
 		data.TurretLevel = level + 1
 		upgraded = true
 	end)
-	local turret = turrets[player]
-	if upgraded and turret then
-		refreshLabel(turret)
+	if upgraded then
+		rebuildIfNeeded(player) -- สายไฟข้ามขั้นสี (PlayerData.Changed ก็เรียกซ้ำได้ ไม่สร้างซ้ำเพราะคีย์ตรงกันแล้ว)
 	end
 	return upgraded
 end
@@ -348,24 +441,46 @@ function TurretService.useSkill(player: Player): boolean
 	end
 
 	-- สกิลยิงทันที: ต้องมีเป้าในระยะ ไม่งั้นไม่เสียคูลดาวน์
+	local now = os.clock()
 	local burst = SkillMath.burst(def.Burst, level)
-	local targetPosition, dealDamage, isBoss = nil, nil, false
+	local target: Target? = nil
 	if burst > 0 then
-		targetPosition, dealDamage, isBoss = pickTarget(turret, BossService.getTarget(), os.clock())
-		if not targetPosition or not dealDamage then
+		target = pickTarget(turret, BossService.getTarget(), now)
+		if not target then
 			return false
 		end
 	end
 
 	SkillService.activate(player, id, def, level, serverNow)
 
-	if targetPosition and dealDamage then
+	if target then
+		-- ดาเมจสกิลคงสูตรเดิม (ไม่คูณตัวคูณคลาส) · ตีบอส = คูณลดเกราะด้วย
 		local _, damageMul, bossDamageMul = SkillService.modifiers(player, serverNow)
-		local multiplier = damageMul * (if isBoss then bossDamageMul else 1) * (1 + FriendBoostService.get(player))
-		aim(turret, targetPosition)
-		dealDamage(TurretMath.damage(levelOf(player)) * burst * multiplier)
-		local firedRemote = Remotes.get("TurretFired") :: RemoteEvent
-		firedRemote:FireAllClients({ muzzleOf(turret, targetPosition), targetPosition })
+		local bossMul = if target.isBoss then bossDamageMul else 1
+		local multiplier = damageMul * bossMul * (1 + FriendBoostService.get(player))
+		local amount = TurretMath.damage(levelOf(player)) * burst * multiplier
+		TurretLook.aim(turret.look, target.position)
+		if target.isBoss then
+			TurretClassService.damageBoss(player, amount, now)
+		elseif target.monster then
+			MonsterService.damage(target.monster, player, amount)
+		end
+		-- เอฟเฟกต์ใช้ Kind ของคลาส/สาย · หลุมดำไม่เกิดจากสกิล → ใช้ Fx ของคลาส (มีด) แทน
+		local stats = statsOf(player)
+		local kind = stats.Fx
+		if kind == "BlackHole" then
+			local classId = TurretClassService.get(player)
+			kind = ClassMath.stats(classId, "", levelOf(player)).Fx
+		end
+		local fxRemote = Remotes.get("TurretFx") :: RemoteEvent
+		fxRemote:FireAllClients({
+			{
+				Kind = kind,
+				From = TurretLook.muzzleOf(turret.look, target.position),
+				To = target.position,
+				Color = stats.Color,
+			},
+		})
 	end
 	return true
 end
@@ -377,6 +492,7 @@ function TurretService.Init()
 
 	BaseService.Changed:Connect(onBaseChanged)
 	BossService.Slammed:Connect(onSlammed)
+	TurretClassService.Changed:Connect(rebuildIfNeeded)
 	local owners = BaseService.owners()
 	for _, slot in BaseService.slots() do
 		if not owners[slot] then
@@ -387,20 +503,16 @@ function TurretService.Init()
 		onBaseChanged(player, slot)
 	end
 
-	PlayerData.Changed:Connect(function(player: Player)
-		local turret = turrets[player]
-		if turret then
-			refreshLabel(turret)
-		end
-	end)
+	-- ข้อมูลโหลดเสร็จ/เปลี่ยน: อัปเดตป้าย และสร้างหน้าตาใหม่ถ้าคลาส/สาย/ขั้นสีไฟเปลี่ยน
+	PlayerData.Changed:Connect(rebuildIfNeeded)
 end
 
 function TurretService.Start()
-	local firedRemote = Remotes.get("TurretFired") :: RemoteEvent
+	local fxRemote = Remotes.get("TurretFx") :: RemoteEvent
 	local step = 1 / Combat.TickRate
 	while true do
 		task.wait(step)
-		tick(firedRemote)
+		tick(fxRemote)
 	end
 end
 

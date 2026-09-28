@@ -17,7 +17,7 @@ local Economy = require(ReplicatedStorage.Shared.Config.Economy)
 local Skills = require(ReplicatedStorage.Shared.Config.Skills)
 
 local STORE_NAME = "PlayerData"
-local VERSION = 4
+local VERSION = 5
 local MAX_ATTEMPTS = 3
 local AUTOSAVE_INTERVAL = 120
 
@@ -33,6 +33,8 @@ local DEFAULT = {
 	Rebirths = 0, -- v4
 	LastSeen = 0, -- v4: os.time() ฝั่ง Server ตอนออกเกม (คิดเงิน idle ตอนออฟไลน์)
 	Login = { Day = 0, Streak = 0 }, -- v4: Day = เลขวัน UTC ที่รับรางวัลล่าสุด
+	TurretClass = "", -- v5: คลาสป้อม ("" = ยังไม่เลือก → Unchosen) · ค่าอยู่ใน Config/Skill_class_default
+	TurretBranch = "", -- v5: สายธาตุ ("" = ยังไม่เลือก · เลือกแล้วล็อก)
 }
 
 -- MIGRATIONS[n] แปลงข้อมูลจากเวอร์ชัน n เป็น n + 1
@@ -56,6 +58,12 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		data.Rebirths = 0
 		data.LastSeen = 0
 		data.Login = { Day = 0, Streak = 0 }
+		return data
+	end,
+	-- v4 → v5: คลาสป้อมเริ่มต้น + สายธาตุ (design/turret-classes.md) · ผู้เล่นเดิมยังไม่เลือก → UI เด้งให้เลือก
+	[4] = function(data)
+		data.TurretClass = ""
+		data.TurretBranch = ""
 		return data
 	end,
 }
