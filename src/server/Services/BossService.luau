@@ -822,6 +822,48 @@ local function slam(current: Boss)
 	task.delay(Combat.Boss.SlamHitDelay, onHit)
 end
 
+-- ===== เท้าติดพื้นตลอดท่า (PlantFeet) — เปิดเฉพาะบอสที่ใส่ PlantFeet = true ในแถว Rotation =====
+-- ปัญหา: ท่า Motion Capture งอเข่าแต่สะโพกไม่ลดตาม → ขาพับขึ้น เท้าลอยจากพื้น (บั๊ก 2026-09-29 กระต่ายทุบพื้น)
+-- แก้: ทุกเฟรมวัดจุดต่ำสุดของชิ้นที่มองเห็น แล้วเลื่อนทั้งตัวขึ้น/ลงให้จุดนั้นแตะพื้นพอดี (ตัวรากยังยึดอยู่ → ไม่ร่วงแมพ)
+-- ข้ามเฟรมที่บอสกำลังเดินเปิดตัว (ตำแหน่งแนวนอนเปลี่ยน) ให้โค้ดเดินที่ล็อกไว้คุมเอง · ไม่แตะการหมุน ไม่แตะข้อต่อ
+-- ตำแหน่งชิ้นส่วนฝั่ง Server ตามท่าที่เล่นอยู่ [Inferred] · ท่าที่ลอยในหน้า Animation Editor ยังต้องแก้ในท่าเอง (โค้ดไม่ทำงานในหน้าแก้ท่า)
+local MAX_PLANT_STEP = 4 -- studs ต่อเฟรม (กันกระชากถ้าวัดพลาด เช่น ชิ้นหลุดกระเด็น)
+
+local function plantFeet(current: Boss, model: Model)
+	local lastXZ: Vector3? = nil
+	local connection: RBXScriptConnection
+	connection = RunService.Heartbeat:Connect(function()
+		if boss ~= current or model.Parent == nil then
+			connection:Disconnect()
+			return
+		end
+		local pivot = model:GetPivot()
+		local xz = Vector3.new(pivot.X, 0, pivot.Z)
+		local walking = lastXZ ~= nil and (xz - lastXZ).Magnitude > 0.01
+		lastXZ = xz
+		if walking then
+			return
+		end
+		local lowest = math.huge
+		for _, item in model:GetDescendants() do
+			if item:IsA("BasePart") and item.Transparency < 1 then
+				local half = item.Size / 2
+				for _, corner in CORNERS do
+					lowest = math.min(lowest, (item.CFrame * (half * corner)).Y)
+				end
+			end
+		end
+		if lowest == math.huge then
+			return
+		end
+		local target = groundUnder(pivot.Position, { model }) + Combat.Boss.GroundOffset
+		local delta = math.clamp(target - lowest, -MAX_PLANT_STEP, MAX_PLANT_STEP)
+		if math.abs(delta) > 0.02 then
+			model:PivotTo(pivot + Vector3.new(0, delta, 0)) -- เลื่อนแค่แนวตั้ง คงการหมุนเดิม
+		end
+	end)
+end
+
 -- ===== พฤติกรรมบอส (เดินเปิดตัว → ยืน → ทุบวน) =====
 -- เรียกผ่าน task.spawn ตอนบอสเกิด · ทุกลูปเช็ก boss == current → บอสจบเมื่อไหร่ ลูปหยุดเอง
 -- เปิดตัว (เดินเข้ากลาง) → Idle → วนทุบทุก SlamInterval จนบอสจบ
@@ -923,6 +965,7 @@ local function spawnBoss()
 	-- เลือกบอสตัวถัดไปใน Rotation · หาโมเดลไม่เจอ → ลองตัวถัดไป · ไม่เจอเลย → ลูกบอลสำรอง
 	local rotation = Combat.Boss.Rotation
 	local model, target, root, sequences = nil, nil, nil, {}
+	local chosen = nil -- แถว Rotation ของบอสที่เกิดจริงรอบนี้
 	for _ = 1, #rotation do
 		local entry = rotation[nextBoss]
 		-- เลื่อนลำดับไปตัวถัดไป วนกลับตัวแรกเมื่อสุดรายการ
@@ -931,6 +974,7 @@ local function spawnBoss()
 		local animations = entry.Animations or Combat.Boss.Animations
 		model, target, root, sequences = makeModel(entry.Model, entry.Animate, animations)
 		if model and target then
+			chosen = entry
 			print(`[BossService] บอสรอบนี้: {entry.Model} ({if entry.Animate then "มีท่า" else "ยืนเฉย ไม่มีท่า"})`)
 			if entry.Animate then
 				tracks = loadTracks(model, sequences, animations)
@@ -954,6 +998,9 @@ local function spawnBoss()
 		damageBy = {},
 	}
 	boss = current
+	if chosen and chosen.PlantFeet and model then
+		plantFeet(current, model)
+	end
 	task.spawn(runBehaviour, current)
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("BossDamage", 0)
