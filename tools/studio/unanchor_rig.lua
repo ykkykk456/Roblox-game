@@ -48,7 +48,7 @@ end
 
 -- ===== สำรวจโมเดล =====
 -- เก็บทุกชิ้น · หาตัวราก · นับชิ้นส่วนริก (counts) ไว้รายงานว่าทำท่าได้ไหม
-local parts, root, biggest = {}, nil, nil
+local parts, root, biggest, rootCandidates = {}, nil, nil, {}
 local counts = { Humanoid = 0, AnimationController = 0, Motor6D = 0, Bone = 0, AnimationConstraint = 0 }
 for _, item in model:GetDescendants() do
 	if counts[item.ClassName] then
@@ -56,12 +56,45 @@ for _, item in model:GetDescendants() do
 	end
 	if item:IsA("BasePart") then
 		table.insert(parts, item)
-		if item.Name == "HumanoidRootPart" and not root then
-			root = item
+		if item.Name == "HumanoidRootPart" then
+			table.insert(rootCandidates, item)
 		end
 		if not biggest or item.Size.Magnitude > biggest.Size.Magnitude then
 			biggest = item
 		end
+	end
+end
+-- ตัวราก = HumanoidRootPart ที่ต่อกับชิ้นอื่นมากที่สุด (FBX อาจมี 2 อัน · ห้ามใช้อันแรกที่เจอ — ดู docs/boss-slambot-known-good.md)
+local links = {}
+local function link(a, b)
+	if typeof(a) == "Instance" and typeof(b) == "Instance" and a:IsA("BasePart") and b:IsA("BasePart") then
+		links[a] = links[a] or {}
+		links[b] = links[b] or {}
+		table.insert(links[a], b)
+		table.insert(links[b], a)
+	end
+end
+for _, item in model:GetDescendants() do
+	if item:IsA("JointInstance") or item:IsA("WeldConstraint") then
+		link(item.Part0, item.Part1)
+	elseif item:IsA("Constraint") and item.Attachment0 and item.Attachment1 then
+		link(item.Attachment0.Parent, item.Attachment1.Parent)
+	end
+end
+local best = -1
+for _, candidate in rootCandidates do
+	local seen, queue, n = { [candidate] = true }, { candidate }, 0
+	while #queue > 0 do
+		for _, other in links[table.remove(queue)] or {} do
+			if not seen[other] then
+				seen[other] = true
+				n += 1
+				table.insert(queue, other)
+			end
+		end
+	end
+	if n > best then
+		root, best = candidate, n
 	end
 end
 root = root or model.PrimaryPart or biggest
