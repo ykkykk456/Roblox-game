@@ -20,7 +20,7 @@ local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
 -- ===================== ตั้งค่า =====================
 local RIG_NAME = "Boss_rabbit" -- ชื่อโมเดลบอส (หาแบบยืดหยุ่น: ตัวเล็ก/ใหญ่ ขีด _ และคำว่า boss ไม่มีผล)
-local ANIM_ID = 99370436873239 -- เลข ID ท่า Idle ของกระต่าย (ตรงกับ Combat.luau) · ใช้เมื่อ SOURCE_NAME ว่าง
+local ANIM_ID = 133467149182708 -- เลข ID ท่า Idle ของกระต่าย (ตรงกับ Combat.luau · เปลี่ยน 2026-09-29 จากเดิม 99370436873239) · ใช้เมื่อ SOURCE_NAME ว่าง
 local SOURCE_NAME = "" -- ชื่อท่าที่ Save ไว้ใน Animation Editor (RBX_ANIMSAVES) ที่จะใช้แทนเลข ID · "" = ใช้ ANIM_ID
 local FOOT_NAMES = { "LeftFoot", "RightFoot" } -- ชื่อชิ้นเท้า (หรือ Bone เท้า) · ไม่เจอเลย = หาชื่อที่มี foot/toe ให้เอง
 local REFERENCE = "first" -- พื้นอ้างอิง: "first" = ความสูงเท้าใน Keyframe แรก (ท่ายืน) · "lowest" = เท้าต่ำสุดตลอดท่า
