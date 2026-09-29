@@ -2,6 +2,7 @@
 -- ปัญหา: ท่างอเข่าแต่สะโพกไม่ลดตาม → ขาพับขึ้น เท้าลอย
 -- วิธีแก้: ไล่ทุก Keyframe → คำนวณตำแหน่งทุกชิ้นตามท่า (FK ผ่าน AnimationConstraint) → หาจุดต่ำสุดของตัว
 --   → เลื่อน LowerTorso ลง/ขึ้นในแนวดิ่งให้จุดต่ำสุดเท่ากับตอนยืนปกติ (เท้าแตะพื้นทุกเฟรม) · ข้อต่ออื่นไม่แตะ
+--   จุดต่ำสุด = วัดจากชิ้นเท้า (Foot) ถ้ามี · Keyframe ที่ไม่มี Key ของชิ้นไหน = ประมาณค่าระหว่าง Key ก่อน/หลัง (เหมือน Animator)
 -- ไม่ทับท่าเดิม: สร้างสำเนาชื่อ "Slam_fixed" ไว้ข้างท่าเดิม (รันซ้ำ = สร้างสำเนาใหม่ทับ Slam_fixed อันเก่า)
 --   ชื่อมีคำว่า Slam → ตอนกด Play ใน Studio เกมใช้เป็นท่าทุบพื้นให้เอง (BossService.studioSequences)
 -- วิธีใช้: กด Stop → (ถ้าต้องการ) คลิกเลือกท่าใน Explorer ที่ ServerStorage > RBX_ANIMSAVES > Boss_rabbit
@@ -136,9 +137,15 @@ for _, child in order do
 	end
 end
 
-local lowerTorso = model:FindFirstChild("LowerTorso", true)
-local rootLink = lowerTorso and parentOf[lowerTorso]
-if not rootLink or rootLink.parent ~= root then
+-- LowerTorso ที่ต่อกับตัวรากโดยตรง (หาจากโครงข้อต่อ ไม่ใช่ชื่ออย่างเดียว กันเจอชิ้นชื่อซ้ำที่ไม่ได้ต่อ)
+local rootLink
+for _, part in order do
+	if part.Name == "LowerTorso" and parentOf[part].parent == root then
+		rootLink = parentOf[part]
+		break
+	end
+end
+if not rootLink then
 	warn("❌ ไม่เจอ LowerTorso ที่ต่อกับตัวรากโดยตรง — ส่ง Output นี้ให้ Claude")
 	return
 end
@@ -306,7 +313,8 @@ local ok, err = pcall(function()
 			end
 			local prevKey = nil
 			if keys.LowerTorso then
-				_, prevKey = valueAt(keys.LowerTorso, keyframe.Time)
+				local _, found = valueAt(keys.LowerTorso, keyframe.Time)
+				prevKey = found
 			end
 			if not pose or pose.Weight <= 0 then
 				added += 1
