@@ -1,0 +1,14 @@
+{
+	// สคริปต์ใน tools/studio เป็น Luau ของ Roblox (รันใน Command Bar) ไม่ใช่ Lua ธรรมดา
+	// → บอก VS Code ให้อ่าน .lua เป็น Luau ไม่งั้นส่วนเสริม "Lua" จะขึ้นแดงว่าไม่รู้จัก game / workspace / Enum ฯลฯ
+	"files.associations": {
+		"*.lua": "luau"
+	},
+	// ถ้าติดตั้งส่วนเสริม Luau Language Server (JohnnyMorganz) → รู้จัก API ของ Roblox
+	"luau-lsp.platform.type": "roblox",
+	// เผื่อยังใช้ส่วนเสริม "Lua" (sumneko) อยู่: ให้รู้จักตัวแปรของ Roblox
+	"Lua.diagnostics.globals": [
+		"game", "workspace", "script", "plugin", "task", "Instance", "Enum",
+		"Vector3", "CFrame", "Color3", "UDim2", "TweenInfo", "typeof", "warn", "tick"
+	]
+}
