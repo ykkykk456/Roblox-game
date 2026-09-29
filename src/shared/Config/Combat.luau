@@ -69,7 +69,7 @@ return table.freeze({
 			table.freeze({
 				Model = "Boss_rabbit",
 				Animate = true,
-				Animations = table.freeze({ Idle = 99370436873239, Walk = 0, Slam = 0 }),
+				Animations = table.freeze({ Idle = 133467149182708, Walk = 0, Slam = 0 }), -- Idle เปลี่ยน 2026-09-29 (เดิม 99370436873239)
 				-- เท้าติดพื้นตลอดท่า: ท่า Motion Capture ที่งอเข่าแต่สะโพกไม่ลด → เกมเลื่อนทั้งตัวลงให้เท้าแตะพื้น (BossService.plantFeet)
 				PlantFeet = true,
 			}),
