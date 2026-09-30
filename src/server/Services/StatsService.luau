@@ -13,9 +13,12 @@ local Players = game:GetService("Players")
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- field ใน PlayerData ที่เปิดให้ Client เห็น (เพิ่มได้ เช่น "Level") · ห้ามใส่ข้อมูลลับ
-local PUBLIC_FIELDS = { "Coins", "TurretLevel", "GachaTickets", "EquippedSkill", "Element" }
--- field ที่เป็นตาราง (Attribute เก็บตารางไม่ได้) → ส่งเป็น JSON string
-local JSON_FIELDS = { "Skills" }
+-- (กาชาถูกถอดแล้ว: ไม่มี GachaTickets / EquippedSkill อีก)
+local PUBLIC_FIELDS = { "Coins", "TurretLevel", "Element" }
+-- field ที่เป็นตาราง (Attribute เก็บตารางไม่ได้) → ส่งเป็น JSON string (encode ทุกครั้งที่ข้อมูลเปลี่ยน · ใส่เฉพาะตารางเล็ก)
+-- ✏️ อุปกรณ์ (Gear) ไม่อยู่ที่นี่: Services/GearService ส่ง Attribute "Gear" / "GearSlots" / "GearBonus" เองเฉพาะตอนอุปกรณ์เปลี่ยน
+--   (ไม่ต้อง encode ทุกครั้งที่เงินเปลี่ยน) · สัญญากับ Client ดู design/equipment.md หัวข้อ "สัญญากับ Client"
+local JSON_FIELDS: { string } = {}
 
 -- คัดลอกค่าจาก data ไปตั้งเป็น Attribute บนตัว player · เรียกทุกครั้งที่ PlayerData เปลี่ยน
 local function mirror(player: Player, data: any)

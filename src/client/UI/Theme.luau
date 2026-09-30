@@ -1,6 +1,6 @@
 -- ธีมของ UI ทั้งเกม (เจ้าของ: Visual_Director) — เปลี่ยนสี/ฟอนต์ที่นี่ที่เดียว
 -- [Proposed] ค่าชุดแรกสำหรับ prototype: โทนมืด + เขียวให้เข้ากับพื้นหญ้า
--- ใครใช้: UI ทุกไฟล์ (Components, HudUI, SettingsUI, GachaUI, ElementUI, CombatUI)
+-- ใครใช้: UI ทุกไฟล์ (Components, HudUI, SettingsUI, ElementUI, CombatUI)
 -- สีเขียนเป็น Color3.fromRGB(แดง, เขียว, น้ำเงิน) แต่ละค่า 0–255
 
 return table.freeze({

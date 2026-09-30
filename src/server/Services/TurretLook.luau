@@ -36,7 +36,8 @@
 --     (ขนาด = Vector3.new(กว้าง, สูง, ยาว) · ตำแหน่ง = CFrame.new(ขวา, ขึ้น, หน้า) · ค่า Z ติดลบ = ไปทางปากกระบอก)
 --   • ความเร็วใบพัด/ลูกแก้ว/วงแหวน → ค่า anim = { Speed, Amp } ในแต่ละชิ้น · สีตอนช็อต → STUNNED_COLOR
 --
--- คุยกับไฟล์ไหนบ้าง: TurretService เรียก build / aim / setStunned / setShield / muzzleOf / keyOf · ElementMath ให้สี/ขั้น
+-- คุยกับไฟล์ไหนบ้าง: TurretService เรียก build / aim / setStunned / setShield / setGear / muzzleOf / keyOf · ElementMath ให้สี/ขั้น
+--   ชิ้นอุปกรณ์ (setGear): สีตัวชิ้น = สีธาตุ (Config/Elements) หรือ Equipment.NeutralColor · ขอบ/วงแหวน = สีระดับ (Config/Equipment)
 -- ไฟล์นี้แค่ "หน้าตา" ไม่มีผลกับดาเมจ → แก้รูปทรง/สีได้ปลอดภัย (ป้อมโค้ด: ห้ามเปลี่ยนชื่อ "Head" และ query = true ของชิ้นหัว)
 --
 -- 📖 อ่านตามลำดับนี้
@@ -47,12 +48,15 @@
 --   4) buildCustom — ใช้โมเดล import: วางบนแท่น · แบ่งกลุ่มตามชื่อชิ้น · หาปากกระบอก
 --   5) TurretLook.aim — TurretService.luau:hit เรียกทุกครั้งที่ยิง · หมุนชิ้นตามกลุ่ม head / barrel / spin
 --   6) setStunned / setShield / muzzleOf / keyOf — ตัวช่วยเล็กๆ
+--   7) setGear — ชิ้นอุปกรณ์บนป้อม (ลำกล้อง/กลไก/แกน/เกราะ) · เพิ่ม/ลบในโมเดลเดิม ไม่ปั้นป้อมใหม่ทั้งตัว
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Elements = require(ReplicatedStorage.Shared.Config.Elements)
 local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
+local Equipment = require(ReplicatedStorage.Shared.Config.Equipment)
+local GearMath = require(ReplicatedStorage.Shared.Util.GearMath)
 
 -- ===== ค่าคงที่ (สีปรับได้ปลอดภัย) =====
 -- HEAD_HEIGHT: TurretService ใช้ด้วย (ป้อมว่าง) · เพิ่ม = ป้อมสูงขึ้น · ต้องมากกว่า 1
@@ -715,6 +719,158 @@ function TurretLook.setShield(look: Look, on: boolean)
 		look.shield:Destroy()
 		look.shield = nil
 	end
+end
+
+-- ===== ชิ้นอุปกรณ์บนป้อม (design/equipment.md หัวข้อ 3.3) =====
+-- ✏️ ปรับได้ปลอดภัย (หน้าตาเท่านั้น ไม่มีผลกับดาเมจ): วัสดุตามแบบ · ขนาด/ตำแหน่งในฟังก์ชัน gearPieces
+-- [Proposed] ยังไม่อ่าน Attachment GearBarrel/GearMechanism/GearCore/GearPlating ของโมเดล import (วางตามหัว/ลำกล้อง/แท่นแทน)
+local GEAR_MATERIAL: { [string]: Enum.Material } = {
+	Fire = Enum.Material.CrackedLava,
+	Water = Enum.Material.Glass,
+	Earth = Enum.Material.Slate,
+	Wind = Enum.Material.SmoothPlastic,
+	Neutral = Enum.Material.Metal,
+}
+-- ชิ้นอุปกรณ์ของแต่ละป้อม (แยกจาก Look · key แบบ weak = ป้อมถูกลบ/ปั้นใหม่แล้วข้อมูลหายเอง)
+local gearByLook: { [any]: { model: Model, parts: { [BasePart]: boolean } } } = setmetatable({}, { __mode = "k" }) :: any
+
+-- กรอบของกลุ่ม group ตอนนี้ (หัว = yaw · ลำกล้อง = yaw+pitch) หาจากชิ้นเดิมของป้อม: CFrame ชิ้น × offset⁻¹
+local function groupFrame(look: Look, group: Group): CFrame?
+	for _, piece in look.pieces do
+		if piece.group == group then
+			return piece.part.CFrame * piece.offset:Inverse()
+		end
+	end
+	return nil
+end
+
+-- ประกายเบาๆ ของ Legendary (Rate ≤ 5 เพื่อมือถือ)
+local function sparkle(part: BasePart, color: Color3)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 1
+	emitter.Rate = 4
+	emitter.Lifetime = NumberRange.new(0.6, 1)
+	emitter.Speed = NumberRange.new(0.5, 1.5)
+	emitter.Size = NumberSequence.new(0.25)
+	emitter.Parent = part
+end
+
+-- ปั้นชิ้นของอุปกรณ์ 1 ชิ้นด้วย add (scale = 1 → ขนาด/ตำแหน่งที่ส่งเป็น studs จริง)
+-- s = ขนาดเทียบป้อม × ขนาดตามระดับ · body = สีตัวชิ้น · edge = สีระดับ · คืนชิ้นที่ใส่ประกายได้
+-- ตำแหน่ง: ลำกล้อง/กลไก เทียบจุดหมุนหัว (-Z = ทางปากกระบอก) · แกน/เกราะ เทียบฐานป้อมบนพื้น
+local function gearPieces(add: Add, look: Look, visual: GearMath.Visual, s: number, body: Color3, edge: Color3): BasePart
+	local material = GEAR_MATERIAL[visual.Variant] or Enum.Material.Metal
+	local slot = visual.Slot
+	if slot == "Barrel" then
+		-- ปลอกหุ้มลำกล้อง + วงแหวนเรืองแสงที่ปากกระบอก
+		local muzzle = look.muzzleDistance
+		add("barrel", "GearSleeve", Vector3.new(1.4 * s, 1.1 * s, 1.1 * s), body, CFrame.new(0, 0, -muzzle * 0.55) * ALONG_Z, {
+			shape = Enum.PartType.Cylinder,
+			material = material,
+			transparency = if visual.Variant == "Water" then 0.3 else nil,
+			tint = true,
+		})
+		return add("barrel", "GearRing", Vector3.new(0.25 * s, 1.35 * s, 1.35 * s), edge, CFrame.new(0, 0, -(muzzle - 0.15 * s)) * ALONG_Z, {
+			shape = Enum.PartType.Cylinder,
+			material = Enum.Material.Neon,
+			tint = true,
+		})
+	elseif slot == "Mechanism" then
+		-- กล่องข้างหัวป้อม + เฟืองหมุนตลอด (Client หมุนเอง)
+		add("head", "GearBox", Vector3.new(0.7 * s, 1.1 * s, 1.3 * s), body, CFrame.new(1.7 * s, 0, 0.4 * s), { material = material, tint = true })
+		return add("head", "GearCog", Vector3.new(0.25 * s, 1.2 * s, 1.2 * s), edge, CFrame.new(2.15 * s, 0, 0.4 * s), {
+			shape = Enum.PartType.Cylinder,
+			material = Enum.Material.Metal,
+			tint = true,
+			anim = { Kind = "Orbit", Speed = 3, Axis = Vector3.new(1, 0, 0) },
+		})
+	elseif slot == "Core" then
+		-- ลูกบาศก์เรืองแสงลอยวนรอบแท่นช้าๆ
+		local height = HEAD_HEIGHT * look.scale * 0.55
+		local ext = look.pedestal.CFrame:VectorToWorldSpace(look.pedestal.Size)
+		local radius = math.clamp(math.max(math.abs(ext.X), math.abs(ext.Z)) / 2, 1, 6) + 0.9 * s
+		return add("base", "GearCore", Vector3.new(0.9, 0.9, 0.9) * s, body, CFrame.new(-radius, height, 0) * CFrame.Angles(math.rad(45), 0, math.rad(45)), {
+			material = Enum.Material.Neon,
+			tint = true,
+			anim = { Kind = "Orbit", Speed = 0.8, PivotAt = Vector3.new(0, height, 0), Axis = Vector3.new(0, 1, 0) },
+		})
+	end
+	-- Plating: แผ่นเกราะ 4 ด้านรอบแท่น + ขอบบนสีระดับ
+	local ext = look.pedestal.CFrame:VectorToWorldSpace(look.pedestal.Size)
+	local radius = math.clamp(math.max(math.abs(ext.X), math.abs(ext.Z)) / 2, 1, 6)
+	local trim: BasePart? = nil
+	for index = 0, 3 do
+		local turn = CFrame.Angles(0, index * math.pi / 2, 0)
+		local out = radius + 0.15 * s
+		add("base", "GearPlate", Vector3.new(radius * 1.3, 1.6 * s, 0.3 * s), body, turn * CFrame.new(0, 1 * s, -out), { material = material, tint = true })
+		trim = add("base", "GearTrim", Vector3.new(radius * 1.3, 0.2 * s, 0.35 * s), edge, turn * CFrame.new(0, 1.8 * s, -out), {
+			material = Enum.Material.Neon,
+			tint = true,
+		})
+	end
+	return trim :: BasePart
+end
+
+-- ใส่ชิ้นอุปกรณ์ตามรายการ visuals (GearService.visuals) · ลบชุดเดิมก่อนเสมอ · รายการว่าง = ถอดหมด
+-- ชิ้นใหม่เข้า look.pieces (หมุนตามเป้าเหมือนชิ้นเดิม) + look.tinted (ช็อต = เทา) · ผู้เรียกต้อง setStunned ซ้ำถ้าช็อตอยู่
+-- ⚠️ หน้าตาเท่านั้น (ดาเมจ/เลือดคิดที่ TurretService + GearService)
+function TurretLook.setGear(look: Look, visuals: { GearMath.Visual })
+	-- ขั้น 1: ลบชุดเดิม (ออกจาก pieces / tinted ก่อน แล้วค่อยทำลาย)
+	local old = gearByLook[look]
+	if old then
+		for index = #look.pieces, 1, -1 do
+			if old.parts[look.pieces[index].part] then
+				table.remove(look.pieces, index)
+			end
+		end
+		for part in old.parts do
+			look.tinted[part] = nil
+		end
+		old.model:Destroy()
+		gearByLook[look] = nil
+	end
+	if #visuals == 0 then
+		return
+	end
+
+	-- ขั้น 2: ปั้นชิ้นใน Model แยก "Gear" (ยังไม่ใส่ Parent → Attribute Anim ติดครบก่อนถึง Client)
+	local model = Instance.new("Model")
+	model.Name = "Gear"
+	local pieces: { Piece } = {}
+	local tinted: { [BasePart]: Color3 } = {}
+	local add = builder(model, pieces, tinted, 1)
+	for _, visual in visuals do
+		local rarity = Equipment.Rarities[visual.Rarity]
+		local element = Elements.Elements[visual.Variant]
+		if not rarity then
+			continue
+		end
+		local body = if element then element.Color else Equipment.NeutralColor
+		local s = look.scale * (1 + Equipment.LookScalePerRarity * ((GearMath.rarityIndex(visual.Rarity) or 1) - 1))
+		local accent = gearPieces(add, look, visual, s, body, rarity.Color)
+		if visual.Rarity == "Legendary" then
+			sparkle(accent, rarity.Color)
+		end
+	end
+
+	-- ขั้น 3: วางตามท่าปัจจุบันของป้อม (หัว/ลำกล้องหันอยู่ทางไหน) · ไม่มีชิ้นกลุ่มนั้น = ตั้งตรงที่จุดหมุน
+	local fallback = CFrame.new(look.headPosition)
+	local yaw = groupFrame(look, "head") or fallback
+	local full = groupFrame(look, "barrel") or yaw
+	local baseFrame = CFrame.new(look.foot) * yaw.Rotation
+	local parts: { [BasePart]: boolean } = {}
+	for _, piece in pieces do
+		local frame = if piece.group == "head" then yaw elseif piece.group == "base" then baseFrame else full
+		piece.part.CFrame = frame * piece.offset
+		table.insert(look.pieces, piece)
+		parts[piece.part] = true
+	end
+	for part, color in tinted do
+		look.tinted[part] = color
+	end
+	model.Parent = look.model
+	gearByLook[look] = { model = model, parts = parts }
 end
 
 -- จุดปากกระบอกในโลก: จากหัวป้อมไปทางเป้า muzzleDistance studs

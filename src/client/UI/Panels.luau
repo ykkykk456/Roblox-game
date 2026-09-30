@@ -1,6 +1,6 @@
 -- เปิด/ปิดแผงหน้าต่าง · เปิดได้ทีละแผง (เปิดแผงใหม่ = ปิดแผงเดิม)
 -- โมดูล helper: ไม่มี Init/Start
--- ใครใช้: UI/HudUI (ปุ่มเมนู), SettingsUI, GachaUI, ElementUI
+-- ใครใช้: UI/HudUI (ปุ่มเมนู), SettingsUI, ElementUI
 -- วิธีใช้: สร้างแผงแล้ว Panels.register("ชื่อ", frame) → เปิด/ปิดด้วย Panels.open/close/toggle("ชื่อ")
 
 local GuiService = game:GetService("GuiService")

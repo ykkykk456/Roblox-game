@@ -1,12 +1,15 @@
 -- ป้อมของผู้เล่น: วาง · เล็ง · ยิง · อัปเลเวล · ใช้สกิลธาตุ · เลือดป้อม (เจ้าของ: Gameplay_Scripter)
 -- ธาตุ + ผลติดเป้าอยู่ที่ TurretElementService · สกิลกดอยู่ที่ ElementSkillService · หน้าตาที่ TurretLook (อัปทุก 10 เลเวล)
--- สเปก: design/element-skills.md (แทนคลาสป้อม + สกิลกาชาเดิม · ไฟล์นี้ไม่พึ่ง SkillService แล้ว)
+-- สเปก: design/element-skills.md (แทนคลาสป้อม + สกิลกาชาเดิม · ระบบกาชาถูกถอดแล้ว) · อุปกรณ์ป้อม: design/equipment.md
 -- Server เลือกเป้าและคำนวณดาเมจเองทั้งหมด · Client ส่งได้แค่ "ขออัป" / "ขอใช้สกิล" (ผ่าน TurretHandler)
 -- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ "เฉพาะเลนของป้อมตัวเอง" (monster.slot == turret.slot · แก้ 2026-09-30)
 -- กระสุนวิ่ง: ดาเมจ + ผลติดเป้าเข้าตอนกระสุน "ถึงเป้า" (task.delay ตามเวลาเดินทาง) · เส้น/ลำแสง/สายฟ้าโดนทันที
 --   เวลาเดินทาง = TurretMath.travelTime (สูตรเดียวกับที่ Client วาด) · ค่าความเร็วที่ Combat.Turret.Projectile
--- ดาเมจต่อนัด = TurretMath.damage × Friend boost (= D) × ตัวคูณธาตุ (× ทุกนัดที่ N ของลำแสงรุ้ง) (× เกราะแตก เมื่อตีบอส)
--- อัตรายิง   = TurretMath.fireRate × ตัวคูณธาตุ × บัฟสกิล (พายุกระสุน)
+-- ดาเมจต่อนัด = TurretMath.damage × Friend boost × อุปกรณ์ดาเมจ (= D) × ตัวคูณธาตุ (× ทุกนัดที่ N ของลำแสงรุ้ง)
+--               (× อุปกรณ์ดาเมจบอส × เกราะแตก เมื่อตีบอส → TurretElementService.damageBoss)
+-- อัตรายิง   = TurretMath.fireRate × ตัวคูณธาตุ × บัฟสกิล (พายุกระสุน) × อุปกรณ์อัตรายิง
+-- อุปกรณ์ป้อม (design/equipment.md หัวข้อ 10 · โบนัสจาก GearService.bonus): ดาเมจ · อัตรายิง · คูลดาวน์สกิล · ดาเมจสกิล
+--   · เลือดป้อม (maxHpOf) · เวลาช็อต · ชิ้นบนป้อม (TurretLook.setGear) · เปลี่ยนอุปกรณ์ (นอกบอส) = เลือดเต็มใหม่
 -- เลือดป้อม: บอสทุบพื้น (BossService.Slammed) → ลดเลือดทุกป้อม · หมด = ช็อต หยุดยิง Combat.Turret.StunSeconds แล้วฟื้นเต็ม
 --   Passive ของป้อม: ผิวหิน (ทุบเบาลง) · ตัวเบา (ช็อตสั้นลง) · ชุ่มชื่น (ฟื้นเลือดเอง) · เกราะหิน (สกิลดิน กันทุบ 1 ครั้ง)
 --   เตรียมไว้ให้วิวัฒนาการ (ยังไม่มีธาตุไหนใช้): คืนชีพ (Revive) · ทุกนัดที่ N (EveryNth) · บัฟอัตรายิง/กันช็อต (Buff)
@@ -25,7 +28,7 @@
 --   • TurretHandler (Network) — เรียก upgrade / useSkill หลังตรวจ Guard แล้ว
 --   • BaseService — แจ้งว่าใครได้/เสียฐาน · BossService — จุดบอส + สัญญาณทุบพื้น · MonsterService — รายชื่อมอน
 --   • TurretElementService — ธาตุของผู้เล่น, ดาเมจบอส/มอน, ผลติดเป้า · ElementSkillService — สกิลกด
---   • FriendBoostService — โบนัสเพื่อน · PlayerData — เลเวลป้อม + เงิน · Remote "TurretFx" — ส่งภาพให้ Client วาด
+--   • FriendBoostService — โบนัสเพื่อน · GearService — โบนัสอุปกรณ์ + ชิ้นที่ใส่ (ฟัง GearService.Changed) · PlayerData — เลเวลป้อม + เงิน · Remote "TurretFx" — ส่งภาพให้ Client วาด
 --   • Player Attribute "SkillReadyAt" / "SkillActiveUntil" — ให้ปุ่มสกิลใน UI/CombatUI นับถอยหลัง (ค่าจริงอยู่ที่ Server)
 --
 -- ⚠️ ระวัง: upgrade หักเงิน (ต้องทำใน PlayerData.update เท่านั้น) · อย่าให้ Client ส่งดาเมจ/เป้ามาเอง (กฎ Server Authority)
@@ -49,6 +52,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
+local GearMath = require(ReplicatedStorage.Shared.Util.GearMath)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -57,6 +61,7 @@ local BaseService = require(script.Parent.BaseService)
 local BossService = require(script.Parent.BossService)
 local ElementSkillService = require(script.Parent.ElementSkillService)
 local FriendBoostService = require(script.Parent.FriendBoostService)
+local GearService = require(script.Parent.GearService)
 local LayoutService = require(script.Parent.LayoutService)
 local MonsterService = require(script.Parent.MonsterService)
 local TurretElementService = require(script.Parent.TurretElementService)
@@ -123,10 +128,22 @@ local function statsOf(player: Player): ElementMath.Stats
 	return ElementMath.stats(TurretElementService.get(player), levelOf(player))
 end
 
--- D = ดาเมจต่อนัดตามเลเวล × (1 + โบนัสเพื่อน) · "ก่อน" ตัวคูณธาตุ (สูตรในสเปกหัวข้อ 1)
--- ตัวอย่าง: Lv.5 → 10 + 5×4 = 30 · เพื่อน +20% → 36
+-- D = ดาเมจต่อนัดตามเลเวล × (1 + โบนัสเพื่อน) × (1 + อุปกรณ์ดาเมจ) · "ก่อน" ตัวคูณธาตุ (สูตรในสเปกหัวข้อ 1)
+-- ตัวอย่าง: Lv.5 → 10 + 5×4 = 30 · เพื่อน +20% → 36 · ลำกล้อง Legendary +22% → 43.9
+-- ใช้ทั้งยิงปกติและสกิล (สกิลคูณ D) → อุปกรณ์ดาเมจมีผลกับสกิลด้วย (สเปก equipment หัวข้อ 2)
 local function baseDamage(player: Player, level: number): number
-	return TurretMath.damage(level) * (1 + FriendBoostService.get(player))
+	return TurretMath.damage(level) * (1 + FriendBoostService.get(player)) * (1 + GearService.bonus(player).Damage)
+end
+
+-- เลือดเต็มของป้อม = Combat.Turret.MaxHp × (1 + อุปกรณ์เลือดป้อม) · ตัวอย่าง: 100 × 1.5 = 150 (เกราะ Legendary)
+-- ⚠️ ใช้ฟังก์ชันนี้แทน Combat.Turret.MaxHp ทุกที่ในไฟล์นี้ (ไม่งั้นเลือดเกินเพดาน/ไม่ฟื้นเต็ม)
+local function maxHpOf(player: Player): number
+	return Combat.Turret.MaxHp * (1 + GearService.bonus(player).TurretHp)
+end
+
+-- คูลดาวน์สกิลหลังอุปกรณ์ลด (แกนพลัง) · ตัวอย่าง: 25 วิ × (1 − 0.15) = 21.25 วิ · ลดรวมไม่เกิน 40% (Config/Equipment.Caps)
+local function skillCooldownOf(player: Player, skill: any): number
+	return skill.Cooldown * (1 - GearService.bonus(player).SkillCooldown)
 end
 
 -- Passive ชนิด kind ของผู้เล่น (nil = ไม่มี) เช่น passiveOf(stats, "Regen")
@@ -229,6 +246,7 @@ end
 local function buildLook(owner: Player, slot: number): TurretLook.Look
 	local element = TurretElementService.get(owner)
 	local look = TurretLook.build(footOf(slot), element, levelOf(owner), bossPoint())
+	TurretLook.setGear(look, GearService.visuals(owner)) -- ชิ้นอุปกรณ์ที่ใส่อยู่
 	look.model.Name = `Turret_{owner.UserId}`
 	look.model:SetAttribute("OwnerUserId", owner.UserId)
 	look.model:SetAttribute("Element", element)
@@ -242,7 +260,7 @@ local function build(owner: Player, slot: number): Turret
 		slot = slot,
 		look = buildLook(owner, slot),
 		nextFireAt = 0,
-		hp = Combat.Turret.MaxHp,
+		hp = maxHpOf(owner),
 		stunnedUntil = 0,
 		shownHp = -1,
 		shotCount = 0,
@@ -299,8 +317,24 @@ local function onElementChanged(player: Player)
 	local skill = statsOf(player).Skill
 	local serverNow = workspace:GetServerTimeNow()
 	local firstPick = skillReadyAt[player] == nil
-	setCooldown(player, if skill and not firstPick then serverNow + skill.Cooldown else 0, 0)
+	setCooldown(player, if skill and not firstPick then serverNow + skillCooldownOf(player, skill) else 0, 0)
 	rebuildIfNeeded(player)
+end
+
+-- อุปกรณ์ที่ใส่เปลี่ยน / ข้อมูลโหลดเสร็จ / ธาตุเปลี่ยน (GearService.Changed): ปั้นชิ้นอุปกรณ์บนป้อมใหม่ + ปรับเลือดตามเลือดเต็มใหม่
+-- นอกบอส = เลือดเต็มใหม่ทันที (สเปก equipment หัวข้อ 10) · ระหว่างบอส (เช่น เพิ่งโหลดข้อมูล) = แค่บีบไม่ให้เกินเลือดเต็ม
+local function onGearChanged(player: Player)
+	local turret = turrets[player]
+	if not turret then
+		return
+	end
+	TurretLook.setGear(turret.look, GearService.visuals(player))
+	TurretLook.setStunned(turret.look, turret.stunnedUntil > 0) -- ชิ้นใหม่ต้องเทาด้วยถ้าช็อตอยู่
+	local maxHp = maxHpOf(player)
+	if turret.stunnedUntil == 0 then
+		turret.hp = if BossService.isActive() then math.min(turret.hp, maxHp) else maxHp
+	end
+	refreshLabel(turret)
 end
 
 -- ได้ฐาน = ได้ป้อมหน้าฐาน · เสียฐาน (ออกเกม) = ลบป้อม
@@ -319,17 +353,19 @@ end
 
 -- ===== เลือดป้อม (โดนบอสทุบ) =====
 local function setHealthy(turret: Turret)
-	turret.hp = Combat.Turret.MaxHp
+	turret.hp = maxHpOf(turret.owner)
 	turret.stunnedUntil = 0
 	turret.pendingStun = false
 	TurretLook.setStunned(turret.look, false)
 	refreshLabel(turret)
 end
 
--- ช็อต: หยุดยิง StunSeconds × (1 − ตัวเบา) · ตัวอย่าง: ลม −40% → 6 × 0.6 = 3.6 วิ
+-- ช็อต: หยุดยิง StunSeconds × (1 − (ตัวเบา + อุปกรณ์เวลาช็อต)) · ลดรวมไม่เกิน 70% (GearMath.stunReduce)
+-- ตัวอย่าง: ลม −40% → 6 × 0.6 = 3.6 วิ · ลม + เกราะลมเต็ม → 6 × 0.3 = 1.8 วิ
 local function stun(turret: Turret, now: number)
 	local reduce = passiveOf(statsOf(turret.owner), "StunReduce")
-	local seconds = Combat.Turret.StunSeconds * (1 - (if reduce then reduce.Amount else 0))
+	local total = GearMath.stunReduce(if reduce then reduce.Amount else 0, GearService.bonus(turret.owner).StunReduce)
+	local seconds = Combat.Turret.StunSeconds * (1 - total)
 	turret.hp = 0
 	turret.stunnedUntil = now + seconds
 	turret.pendingStun = false
@@ -357,7 +393,7 @@ local function slamTurret(turret: Turret, damage: number, now: number)
 		local revive = passiveOf(stats, "Revive")
 		if revive and now >= turret.reviveReadyAt then
 			-- (เตรียมไว้ให้นกเพลิง) คืนชีพ: ฟื้นทันที ไม่ช็อต (1 ครั้งต่อ Cooldown วิ)
-			turret.hp = Combat.Turret.MaxHp * revive.HpFraction
+			turret.hp = maxHpOf(turret.owner) * revive.HpFraction
 			turret.reviveReadyAt = now + revive.Cooldown
 			emit({ { Kind = "Revive", From = turret.look.headPosition, To = turret.look.headPosition, Color = stats.Color, Radius = 6 } })
 		elseif turret.buffStunImmune and now < turret.buffUntil then
@@ -396,8 +432,9 @@ end
 local function updateHealth(now: number, dt: number)
 	local bossActive = BossService.isActive()
 	for _, turret in turrets do
+		local maxHp = maxHpOf(turret.owner)
 		local stunOver = turret.stunnedUntil > 0 and now >= turret.stunnedUntil
-		local bossOver = not bossActive and (turret.stunnedUntil > 0 or turret.hp < Combat.Turret.MaxHp)
+		local bossOver = not bossActive and (turret.stunnedUntil > 0 or turret.hp < maxHp)
 		if stunOver or bossOver then
 			setHealthy(turret)
 		end
@@ -418,11 +455,11 @@ local function updateHealth(now: number, dt: number)
 			TurretLook.setShield(turret.look, false)
 		end
 		-- ฟื้นเลือด (ไม่ฟื้นตอนช็อต · เต็มแล้วไม่ต้อง)
-		if turret.stunnedUntil == 0 and turret.hp < Combat.Turret.MaxHp and not turret.pendingStun then
+		if turret.stunnedUntil == 0 and turret.hp < maxHp and not turret.pendingStun then
 			local regen = passiveOf(statsOf(turret.owner), "Regen")
 			local perSecond = (if regen then regen.HpPerSecond else 0) + (if now < turret.healUntil then turret.healPerSecond else 0)
 			if perSecond > 0 then
-				turret.hp = math.min(turret.hp + perSecond * dt, Combat.Turret.MaxHp)
+				turret.hp = math.min(turret.hp + perSecond * dt, maxHp)
 				if math.ceil(turret.hp) ~= turret.shownHp then
 					refreshLabel(turret)
 				end
@@ -575,11 +612,12 @@ local function tick()
 			turret.nextFireAt = now
 			continue
 		end
-		-- อัตรายิง (นัด/วิ) = ตามเลเวล × ตัวคูณธาตุ × บัฟ · ยิงเร็วกว่ารอบคำนวณ → รวมหลายนัดในรอบเดียว
-		-- ตัวอย่าง: Lv.5 → 1.4 × ลม 1.9 = 2.66 นัด/วิ → interval ≈ 0.38 วิ
+		-- อัตรายิง (นัด/วิ) = ตามเลเวล × ตัวคูณธาตุ × บัฟ × (1 + อุปกรณ์อัตรายิง) · ยิงเร็วกว่ารอบคำนวณ → รวมหลายนัดในรอบเดียว
+		-- ตัวอย่าง: Lv.5 → 1.4 × ลม 1.9 = 2.66 นัด/วิ → interval ≈ 0.38 วิ · กลไก +16% → 3.09 นัด/วิ
+		-- ⚠️ อุปกรณ์อัตรายิงคูณแค่ตรงนี้ ไม่คูณในสกิล (ElementMath.skillScale) กันนับซ้ำ
 		local stats = statsOf(owner)
 		local buff = if now < turret.buffUntil then turret.buffRate else 1
-		local rate = TurretMath.fireRate(levelOf(owner)) * stats.FireRate * buff
+		local rate = TurretMath.fireRate(levelOf(owner)) * stats.FireRate * buff * (1 + GearService.bonus(owner).FireRate)
 		local interval = 1 / rate
 		local count = math.min(1 + math.floor((now - turret.nextFireAt) / interval), MAX_SHOTS_PER_TICK)
 		turret.nextFireAt = math.max(turret.nextFireAt, now - interval) + count * interval
@@ -642,12 +680,13 @@ function TurretService.useSkill(player: Player): boolean
 	end
 
 	-- Caster = ข้อมูล + ปุ่มควบคุมป้อมนี้ ให้ ElementSkillService ใช้ (ไฟล์นั้นไม่ต้อง require ไฟล์นี้)
+	-- D ของสกิล = D × (1 + อุปกรณ์ดาเมจสกิล) · ตัวอย่าง: D 43.9 × ไฟตรง Legendary 1.25 = 54.9
 	local level = levelOf(player)
 	local caster: ElementSkillService.Caster = {
 		owner = player,
 		slot = turret.slot,
 		level = level,
-		D = baseDamage(player, level),
+		D = baseDamage(player, level) * (1 + GearService.bonus(player).SkillDamage),
 		color = stats.Color,
 		stats = stats,
 		foot = turret.look.foot,
@@ -693,7 +732,7 @@ function TurretService.useSkill(player: Player): boolean
 		emit = emit,
 		heal = function(amount: number)
 			if turret.stunnedUntil == 0 then
-				turret.hp = math.min(turret.hp + amount, Combat.Turret.MaxHp)
+				turret.hp = math.min(turret.hp + amount, maxHpOf(player))
 				refreshLabel(turret)
 			end
 		end,
@@ -717,7 +756,7 @@ function TurretService.useSkill(player: Player): boolean
 	if not activeSeconds then
 		return false -- รูปแบบไม่รู้จัก (Config ผิด) → ไม่เสียคูลดาวน์
 	end
-	setCooldown(player, serverNow + skill.Cooldown, serverNow + activeSeconds)
+	setCooldown(player, serverNow + skillCooldownOf(player, skill), serverNow + activeSeconds)
 	return true
 end
 
@@ -728,10 +767,11 @@ function TurretService.Init()
 	folder.Parent = workspace
 	fxRemote = Remotes.get("TurretFx") :: RemoteEvent
 
-	-- ได้/เสียฐาน → onBaseChanged · บอสทุบพื้น → onSlammed · ธาตุเปลี่ยน → onElementChanged
+	-- ได้/เสียฐาน → onBaseChanged · บอสทุบพื้น → onSlammed · ธาตุเปลี่ยน → onElementChanged · อุปกรณ์เปลี่ยน → onGearChanged
 	BaseService.Changed:Connect(onBaseChanged)
 	BossService.Slammed:Connect(onSlammed)
 	TurretElementService.Changed:Connect(onElementChanged)
+	GearService.Changed:Connect(onGearChanged)
 	local owners = BaseService.owners()
 	for _, slot in BaseService.slots() do
 		if not owners[slot] then

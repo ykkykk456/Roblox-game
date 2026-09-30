@@ -4,9 +4,10 @@
 --
 -- อยากปรับ:
 --   ราคาอัปป้อม → Turret · เงินจากมอน → MonsterReward / MonsterRewardMultiplier
---   รางวัลบอส → Boss · ตั๋วกาชา → Gacha · โบนัสเพื่อน → FriendBoost
--- ใครใช้: Server = Services/Wallet, MonsterService, BossService, SkillService, FriendBoostService ·
---   Data/PlayerData · Network/SkillHandler · Util/TurretMath · Client = UI/GachaUI (แสดงผลเท่านั้น)
+--   รางวัลบอส (เหรียญ) → Boss · โบนัสเพื่อน → FriendBoost
+--   ✏️ ของดรอปจากบอส / ราคาเปิดช่องอุปกรณ์ / เหรียญจากย่อย → src/shared/Config/Equipment.luau (ระบบกาชาถูกถอดแล้ว)
+-- ใครใช้: Server = Services/Wallet, MonsterService, BossService, GearService, FriendBoostService ·
+--   Data/PlayerData · Util/TurretMath · Client = UI (แสดงราคาเท่านั้น)
 -- ⚠️ Client ห้ามตัดสินเรื่องเงินเอง · แก้ตัวเลขเงินควรทำผ่าน /roblox-economy
 
 return table.freeze({
@@ -31,16 +32,6 @@ return table.freeze({
 		-- แจกตอนบอสจากไป (ครบ Combat.Boss.Duration)
 		BaseReward = 50, -- ทุกคนที่มีดาเมจ > 0 ได้เท่ากัน
 		DamageRewardPool = 300, -- แบ่งตามสัดส่วนดาเมจ
-	}),
-
-	-- ===== ตั๋วกาชา (หน่วย: ใบ) =====
-	Gacha = table.freeze({
-		TicketsPerBossKill = 1, -- ต่อรอบบอส: ทุกคนที่มีดาเมจ > 0 ตอนบอสจากไป (บอสไม่มีเลือดแล้ว 2026-09-27)
-		TopBonusTickets = 1, -- โบนัสเพิ่มให้อันดับดาเมจ 1..TopBonusRanks
-		-- จำนวนอันดับดาเมจสูงสุดที่ได้โบนัส (3 = อันดับ 1–3)
-		TopBonusRanks = 3,
-		MaxTickets = 100_000, -- เพดานกันค่าล้น
-		RollSizes = table.freeze({ 1, 10 }), -- จำนวนครั้งที่สุ่มได้ต่อคำขอ
 	}),
 
 	-- ===== โบนัสเพื่อน (สัดส่วน: 0.1 = 10%) =====

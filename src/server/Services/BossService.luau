@@ -1,9 +1,9 @@
 -- ⚠️ ล็อก: วิธีวาง/ยึด/เล่นท่าของบอสที่ใช้ได้จดไว้ที่ docs/boss-slambot-known-good.md — ห้ามแก้ให้เพี้ยน ยกเว้นเพิ่มท่า
 -- บอสอีเวนต์: เกิดตามเวลา ทั้งเซิร์ฟช่วยกันตี แบ่งรางวัล "ขั้นต่ำ + ตามดาเมจ" (เจ้าของ: Gameplay_Scripter)
--- ชนะ = เงิน + ตั๋วกาชา (อันดับต้นได้โบนัส) · หนี = เงินลดลง ไม่มีตั๋ว
+-- ชนะ = เงิน + อุปกรณ์ป้อม (อันดับต้นได้โบนัส · GearService.grantBossDrops) · หนี = เงินลดลง ไม่มีของ
 -- สถานะส่งให้ Client ผ่าน Attribute ของ ReplicatedStorage.BossState (อ่านอย่างเดียว ใช้แสดงผล):
 --   Active: boolean · TotalDamage: ดาเมจรวมทั้งเซิร์ฟ · EndsAt / NextAt: เวลา workspace:GetServerTimeNow()
---   บอสไม่มีเลือด อยู่ Combat.Boss.Duration แล้วจากไป → แจกเงิน + ตั๋วตามดาเมจ (ยืนยัน 2026-09-27)
+--   บอสไม่มีเลือด อยู่ Combat.Boss.Duration แล้วจากไป → แจกเงิน + อุปกรณ์ตามดาเมจ (ยืนยัน 2026-09-27 · ตั๋ว→อุปกรณ์ 2026-09-30)
 --   Top: JSON [{ n = ชื่อ, d = ดาเมจ }] 5 อันดับ · Result: ข้อความผลรอบล่าสุด
 -- ดาเมจของตัวเองส่งผ่าน Player Attribute "BossDamage"
 --
@@ -25,11 +25,11 @@
 --   • บอสจมพื้น/ลอย → Combat.Boss.GroundOffset
 --   • ทุบบ่อย/แรงแค่ไหน → Combat.Boss.SlamInterval / SlamDamage / SlamHitDelay
 --   • เดินเปิดตัว → Combat.Boss.EntranceSeconds / EntranceFrom (ผังเดิม) · Map.Layout.EntranceFrom (ผังจาก Tag)
---   • เงิน/ตั๋วที่แจกตอนจบ → Economy.Boss.BaseReward / DamageRewardPool · Economy.Gacha.* (src/shared/Config/Economy.luau)
+--   • เงิน/ของที่แจกตอนจบ → Economy.Boss.BaseReward / DamageRewardPool (Config/Economy.luau) · Equipment.Drops (Config/Equipment.luau)
 --
 -- คุยกับไฟล์ไหนบ้าง:
 --   • LayoutService — จุดบอส/จุดป้อม/ความสูงพื้นจากแมพ (Tag BossSpawn)
---   • Wallet — ให้เงิน · SkillService — ให้ตั๋วกาชา
+--   • Wallet — ให้เงิน · GearService — ให้อุปกรณ์ป้อม (แทนตั๋วกาชาเดิม)
 --   • TurretService / TurretClassService — เรียก getTarget (จุดเล็ง), isActive, damage (นับดาเมจ) และฟัง Slammed (ลดเลือดป้อม)
 --   • MonsterService — เช็ก isActive (ตอนมีบอส มอนหยุดออก)
 --   • ฝั่ง Client อ่าน ReplicatedStorage.BossState + Player Attribute "BossDamage" ไปแสดง UI
@@ -52,7 +52,7 @@ local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local LayoutService = require(script.Parent.LayoutService)
-local SkillService = require(script.Parent.SkillService)
+local GearService = require(script.Parent.GearService)
 local Wallet = require(script.Parent.Wallet)
 
 -- ===== ค่าคงที่ (ปรับได้ปลอดภัย) =====
@@ -1012,7 +1012,7 @@ local function spawnBoss()
 	state:SetAttribute("Active", true)
 end
 
--- ครบเวลา: บอสจากไป → แจกเงิน (ขั้นต่ำ + ตามสัดส่วนดาเมจ) + ตั๋วกาชา (ทุกคนที่ตี + โบนัสอันดับต้น)
+-- ครบเวลา: บอสจากไป → แจกเงิน (ขั้นต่ำ + ตามสัดส่วนดาเมจ) + อุปกรณ์ป้อม (ทุกคนที่ตี + โบนัสตาม share/อันดับต้น)
 local function finish(current: Boss)
 	boss = nil
 	current.body:Destroy()
@@ -1028,15 +1028,15 @@ local function finish(current: Boss)
 		local player = Players:GetPlayerByUserId(entry.userId)
 		if player and total > 0 and entry.damage > 0 then
 			Wallet.earn(player, Economy.Boss.BaseReward + Economy.Boss.DamageRewardPool * entry.damage / total)
-			local bonus = if rank <= Economy.Gacha.TopBonusRanks then Economy.Gacha.TopBonusTickets else 0
-			SkillService.grantTickets(player, Economy.Gacha.TicketsPerBossKill + bonus)
+			-- ✏️ แก้เฉพาะรางวัล (เจ้าของเกมสั่งถอดกาชา 2026-09-30): ตั๋วกาชา → อุปกรณ์ป้อม · ส่วนโมเดล/ท่าบอสที่ล็อกไม่ได้แตะ
+			GearService.grantBossDrops(player, rank, entry.damage / total)
 		end
 	end
 
 	if total > 0 then
 		state:SetAttribute(
 			"Result",
-			`⏰ บอสจากไปแล้ว! 🏆 {ranking[1].name} · ได้เงิน + 🎟 ตั๋วตามดาเมจ`
+			`⏰ บอสจากไปแล้ว! 🏆 {ranking[1].name} · ได้เงิน + 🛠️ อุปกรณ์ตามดาเมจ`
 		)
 	else
 		state:SetAttribute("Result", "⏰ บอสจากไปแล้ว… ไม่มีใครทำดาเมจ")

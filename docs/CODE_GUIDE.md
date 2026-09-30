@@ -26,14 +26,16 @@
 | เอฟเฟกต์กระสุน/สกิล (ที่เห็นบนจอ) | `src/client/Controllers/TurretController.luau` | ฟังก์ชันวาดตาม `Kind` (`drawFireball` `drawWave` ...) |
 | ความเร็วกระสุน (ดาเมจเข้าตอนกระสุนถึง · ภาพกับดาเมจใช้ค่าเดียวกัน) · ชนิดที่โดนทันที | `Config/Combat.luau` | `Turret.Projectile` (`Speed` `Speeds` `Instant` `MaxTravel`) |
 | หน้าเลือกธาตุ (ปุ่ม ตำแหน่ง ข้อความ) · ปุ่มลัด C | `src/client/UI/ElementUI.luau` | |
-| สกิลกาชา (รายชื่อ ผล คูลดาวน์ โอกาสสุ่ม) — ⚠️ ปุ่ม Q ไม่ใช้สกิลกาชาแล้ว (ใช้สกิลธาตุ) · รอถอดระบบกาชา | `src/shared/Config/Skills.luau` | `List` `Rarities` |
-| ราคาอัปป้อม · เงินจากมอน · รางวัลบอส · ตั๋วกาชา | `src/shared/Config/Economy.luau` | `Turret` `MonsterReward` `Boss` `Gacha` |
+| **อุปกรณ์ป้อม** (ราคาเปิดช่อง · ค่าสถานะต่อช่อง/ระดับ · โบนัสธาตุตรง · เพดาน · ย่อย/รวม · ดรอปบอส + โอกาส + pity · ขนาดกระเป๋า · ชื่อชิ้น) | `src/shared/Config/Equipment.luau` | `SlotPrices` `MainStat` `NeutralMainStat` `MatchBonus` `FullSetBonus` `Caps` `Rarities` `Drops` `InventoryCap` `Names` |
+| สูตรรวมโบนัสอุปกรณ์ / ขั้นตอนสุ่มดรอป / ล้างข้อมูลอุปกรณ์ตอนโหลด | `src/shared/Util/GearMath.luau` | `bonus` `rollTables` `pickRarity` `applyPity` `sanitize` |
+| หน้าตาชิ้นอุปกรณ์บนป้อม (ปลอกลำกล้อง กลไก แกน เกราะ) | `src/server/Services/TurretLook.luau` | `gearPieces` `GEAR_MATERIAL` |
+| ราคาอัปป้อม · เงินจากมอน · เงินรางวัลบอส | `src/shared/Config/Economy.luau` | `Turret` `MonsterReward` `Boss` |
 | มอน (จำนวนต่อ wave, เลือด, ความเร็ว, เวลาพัก) | `Config/Combat.luau` | `Monster.*` |
 | บอส (เวลาอยู่, ช่วงเวลามา, ลำดับสลับ, ท่า Animation ID, ทุบ) | `Config/Combat.luau` | `Boss.*` (`Rotation`, `Animations`, `Duration`, `SlamDamage`) |
 | ตำแหน่งบอส / ป้อม / บ้าน | **ใน Studio** ติด Tag `BossSpawn` `Turret1..6` `House1..6` | ชื่อ Tag อยู่ `Config/Tags.luau` |
 | เลนมอน / ระยะเกิด · การวัดพื้นตามเลน (มอนเดินติดพื้น) | `src/shared/Config/Map.luau` | `Layout.*` (`FloorSampleStep` `FloorMaxClimb` `FloorProbeDepth`) `Lane.*` |
-| หน้าจอ HUD เงิน / แถบบอส / ปุ่มอัป-สกิล | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
-| หน้ากาชา | `src/client/UI/GachaUI.luau` | |
+| หน้าจอ HUD เงิน / แถบบอส / ปุ่มอัป-สกิล / ปุ่มอุปกรณ์ | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
+| หน้าอุปกรณ์ (ยังเป็นแผงชั่วคราว "Gear" ใน HudUI · ข้อมูลที่ UI ใช้ได้ ดู `design/equipment.md` หัวข้อ "สัญญากับ Client") | `src/client/UI/HudUI.luau` | `placeholderPanel(... "Gear" ...)` |
 | สี/ฟอนต์ UI ทั้งเกม | `src/client/UI/Theme.luau` | |
 
 ## ระบบทำงานยังไง (ภาพรวม)
@@ -58,7 +60,8 @@
 | `Services/MonsterService.luau` | มอนเป็น wave ตามเลน |
 | `Services/LayoutService.luau` | อ่านตำแหน่งจาก Tag ในแมพ |
 | `Services/MapService.luau` | สร้าง/ล็อกแมพ · จุดเกิด |
-| `Services/SkillService.luau` | กาชา · คลังสกิล · คูลดาวน์ |
+| `Services/GearService.luau` | อุปกรณ์ป้อม: ใส่/ถอด · เปิดช่อง · ย่อย · รวม 3→1 · ดรอปจากบอส · โบนัสให้ป้อม (ระบบกาชาถูกถอดแล้ว) |
+| `Network/GearHandler.luau` | รับคำขออุปกรณ์ (Remote `EquipGear` `UnequipGear` `UnlockGearSlot` `SalvageGear` `SalvageRarity` `MergeGear`) |
 | `Data/PlayerData.luau` | เซฟ/โหลดข้อมูลผู้เล่น (ระวัง!) |
 | `Network/Guard.luau` | ด่านตรวจทุกคำขอจากผู้เล่น (กันโกง) |
 

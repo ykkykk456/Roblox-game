@@ -15,7 +15,7 @@
 --
 -- คุยกับไฟล์ไหนบ้าง:
 --   • Network/ElementHandler — เรียก choose · TurretService + ElementSkillService — เรียก damage*/apply*/spawnZone/update
---   • BossService — นับดาเมจบอส · MonsterService — ทำดาเมจ/ช้าลง/ถอย/ดูดมอน · PlayerData — เก็บธาตุ (+ หักเงินเปลี่ยนธาตุ)
+--   • BossService — นับดาเมจบอส · GearService — โบนัสดาเมจบอสจากอุปกรณ์ · MonsterService — ทำดาเมจ/ช้าลง/ถอย/ดูดมอน · PlayerData — เก็บธาตุ (+ หักเงินเปลี่ยนธาตุ)
 --
 -- ⚠️ ห้ามแก้: การเปลี่ยนธาตุ/หักเงิน ต้องอยู่ใน PlayerData.update และตรวจกฎซ้ำเสมอ (ห้ามเชื่อค่าที่ Client ส่งมา)
 --
@@ -28,7 +28,7 @@
 --     4) TurretService.luau:hit (ยิงปกติ) → applyShot (Splash, ช้าลง, ถอย, ทะลุ, Passive)
 --        ElementSkillService (สกิล) → damageBoss / damageMonster / applyStatus
 --     5) ผลที่ "ค้าง" (DoT, โซน) แค่จดไว้ในตาราง dots / zones → update(now) ทุก 0.1 วิ ทำดาเมจตามเวลาที่ผ่านไป
---     6) ทุกครั้งที่ตีบอส ผ่าน damageBoss → คูณเกราะแตก (ถ้ามี) → BossService.damage
+--     6) ทุกครั้งที่ตีบอส ผ่าน damageBoss → คูณโบนัสดาเมจบอสจากอุปกรณ์ → คูณเกราะแตก (ถ้ามี) → BossService.damage
 --   ✏️ อยากเพิ่ม Passive/Status ชนิดใหม่ → applyShot / applyStatus (+ ใส่ Kind ใน Config)
 
 local Players = game:GetService("Players")
@@ -36,6 +36,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
 local BossService = require(script.Parent.BossService)
+local GearService = require(script.Parent.GearService)
 local MonsterService = require(script.Parent.MonsterService)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
@@ -138,7 +139,9 @@ function TurretElementService.bossDamageMultiplier(now: number): number
 	return 1
 end
 
--- ทำดาเมจบอส (จุดเดียวที่ป้อมตีบอส): คูณเกราะแตก → BossService.damage
+-- ทำดาเมจบอส (จุดเดียวที่ป้อมตีบอส): คูณโบนัสดาเมจบอสจากอุปกรณ์ → คูณเกราะแตก → BossService.damage
+-- โบนัสอุปกรณ์ (design/equipment.md หัวข้อ 10) คูณ "ก่อน" เกราะแตก → เครดิตซัพพอร์ตคิดจากค่าหลังโบนัสอุปกรณ์
+--   ตัวอย่าง: ยิง 100 · อุปกรณ์ดินดาเมจบอส +15% → 115 · เกราะแตก 20% → 138 · มอนไม่ได้โบนัสนี้
 -- เครดิตซัพพอร์ต (เตรียมไว้ให้ปฐพีพิษ): คนอื่นตีบอสตอนเกราะแตกจากสกิล → คนใช้ได้ดาเมจเพิ่มในตาราง = ส่วนเพิ่ม × AssistCredit
 -- ตัวอย่าง: B ตี 100 ตอนเกราะแตก 20% (A ใช้สกิล, credit 0.5) → B ได้ 120 · A ได้เครดิต 20 × 0.5 = 10 · ไม่มีเกราะแตก = ×1
 -- ⚠️ ระวัง: ดาเมจบอส = รางวัลผู้เล่น (BossService แจกตามดาเมจ) · ตีบอสจากที่อื่นต้องผ่านฟังก์ชันนี้เสมอ
@@ -146,6 +149,8 @@ function TurretElementService.damageBoss(owner: Player, amount: number, now: num
 	if amount ~= amount or amount <= 0 then
 		return
 	end
+	-- ✏️ โบนัสดาเมจบอสจากอุปกรณ์ (มีเพดานใน Config/Equipment.Caps.BossDamage แล้ว)
+	amount *= 1 + GearService.bonus(owner).BossDamage
 	local multiplier = TurretElementService.bossDamageMultiplier(now)
 	BossService.damage(owner, amount * multiplier)
 	local creditOwner = armor.creditOwner

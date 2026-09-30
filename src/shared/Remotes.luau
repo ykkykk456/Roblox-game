@@ -7,8 +7,8 @@
 -- Remote คืออะไร: "ท่อส่งข้อความ" ระหว่างเครื่องผู้เล่น (Client) กับเซิร์ฟเวอร์ (Server)
 --   RemoteEvent = ส่งทางเดียว ไม่รอคำตอบ · RemoteFunction = ส่งแล้วรอคำตอบ
 -- อยากเพิ่ม Remote → เพิ่ม 1 บรรทัดใน NAMES ด้านล่าง แล้วไปเขียนตัวรับใน src/server/Network/ (ผ่าน Guard)
--- ใครใช้ไฟล์นี้: src/server/Network/*Handler.luau · Services/TurretService, SkillService ·
---   src/client/Controllers/TurretController, SkillController, ElementController
+-- ใครใช้ไฟล์นี้: src/server/Network/*Handler.luau · Services/TurretService, GearService ·
+--   src/client/Controllers/TurretController, ElementController (+ UI อุปกรณ์ที่จะทำต่อ)
 -- ⚠️ ไฟล์ shared = ผู้เล่นอ่านได้ · ข้อมูลที่ Client ส่งมาเชื่อไม่ได้ ต้องตรวจที่ Server เสมอ
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,10 +26,18 @@ local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	-- Radius = รัศมีระเบิด/โซน · Duration = เวลาอยู่ของโซน/ลำแสง/บัฟ · Spread = มุมพัด (องศา) · Arc = ความสูงโค้ง
 	TurretFx = "RemoteEvent",
 	ChooseElement = "RemoteEvent", -- Client → Server: (elementId: string) เลือกธาตุ (ครั้งแรกฟรี · เปลี่ยน = เสียเงิน)
-	RollGacha = "RemoteEvent", -- Client → Server: (count: number) สุ่มสกิลด้วยตั๋ว
-	EquipSkill = "RemoteEvent", -- Client → Server: (skillId: string) เลือกสกิลที่ใช้
-	UpgradeSkill = "RemoteEvent", -- Client → Server: (skillId: string) อัปขั้นด้วยสกิลซ้ำ
-	GachaResult = "RemoteEvent", -- Server → Client: ผลการสุ่ม { { id, new } } สำหรับแสดงผลเท่านั้น
+	-- ===== อุปกรณ์ป้อม (design/equipment.md · ตัวรับ: server/Network/GearHandler.luau) =====
+	-- itemKey = id ในกระเป๋า "<ช่อง>_<แบบ>_<ระดับ>" เช่น "Barrel_Fire_Rare" · Server ตรวจกฎทั้งหมดเอง (ไม่ผ่าน = เงียบ)
+	EquipGear = "RemoteEvent", -- Client → Server: (itemKey: string) ใส่ชิ้นนี้ในช่องของมัน (ห้ามระหว่างบอส)
+	UnequipGear = "RemoteEvent", -- Client → Server: (slot: string) ถอดชิ้นในช่องนี้ (ห้ามระหว่างบอส)
+	UnlockGearSlot = "RemoteEvent", -- Client → Server: ไม่มี argument · เปิดช่องถัดไปด้วยเหรียญ
+	SalvageGear = "RemoteEvent", -- Client → Server: (itemKey: string, count: number) ย่อยเป็นเหรียญ (ชิ้นที่ใส่อยู่ 1 ชิ้นย่อยไม่ได้)
+	SalvageRarity = "RemoteEvent", -- Client → Server: (rarity: string) ย่อยทุกชิ้นที่ไม่ได้ใส่ของระดับนี้ (ไม่รับ Legendary)
+	MergeGear = "RemoteEvent", -- Client → Server: (itemKey: string) รวม 3 ชิ้นที่ไม่ได้ใส่ → 1 ชิ้นระดับถัดไป (เสียเหรียญ)
+	-- Server → Client: ของที่ได้จากบอส (แสดงผลเท่านั้น · ของจริงอยู่ใน Attribute "Gear")
+	-- payload: { { Key: string, New: boolean, Salvaged: number?, Top: boolean? } }
+	--   New = ไม่เคยมี id นี้ก่อนรอบนี้ · Salvaged = กระเป๋าเต็ม → ได้เหรียญเท่านี้แทน · Top = มาจาก roll โบนัสอันดับ 1
+	GearDrops = "RemoteEvent",
 }
 
 -- ===== สร้าง/หาโฟลเดอร์ Remotes =====

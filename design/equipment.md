@@ -1,6 +1,6 @@
 # Feature Spec — อุปกรณ์ป้อม (Turret Equipment) (2026-09-30)
 
-สถานะ: **[Proposed]** · ตัวเลขทุกตัวเป็น `[Proposed]` (เจ้าของตัวเลข: `/roblox-economy`) · ยังไม่มีโค้ด
+สถานะ: **[Proposed]** · ตัวเลขทุกตัวเป็น `[Proposed]` (เจ้าของตัวเลข: `/roblox-economy`) · โค้ดฝั่ง Server/Shared/Data ทำแล้ว 2026-09-30 (UI อุปกรณ์ยังไม่ทำ · ดูหัวข้อ 14)
 บทบาทผู้เขียน: Systems_Designer (กฎ) + Economy_Designer (ตัวเลข)
 แทนที่: **กาชาสกิล + ตั๋วกาชา** (ถอดออกตามคำสั่งเจ้าของเกม) · ใช้ field เดิม `Gear` (PlayerData v4) ต่อ
 ไฟล์ Config ที่จะสร้าง: `src/shared/Config/Equipment.luau` (โครงอยู่หัวข้อ 9)
@@ -363,3 +363,60 @@ return f({
 3. ห้ามใส่/ถอดระหว่างบอส
 4. ยังไม่มีแลกเปลี่ยน · ไม่มี Robux ในระบบนี้
 5. ดรอปธาตุตัวเองมีโอกาส ×2 · มี pity Epic ทุก 30 rolls
+
+---
+
+## 14. สัญญากับ Client (สำหรับ UI agent)
+
+> เขียนหลังทำโค้ดฝั่ง Server/Shared/Data แล้ว (2026-09-30) · UI อ่านได้อย่างเดียว ห้ามตัดสินผลเอง — ส่ง "เจตนา" ผ่าน Remote แล้ว **รอ Attribute เปลี่ยน** ค่อยวาดใหม่
+> คำขอที่ผิดกฎ Server จะ **เงียบ** (ไม่ตอบ error) → UI ต้องทำปุ่มเทาเองตามกฎด้านล่าง ไม่ใช่รอคำตอบ
+
+### 14.1 Player Attribute (บน `Players.LocalPlayer` · ตั้งโดย `Services/GearService.luau`)
+| Attribute | ชนิด | ความหมาย |
+|---|---|---|
+| `Gear` | string (JSON) | `data.Gear` ทั้งก้อน: `{ "Items": { "<key>": count }, "Equipped": { "Barrel": key\|"", "Mechanism": …, "Core": …, "Plating": … }, "Slots": 2..4, "Pity": 0..30 }` |
+| `GearSlots` | number | ช่องที่เปิดแล้ว 2..4 (ช่องที่ n เปิดเมื่อ n ≤ ค่านี้ · ลำดับ `Equipment.SlotOrder`) |
+| `GearBonus` | string (JSON) | โบนัสรวมที่ Server ใช้จริง (บีบเพดานแล้ว · ตามธาตุป้อมตอนนี้): `{ "Damage", "FireRate", "BossDamage", "SkillCooldown", "SkillDamage", "TurretHp", "StunReduce" }` เป็นสัดส่วน (0.22 = 22%) · SkillCooldown/StunReduce = "ลดลง" |
+| `Coins` · `Element` | number · string | (เดิม · StatsService) ใช้เช็กเงินพอ/ธาตุตรง |
+
+- `key` = `"<ช่อง>_<แบบ>_<ระดับ>"` เช่น `"Barrel_Fire_Rare"` · แยกด้วย `GearMath.parseKey(key)` → `slot, variant, rarity`
+- อ่าน JSON: `pcall(HttpService.JSONDecode, HttpService, player:GetAttribute("Gear"))` · ยังไม่มี Attribute (nil) = ข้อมูลยังโหลดไม่เสร็จ → โชว์ "กำลังโหลด"
+- ⚠️ `Items` ว่างอาจถูก encode เป็น `[]` (array) แทน `{}` `[Inferred: HttpService.JSONEncode แปลงตารางว่างเป็น array]` → ให้ถือว่าเป็น map ว่างทั้งสองแบบ
+- `Items[key]` นับ **ทุกสำเนารวมชิ้นที่ใส่** · ชิ้นที่ใส่อยู่ยังอยู่ใน Items (Equipped แค่ชี้ไป)
+- ฟังการเปลี่ยน: `player:GetAttributeChangedSignal("Gear")` (ยิงหลังใส่/ถอด/เปิดช่อง/ย่อย/รวม/ได้ดรอป/โหลดเสร็จ/เปลี่ยนธาตุ) · `GearBonus` เปลี่ยนพร้อมกัน
+- Attribute เก่าที่ **ถูกลบแล้ว**: `GachaTickets` `EquippedSkill` `Skills`
+
+### 14.2 Remote (ชื่ออยู่ `src/shared/Remotes.luau` · ตัวรับ `src/server/Network/GearHandler.luau`)
+| Remote | ทิศ | argument (`FireServer(...)`) | rate | Server ปฏิเสธเงียบเมื่อ… |
+|---|---|---|---|---|
+| `EquipGear` | C→S | `(key: string)` | 4/วิ | key ไม่มีจริง · มี < 1 · ช่องของชิ้นยังล็อก · ใส่ชิ้นนี้อยู่แล้ว · **บอสอยู่** |
+| `UnequipGear` | C→S | `(slot: string)` เช่น `"Core"` | 4/วิ | slot ไม่มีจริง · ช่องว่าง · **บอสอยู่** |
+| `UnlockGearSlot` | C→S | ไม่มี | 2/วิ | เปิดครบ 4 แล้ว · เงิน < `GearMath.nextSlotPrice(Slots)` |
+| `SalvageGear` | C→S | `(key: string, count: number)` count จำนวนเต็ม 1..99 | 5/วิ | count > `GearMath.freeCount(gear, key)` (ชิ้นที่ใส่ 1 ชิ้นย่อยไม่ได้) |
+| `SalvageRarity` | C→S | `(rarity: string)` `"Common"`/`"Rare"`/`"Epic"` | 1/วิ | `"Legendary"` (ไม่รับ) · ไม่มีชิ้นว่างของระดับนั้น |
+| `MergeGear` | C→S | `(key: string)` | 3/วิ | Legendary · `freeCount < 3` · เงิน < `GearMath.mergeCost(rarity)` · ผลลัพธ์ (ระดับถัดไป) มีครบ 99 แล้ว |
+| `GearDrops` | S→C | `OnClientEvent(list)` · `list = { { Key: string, New: boolean, Salvaged: number?, Top: boolean? } }` | — | แสดงผลเท่านั้น (ของจริงมาทาง Attribute `Gear`) |
+
+- `GearDrops` ยิงหลังบอสจากไป (1 ครั้งต่อคน · 1–4 รายการ) · `New` = เพิ่งมี id นี้ครั้งแรก · `Salvaged` = กระเป๋า/กองเต็ม → ได้เหรียญเท่านี้แทน (ไม่ได้ของ) · `Top` = roll โบนัสอันดับ 1
+- บอสอยู่ไหม: `ReplicatedStorage.BossState:GetAttribute("Active")` (เดิม) → ปุ่มใส่/ถอดเป็นเทา + ข้อความ "เปลี่ยนอุปกรณ์หลังบอสจากไป"
+
+### 14.3 โมดูล shared ที่ UI ใช้ได้ (อ่าน/คำนวณเพื่อแสดงเท่านั้น)
+- `Config/Equipment.luau`: `SlotOrder` `Slots[slot].Name/Icon/Main` · `RarityOrder` `Rarities[r].Name/Color/Salvage/MergeCost` · `Names["<ช่อง>_<แบบ>"]` · `SlotPrices` · `Drops.Tables` · `InventoryCap` (150) · `StackCap` (99) · `MainStat` / `NeutralMainStat` / `MatchBonus`
+- `Util/GearMath.luau`: `parseKey` `keyOf` `mainStat(slot, variant, rarity)` `matchStat(variant, rarity, element)` `bonus(gear, element)` (ใช้เทียบ "ถ้าใส่ชิ้นนี้" ได้: ก๊อป gear แล้วแก้ Equipped แล้วเรียก bonus) `freeCount(gear, key)` `countAll(items)` `nextSlotPrice(slots)` `mergeCost(r)` `salvageValue(r)` `nextRarity(r)` `odds("A"|"B"|"C"|"Top")` (ตาราง "โอกาสดรอป") `BONUS_STATS`
+  - ⚠️ `freeCount/isEquipped` ต้องการ gear ที่มี `Items` เป็นตาราง (decode แล้วแปลง `[]` เป็น `{}` ก่อน)
+- สีธาตุของชิ้น: `Config/Elements.luau` → `Elements.<ธาตุ>.Color` · ชิ้นกลาง: `Equipment.NeutralColor`
+
+### 14.4 อื่นๆ ที่ UI ควรรู้
+- ปุ่ม HUD เดิม "กาชา" ถูกเปลี่ยนเป็น **"🛠 อุปกรณ์"** เรียก `Panels.toggle("Gear")` · ตอนนี้เป็นแผงชั่วคราว (`placeholderPanel` ใน `UI/HudUI.luau`) → UI จริงให้ลบบรรทัด placeholder `"Gear"` แล้ว `Panels.register("Gear", …)` แทน
+- ไฟล์ที่ลบแล้ว: `UI/GachaUI.luau` `Controllers/SkillController.luau` (Remote กาชาทั้งหมดถูกลบ)
+- ชิ้นบนป้อม (Server ปั้น): `workspace.Turrets.Turret_<UserId>.Gear` (Model) · ชิ้นชื่อ `GearSleeve` `GearRing` `GearBox` `GearCog` `GearCore` `GearPlate` `GearTrim` · เฟือง/แกนหมุนด้วย Attribute `Anim = "Orbit"` (TurretAnimController เดิมรองรับแล้ว)
+
+### 14.5 สิ่งที่โค้ดต่างจากสเปกด้านบนเล็กน้อย (ตัดสินเองตามที่เจ้าของให้ทำโดยไม่ถาม · `[Proposed]`)
+1. Config ใช้ตาราง `NeutralMainStat` เขียนตัวเลขตรงๆ แทน `NeutralMultiplier` (กันปัดเศษเพี้ยน · ค่าเท่ากับตารางหัวข้อ 3.1)
+2. ส่ง Attribute `GearSlots` + `GearBonus` เพิ่มจาก `Gear` · ส่งจาก `GearService` (เฉพาะตอนอุปกรณ์/ธาตุเปลี่ยน) ไม่ใช่ `StatsService` (ไม่ต้อง encode JSON ทุกครั้งที่เงินเปลี่ยน)
+3. เหรียญจากการย่อย (มือ/อัตโนมัติ) บวกตรงใน `PlayerData.update` เดียวกับการหักของ (atomic) · **ไม่คูณโบนัสเพื่อน** และไม่ผ่าน `Wallet.earn`
+4. Sanitize: จำนวนที่ไม่ใช่จำนวนเต็ม (เช่น 1.5) = ทิ้งทั้งกอง (ตามหัวข้อ 7.2) · เกิน 99 = บีบเป็น 99 · กระเป๋ารวมเกิน 150 จากข้อมูลเสีย = ไม่ลบของ (ดรอปใหม่จะถูกย่อยอัตโนมัติจนกว่าจะต่ำกว่า 150)
+5. Pity นับทุก roll รวม roll ท็อป · Legendary ตรงๆ ก็รีเซ็ต pity
+6. โบนัสดาเมจบอส (`BossDamage`) คูณใน `TurretElementService.damageBoss` → มีผลกับ DoT/โซนที่ตีบอสด้วย (ทุกดาเมจบอสผ่านจุดนี้)
+7. หน้าตาชิ้นบนป้อม: ยังไม่อ่าน Attachment `GearBarrel/GearMechanism/GearCore/GearPlating` ของโมเดลที่ import (วางตามหัว/ลำกล้อง/แท่นแทน) · ลม "ครีบ Wedge" ยังไม่ทำ (ใช้ปลอก + วงแหวนแบบเดียวกันทุกแบบ ต่างที่สี/วัสดุ)
+8. migration `[2]` เดิมอ้าง `Config/Skills` (ลบแล้ว) → เขียนค่าเดิม `"Overdrive"` ตรงๆ แทน (ผลเหมือนเดิม และถูกลบต่อใน `[6]`)

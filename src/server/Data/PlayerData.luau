@@ -13,7 +13,7 @@
 --
 -- อยากปรับ:
 --   • เงินเริ่มต้น → src/shared/Config/Economy.luau (StartingCoins) ไม่ต้องแก้ไฟล์นี้
---   • สกิลเริ่มต้น → src/shared/Config/Skills.luau (StarterSkill)
+--   • อุปกรณ์ป้อม (ช่องเริ่มต้น, ขนาดกระเป๋า, ตั๋วเก่า → เหรียญ) → src/shared/Config/Equipment.luau
 -- คุยกับ: เกือบทุก Service (get/update/waitFor/Changed) · StatsService ส่งค่าไป HUD
 --
 -- ห้ามแก้ (ข้อมูลผู้เล่นจริงหายได้):
@@ -27,13 +27,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
-local Skills = require(ReplicatedStorage.Shared.Config.Skills)
+local Equipment = require(ReplicatedStorage.Shared.Config.Equipment)
+local GearMath = require(ReplicatedStorage.Shared.Util.GearMath)
 
 -- ===== ค่าคงที่ =====
 -- ชื่อ DataStore · ห้ามแก้
 local STORE_NAME = "PlayerData"
 -- เวอร์ชันโครงข้อมูลปัจจุบัน · แก้ได้เฉพาะตอนเพิ่ม migration (เพิ่มทีละ 1)
-local VERSION = 6
+local VERSION = 7
 -- ลองเรียก DataStore กี่ครั้งก่อนยอมแพ้ (ปรับได้ 3–5 · มากไป = ผู้เล่นรอนานตอนโหลดพัง)
 local MAX_ATTEMPTS = 3
 -- บันทึกอัตโนมัติทุกกี่วินาที (ปรับได้ · ต่ำไปเสี่ยงชนโควตา DataStore · สูงไปเสียข้อมูลมากขึ้นถ้าเซิร์ฟล่ม)
@@ -45,21 +46,22 @@ local DEFAULT = {
 	Version = VERSION,
 	Coins = Economy.StartingCoins,
 	TurretLevel = 1, -- v2
-	GachaTickets = 0, -- v3
-	Skills = { [Skills.StarterSkill] = { Level = 1, Copies = 0 } }, -- v3: [skillId] = { Level, Copies }
-	EquippedSkill = Skills.StarterSkill, -- v3
+	-- v3 GachaTickets / Skills / EquippedSkill (กาชาสกิล) → ถูกลบใน v7 (ดู MIGRATIONS[6])
 	Upgrades = { Bag = 1, Magazine = 1, House = 1, Speed = 1 }, -- v4: เลเวลอัปตัวเอง (ค่าพลังคำนวณจาก Config)
-	Gear = {}, -- v4: ["<ช่อง>_<ระดับ>"] = จำนวน เช่น Barrel_Rare = 2
+	-- v7: อุปกรณ์ป้อม (design/equipment.md หัวข้อ 7) · แก้ผ่าน Services/GearService เท่านั้น
+	--   Items = ["<ช่อง>_<แบบ>_<ระดับ>"] = จำนวน · Equipped = [ช่อง] = id หรือ "" · Slots = ช่องที่เปิด · Pity = นับ rolls ไม่ได้ Epic+
+	-- ⚠️ reconcile ไม่ตรวจ key ใน Items → load เรียก GearMath.sanitize ทุกครั้ง (ทิ้ง id มั่ว/จำนวนเสีย/ใส่ช่องล็อก)
+	Gear = GearMath.newGear(),
 	Rebirths = 0, -- v4
 	LastSeen = 0, -- v4: os.time() ฝั่ง Server ตอนออกเกม (คิดเงิน idle ตอนออฟไลน์)
 	Login = { Day = 0, Streak = 0 }, -- v4: Day = เลขวัน UTC ที่รับรางวัลล่าสุด
 	-- v5 TurretClass / TurretBranch (คลาสป้อมเดิม) → ถูกแทนด้วย Element ใน v6 (ดู MIGRATIONS[5])
 	Element = "", -- v6: ธาตุป้อม ("" = ยังไม่เลือก → Unchosen · UI เด้งให้เลือก) · id อยู่ใน Config/Elements
-	-- (วิวัฒนาการยังไม่ทำ → ยังไม่มี field Evolution · ตอนทำค่อยเพิ่ม v7) · Gear (v4) เตรียมไว้ให้ระบบอุปกรณ์ป้อม
+	-- (วิวัฒนาการยังไม่ทำ → ยังไม่มี field Evolution · ตอนทำค่อยเพิ่ม v8)
 }
 
 -- MIGRATIONS[n] แปลงข้อมูลจากเวอร์ชัน n เป็น n + 1
--- เพิ่ม field ใหม่: ใส่ใน DEFAULT + VERSION = 7 + เพิ่ม [6] = function(data) ... return data end ต่อท้าย
+-- เพิ่ม field ใหม่: ใส่ใน DEFAULT + VERSION = 8 + เพิ่ม [7] = function(data) ... return data end ต่อท้าย
 local MIGRATIONS: { [number]: (any) -> any } = {
 	-- v1 → v2: เพิ่มเลเวลป้อม
 	[1] = function(data)
@@ -67,10 +69,11 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		return data
 	end,
 	-- v2 → v3: เพิ่มตั๋วกาชาและคลังสกิล (ทุกคนได้สกิลเริ่มต้น)
+	-- ⚠️ Config/Skills ถูกลบแล้ว (ถอดกาชา v7) → เขียนค่าเดิมตรงๆ ("Overdrive" = StarterSkill เดิม) · field พวกนี้ถูกลบต่อใน [6]
 	[2] = function(data)
 		data.GachaTickets = 0
-		data.Skills = { [Skills.StarterSkill] = { Level = 1, Copies = 0 } }
-		data.EquippedSkill = Skills.StarterSkill
+		data.Skills = { Overdrive = { Level = 1, Copies = 0 } }
+		data.EquippedSkill = "Overdrive"
 		return data
 	end,
 	-- v3 → v4: อัปตัวเอง · อุปกรณ์แต่ง · Rebirth · เวลาออกเกม · รางวัล Login (design/crater-map.md)
@@ -91,11 +94,38 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 	-- v5 → v6: คลาสป้อม → ธาตุป้อม (design/element-skills.md หัวข้อ 6.2) [Proposed]
 	-- คลาสเก่ากับธาตุใหม่เทียบกันไม่ตรง → รีเซ็ตให้เลือกใหม่ฟรี (ไม่แมป) · TurretLevel / เงิน / ของอื่นไม่แตะ
 	-- ลบแค่ TurretClass / TurretBranch (field ที่ถูกแทน) · field กาชา (Skills, EquippedSkill, GachaTickets) คงไว้ก่อน
-	--   (ระบบกาชาจะถูกถอดแยกอีกงาน · ตอนนั้นค่อยเพิ่ม migration ลบ)
+	--   (ถอดกาชาแล้วใน v7 → field พวกนี้ถูกลบที่ MIGRATIONS[6])
 	[5] = function(data)
 		data.Element = ""
 		data.TurretClass = nil
 		data.TurretBranch = nil
+		return data
+	end,
+	-- v6 → v7: ถอดกาชาสกิล → อุปกรณ์ป้อม (design/equipment.md หัวข้อ 7.2) [Proposed]
+	--   • Gear รูปแบบเก่า ["<ช่อง>_<ระดับ>"] → Items ["<ช่อง>_Neutral_<ระดับ>"] (GearMath.fromLegacy · ช่อง/ระดับไม่รู้จัก = ทิ้ง + warn)
+	--   • ตั๋วกาชาที่เหลือ → เหรียญ ใบละ Equipment.TicketToCoins (50) · รวมแล้วไม่เกิน Economy.MaxCoins
+	--   • ลบ GachaTickets / Skills / EquippedSkill · ของอื่น (เลเวล ธาตุ เงินเดิม) ไม่แตะ
+	-- ตัวอย่าง: Coins 100 + ตั๋ว 3 ใบ → Coins 250
+	[6] = function(data)
+		local items, dropped = GearMath.fromLegacy(data.Gear)
+		if dropped > 0 then
+			warn(`[PlayerData] migration v6→v7: ทิ้งอุปกรณ์รูปแบบเก่าที่ไม่รู้จัก {dropped} รายการ`)
+		end
+		local gear = GearMath.newGear()
+		gear.Items = items
+		data.Gear = gear
+		local rawTickets = data.GachaTickets
+		local tickets = if type(rawTickets) == "number" and rawTickets == rawTickets and rawTickets < math.huge
+			then math.max(0, math.floor(rawTickets))
+			else 0
+		local rawCoins = data.Coins
+		local coins = if type(rawCoins) == "number" and rawCoins == rawCoins and math.abs(rawCoins) < math.huge
+			then rawCoins
+			else 0
+		data.Coins = math.min(coins + tickets * Equipment.TicketToCoins, Economy.MaxCoins)
+		data.GachaTickets = nil
+		data.Skills = nil
+		data.EquippedSkill = nil
 		return data
 	end,
 }
@@ -229,6 +259,12 @@ local function load(player: Player)
 	end
 	local data = migrate(stored)
 	reconcile(data, DEFAULT, `u_{player.UserId}`)
+	-- ล้างอุปกรณ์ (reconcile ไม่ตรวจ key ภายใน Items) → Util/GearMath.luau:sanitize
+	local gear, fixes = GearMath.sanitize(data.Gear)
+	if fixes > 0 then
+		warn(`[PlayerData] u_{player.UserId}.Gear ข้อมูลเสีย {fixes} จุด — ล้างแล้ว`)
+	end
+	data.Gear = gear
 	setProfile(player, { data = data, loaded = true })
 end
 
@@ -261,7 +297,7 @@ function PlayerData.get(player: Player): any?
 end
 
 -- แก้ข้อมูลผ่าน callback · คืน false ถ้ายังไม่มีข้อมูลของผู้เล่นคนนี้
--- ตัวอย่าง: PlayerData.update(player, function(data) data.GachaTickets += 1 end)
+-- ตัวอย่าง: PlayerData.update(player, function(data) data.TurretLevel += 1 end)
 function PlayerData.update(player: Player, callback: (any) -> ()): boolean
 	local profile = profiles[player]
 	if not profile then

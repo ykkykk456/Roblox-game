@@ -15,7 +15,7 @@
 -- ห้ามแก้ (กฎเหล็กข้อ 1 Server Authority):
 --   • ทุก Remote ในเกมต้องต่อผ่าน Guard.connect / Guard.bind เท่านั้น ห้ามใช้ OnServerEvent/OnServerInvoke ตรงๆ
 --   • ถ้าคำขอไม่ผ่าน Guard จะ "เงียบ" (ไม่เรียก handler ไม่ตอบ error) — ตั้งใจ ไม่ใช่บั๊ก
--- อยากเปลี่ยนความถี่ของ Remote ตัวใดตัวหนึ่ง → แก้ rate/per ในไฟล์ handler ของ Remote นั้น (เช่น SkillHandler) ไม่ใช่ที่นี่
+-- อยากเปลี่ยนความถี่ของ Remote ตัวใดตัวหนึ่ง → แก้ rate/per ในไฟล์ handler ของ Remote นั้น (เช่น GearHandler) ไม่ใช่ที่นี่
 -- คุยกับ: ไฟล์ *Handler ทุกตัวใน Network/ เรียกใช้โมดูลนี้
 
 local Players = game:GetService("Players")
