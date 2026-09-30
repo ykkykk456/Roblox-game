@@ -795,7 +795,11 @@ function TurretService.Start()
 	local step = 1 / Combat.TickRate
 	while true do
 		task.wait(step)
-		tick()
+		-- pcall: ถ้ารอบไหน error ป้อมทุกตัวไม่หยุดยิงถาวร (แค่ข้ามรอบนั้น + เตือนใน Output)
+		local ok, err = pcall(tick)
+		if not ok then
+			warn(`[TurretService] tick error: {err}`)
+		end
 	end
 end
 

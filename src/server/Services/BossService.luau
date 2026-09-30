@@ -1029,7 +1029,11 @@ local function finish(current: Boss)
 		if player and total > 0 and entry.damage > 0 then
 			Wallet.earn(player, Economy.Boss.BaseReward + Economy.Boss.DamageRewardPool * entry.damage / total)
 			-- ✏️ แก้เฉพาะรางวัล (เจ้าของเกมสั่งถอดกาชา 2026-09-30): ตั๋วกาชา → อุปกรณ์ป้อม · ส่วนโมเดล/ท่าบอสที่ล็อกไม่ได้แตะ
-			GearService.grantBossDrops(player, rank, entry.damage / total)
+			-- pcall: ถ้าแจกของคนหนึ่งพลาด คนถัดไปยังได้รางวัลตามปกติ
+			local ok, err = pcall(GearService.grantBossDrops, player, rank, entry.damage / total)
+			if not ok then
+				warn(`[BossService] แจกอุปกรณ์ไม่สำเร็จ {player.Name}: {err}`)
+			end
 		end
 	end
 
