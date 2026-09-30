@@ -4,6 +4,7 @@
 -- ถึงปลายเลนแล้วหายไป ไม่มีรางวัล · ปล่อยเฉพาะเลนที่มีเจ้าของ (Combat.Monster.AllLanesForTest = true → ทุกเลน)
 -- ระหว่างตีบอส: หยุดปล่อยมอนทุกเลน (ตัวที่เดินอยู่แล้วเดินต่อ) · บอสจบ → wave เดิมปล่อยต่อจากที่ค้างไว้ (ยืนยัน 2026-09-26)
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
+-- ความสูง (ผังจากแมพ): วัดพื้นทีละช่วงตามเลนตอนเกิด (laneHeights) · มอนเดินติดพื้น ไม่ปีนหลังคา/แท่นป้อม (แก้ 2026-09-30)
 -- หน้าตา: สัตว์บล็อกทรงกล่อง (ตัว หู ตา ปาก) สไตล์ voxel · [Proposed] ยังไม่มีอนิเมชันนอกจากเด้งตอนเดิน
 --
 -- ===== อยากปรับอะไร → ไปแก้ที่ไหน (ไม่ต้องแก้ไฟล์นี้) =====
@@ -12,12 +13,14 @@
 --   • ให้มอนออกทุกเลนตอนเทส → Combat.Monster.AllLanesForTest (เกมจริงตั้ง false)
 --   • เงินต่อมอน → Economy.MonsterReward / MonsterRewardMultiplier (src/shared/Config/Economy.luau)
 --   • ความกว้าง/ระยะเลน → Map.Lane (ผังเดิม) · Map.Layout.LaneStart / LaneStopBefore (ผังจาก Tag) ใน src/shared/Config/Map.luau
+--   • การวัดพื้นตามเลน (ผังจาก Tag) → Map.Layout.FloorSampleStep / FloorMaxClimb / FloorProbeDepth
 --   • หน้าตามอน (หู ตา ปาก) → ฟังก์ชัน makeBody ในไฟล์นี้ (แก้ได้ปลอดภัย ไม่มีผลกับเกมเพลย์)
 --
 -- คุยกับไฟล์ไหนบ้าง:
 --   • BaseService — ช่องไหนมีเจ้าของ (ปล่อยมอนเลนนั้น) · BossService — มีบอสอยู่ไหม (พักปล่อยมอน)
 --   • LayoutService — จุดบอส/แท่นป้อม/พื้นจากแมพ · Wallet — แจกเงินตอนมอนตาย
 --   • TurretService / TurretClassService — เรียก getAlive, positionOf, damage เพื่อเล็งและทำดาเมจ
+--     (monster.slot = เลขเลน/ช่อง · TurretService ให้ป้อมยิงเฉพาะมอนที่ slot ตรงกับป้อม)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -48,8 +51,8 @@ export type Monster = {
 	legStart: number,
 	legTime: number,
 	lift: number,
-	fromY: number?, -- ผังจากแมพ: ความสูงพื้นต้นเลน/ปลายเลน (ไล่ระดับระหว่างทาง) · nil = ผังเดิม (ขั้นแอ่ง)
-	toY: number?,
+	-- ผังจากแมพ: ความสูงพื้นตามเลน วัดทีละช่วงเท่าๆ กันจาก from ถึง to (laneHeights) · nil = ผังเดิม (ขั้นแอ่ง)
+	heights: { number }?,
 	alive: boolean,
 	damageBy: { [Player]: number },
 }
@@ -167,6 +170,44 @@ local function groundAt(r: number): number
 	return Map.GroundY - depth
 end
 
+-- ค่ากลางของ 3 ตัวเลข (ใช้ตัดค่าโดดของพื้น เช่น ม้านั่ง/รั้วเตี้ยจุดเดียว)
+local function median3(a: number, b: number, c: number): number
+	return math.max(math.min(a, b), math.min(math.max(a, b), c))
+end
+
+-- ความสูงพื้นตามเลน (ผังจากแมพ) จาก from ถึง to · startY = พื้นจุดบอส (เชื่อได้ บอสยืนตรงนั้น)
+-- เดินวัดทีละ FloorSampleStep studs: แต่ละจุดยิงลำแสงจาก "พื้นจุดก่อนหน้า + FloorMaxClimb" ลงมา (LayoutService.laneFloorAt)
+--   → ของที่สูงเหนือทางเดิน (หลังคา ต้นไม้ แท่นป้อม) ไม่ถูกนับเป็นพื้น · ไม่เจอพื้น = ใช้ความสูงจุดก่อนหน้า
+-- แล้วเกลี่ยด้วยค่ากลาง 3 จุด ตัดสิ่งกีดขวางเตี้ยจุดเดียว
+-- ตัวอย่าง: เลนยาว 100 · Step 5 → วัด 21 จุด
+-- สาเหตุบั๊กเดิม (มอนลอยขึ้นฟ้า): วัดแค่ต้นเลน/ปลายเลนด้วย floorAt ที่ยิงจาก Y = 1000 → ได้ "ของชิ้นบนสุด" (แท่นป้อม/หลังคา/ต้นไม้)
+--   แล้วไล่ความสูงเป็นเส้นตรง → มอนค่อยๆ ลอยสูงขึ้นตลอดเลน
+local function laneHeights(from: Vector3, to: Vector3, startY: number): { number }
+	local layout = Map.Layout
+	local length = (to - from).Magnitude
+	local count = math.max(2, math.ceil(length / layout.FloorSampleStep) + 1)
+	local raw: { number } = {}
+	local previous = startY
+	for index = 1, count do
+		local point = from:Lerp(to, (index - 1) / (count - 1))
+		local y = LayoutService.laneFloorAt(point, previous + layout.FloorMaxClimb)
+		if y then
+			previous = y
+		end
+		raw[index] = previous
+	end
+	-- เกลี่ยค่าโดด: แต่ละจุด = ค่ากลางของตัวเองกับเพื่อนบ้าน (หัว/ท้ายใช้ 3 จุดแรก/สุดท้าย) · วัดได้ไม่ถึง 3 จุด = ใช้ค่าดิบ
+	if count < 3 then
+		return raw
+	end
+	local heights: { number } = {}
+	for index = 1, count do
+		local center = math.clamp(index, 2, count - 1)
+		heights[index] = median3(raw[center - 1], raw[center], raw[center + 1])
+	end
+	return heights
+end
+
 -- ปล่อยมอน 1 ตัวที่ต้นเลนของช่อง slot แล้วเพิ่มเข้า monsters · เรียกจาก stepWave
 local function spawnMonster(slot: number)
 	local kind = pickKind()
@@ -176,7 +217,7 @@ local function spawnMonster(slot: number)
 	local offset = rng:NextNumber(-1, 1) * lane.HalfWidth
 	local from = MapMath.point(slot, lane.Start, offset)
 	local to = MapMath.point(slot, lane.End, offset)
-	local fromY, toY = nil, nil
+	local heights: { number }? = nil
 	if LayoutService.hasLayout() then
 		-- ผังจากแมพ (Tag): เลน = จากจุดบอสตรงไปหาแท่นป้อมของช่องนี้ หยุดก่อนถึงแท่น
 		local layout = Map.Layout
@@ -189,14 +230,16 @@ local function spawnMonster(slot: number)
 		local length = math.max(toward.Magnitude - layout.LaneStopBefore, layout.LaneStart + 1)
 		from = flatBoss + dir * layout.LaneStart + side
 		to = flatBoss + dir * length + side
-		fromY, toY = LayoutService.floorAt(from), LayoutService.floorAt(to)
+		-- ความสูงพื้นตามเลน เริ่มจากพื้นจุดบอส (boss.Y) · เดิมใช้ floorAt ต้น/ปลายเลน = สาเหตุมอนลอย (ดู laneHeights)
+		heights = laneHeights(from, to, boss.Y)
 	end
 	local lift = def.Size * 0.4
 
 	local model, part, bar = makeBody(def.Size, def.Color)
 	-- ย้ายทั้งโมเดล (ทุกชิ้นพร้อมกัน) ก่อนเข้า workspace · ถ้าย้ายแค่ตัวหลัก WeldConstraint จะจำระยะผิด
 	-- แล้วหู/ตา/ปากลอยแยกจากตัว (บั๊กที่เจอ 2026-09-26)
-	model:PivotTo(CFrame.lookAt(from, to) + Vector3.new(0, (fromY or groundAt(from.Magnitude)) + lift, 0))
+	local startGround = if heights then heights[1] else groundAt(from.Magnitude)
+	model:PivotTo(CFrame.lookAt(from, to) + Vector3.new(0, startGround + lift, 0))
 	model.Parent = folder
 
 	local monster: Monster = {
@@ -213,8 +256,7 @@ local function spawnMonster(slot: number)
 		legStart = os.clock(),
 		legTime = (to - from).Magnitude / def.Speed,
 		lift = lift,
-		fromY = fromY,
-		toY = toY,
+		heights = heights,
 		alive = true,
 		damageBy = {},
 	}
@@ -260,9 +302,18 @@ end
 function MonsterService.positionOf(monster: Monster, now: number): Vector3
 	local t = if monster.legTime > 0 then math.clamp((now - monster.legStart) / monster.legTime, 0, 1) else 1
 	local flat = monster.from:Lerp(monster.to, t)
-	local ground = if monster.fromY and monster.toY
-		then monster.fromY + (monster.toY - monster.fromY) * t
-		else groundAt(flat.Magnitude)
+	local ground
+	local heights = monster.heights
+	if heights then
+		-- ผังจากแมพ: หาช่วงที่มอนอยู่ (ระหว่างจุดวัด index กับ index + 1) แล้วไล่ความสูงเป็นเส้นตรงในช่วงนั้น
+		-- ตัวอย่าง: วัด 21 จุด · t = 0.5 → x = 10 → อยู่ที่จุดที่ 11 พอดี
+		local x = t * (#heights - 1)
+		local index = math.min(math.floor(x), #heights - 2)
+		local a, b = heights[index + 1], heights[index + 2]
+		ground = a + (b - a) * (x - index)
+	else
+		ground = groundAt(flat.Magnitude)
+	end
 	return Vector3.new(flat.X, ground + monster.lift, flat.Z)
 end
 

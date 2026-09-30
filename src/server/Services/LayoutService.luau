@@ -146,10 +146,8 @@ function LayoutService.slots(): { number }
 	return slotList
 end
 
--- ความสูงผิวพื้นใต้จุด (x, z) · ยิงลำแสงลงมา ข้ามตัวละคร/มอน/ป้อม/ของที่ระบุ
--- ยิงจากความสูง 1000 ลงไป 2000 studs · ไม่โดนอะไรเลย → คืน Map.GroundY
-function LayoutService.floorAt(position: Vector3, ignore: { Instance }?): number
-	load()
+-- รายการของที่ลำแสงหาพื้นต้องข้าม: ตัวละครผู้เล่น · โฟลเดอร์ Monsters/Turrets/Map (ของที่โค้ดสร้างตอนรัน) · บล็อกบอสที่ซ่อน
+local function baseExclude(): { Instance }
 	local exclude: { Instance } = {}
 	for _, player in Players:GetPlayers() do
 		if player.Character then
@@ -165,6 +163,16 @@ function LayoutService.floorAt(position: Vector3, ignore: { Instance }?): number
 	if bossMarker and Map.Layout.HideBossMarker then
 		table.insert(exclude, bossMarker)
 	end
+	return exclude
+end
+
+-- ความสูงผิวพื้นใต้จุด (x, z) · ยิงลำแสงลงมา ข้ามตัวละคร/มอน/ป้อม/ของที่ระบุ
+-- ยิงจากความสูง 1000 ลงไป 2000 studs · ไม่โดนอะไรเลย → คืน Map.GroundY
+-- ⚠️ คืน "ของชิ้นบนสุด" ที่ลำแสงโดน (หลังคา/ต้นไม้/แท่นสูงก็นับ) · BossService ใช้ฟังก์ชันนี้วางบอส (ล็อกไว้ ห้ามเปลี่ยนพฤติกรรม)
+--   มอนเดินตามเลนใช้ laneFloorAt ด้านล่างแทน
+function LayoutService.floorAt(position: Vector3, ignore: { Instance }?): number
+	load()
+	local exclude = baseExclude()
 	for _, item in ignore or {} do
 		table.insert(exclude, item)
 	end
@@ -174,6 +182,51 @@ function LayoutService.floorAt(position: Vector3, ignore: { Instance }?): number
 	local origin = Vector3.new(position.X, 1000, position.Z)
 	local hit = workspace:Raycast(origin, Vector3.new(0, -2000, 0), params)
 	return if hit then hit.Position.Y else Map.GroundY
+end
+
+-- พื้นที่มอน "เดินได้" ใต้จุด (x, z) สำหรับเลนมอน (แก้บั๊กมอนลอยขึ้นฟ้า 2026-09-30)
+-- ต่างจาก floorAt: ยิงลำแสงจากความสูง maxY ลงมา (ไม่ใช่จาก 1000) → หลังคา/ต้นไม้/ซุ้ม/เพดานที่สูงกว่า maxY ไม่ถูกนับเป็นพื้น
+--   · ข้ามแท่นป้อม (TurretN) / บ้าน (HouseN) / บล็อกบอส (ไม่ใช่พื้นทางเดิน)
+--   · ข้ามชิ้นที่ไม่ชน (CanCollide = false) หรือใสเกือบหมด (กำแพงล่องหน/โซน) แล้วยิงต่อลงไป
+-- คืน nil ถ้าไม่เจอพื้นภายใน Map.Layout.FloorProbeDepth studs ใต้ maxY (ผู้เรียกใช้ความสูงเดิมต่อ)
+-- [Inferred] ลำแสงที่เริ่มในเนื้อชิ้นส่วน จะไม่โดนชิ้นนั้น → เนินที่ชันกว่า FloorMaxClimb ต่อช่วง มอนจะเดินทะลุเนิน (ไม่ลอย)
+function LayoutService.laneFloorAt(position: Vector3, maxY: number): number?
+	load()
+	local exclude = baseExclude()
+	if bossMarker then
+		table.insert(exclude, bossMarker)
+	end
+	for _, marker in turretMarkers do
+		table.insert(exclude, marker)
+	end
+	for _, marker in houseMarkers do
+		table.insert(exclude, marker)
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = exclude
+	local origin = Vector3.new(position.X, maxY, position.Z)
+	local direction = Vector3.new(0, -Map.Layout.FloorProbeDepth, 0)
+	-- ข้ามชิ้นที่ไม่ใช่พื้นได้สูงสุด 8 ชิ้นต่อจุด (กันวนไม่รู้จบ)
+	for _ = 1, 8 do
+		local hit = workspace:Raycast(origin, direction, params)
+		if not hit then
+			return nil
+		end
+		local part = hit.Instance
+		-- Terrain ก็เป็น BasePart (ชน + ไม่ใส) → นับเป็นพื้น
+		if not part:IsA("BasePart") then
+			return hit.Position.Y
+		end
+		local basePart = part :: BasePart
+		if basePart.CanCollide and basePart.Transparency < 0.95 then
+			return hit.Position.Y
+		end
+		-- ชิ้นล่องหน/ไม่ชน → ใส่ในรายการข้ามแล้วยิงใหม่ (ต้องตั้ง FilterDescendantsInstances ใหม่ทั้งรายการ)
+		table.insert(exclude, part)
+		params.FilterDescendantsInstances = exclude
+	end
+	return nil
 end
 
 -- จุดบอส (บนพื้น)

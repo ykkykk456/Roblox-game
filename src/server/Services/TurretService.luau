@@ -2,7 +2,9 @@
 -- คลังสกิล/กาชา/คูลดาวน์อยู่ที่ SkillService · ที่นี่แค่นำผลสกิลมาใช้ตอนยิง
 -- คลาส/สายธาตุ + effect ต่อเนื่องอยู่ที่ TurretClassService · หน้าตาป้อมสร้างที่ TurretLook (design/turret-classes.md)
 -- Server เลือกเป้าและคำนวณดาเมจเองทั้งหมด · Client ส่งได้แค่ "ขออัป" / "ขอใช้สกิล" (ผ่าน TurretHandler)
--- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ
+-- ลำดับเป้า: บอส (ถ้ามีและอยู่ในระยะ) → มอนที่ใกล้ที่สุดในระยะ "เฉพาะเลนของป้อมตัวเอง" (monster.slot == turret.slot · แก้ 2026-09-30)
+-- กระสุนวิ่ง (Bolt/Shell/...): ดาเมจ + effect เข้าตอนกระสุน "ถึงเป้า" (task.delay ตามเวลาเดินทาง) · เส้น/ลำแสงโดนทันที
+--   เวลาเดินทาง = TurretMath.travelTime (สูตรเดียวกับที่ Client วาด) · ค่าความเร็วที่ Combat.Turret.Projectile
 -- ดาเมจต่อนัด = TurretMath.damage × ตัวคูณคลาส/สาย × สกิลกาชา × Friend boost (× ลดเกราะ เมื่อตีบอส)
 -- อัตรายิง   = TurretMath.fireRate × ตัวคูณคลาส/สาย × สกิลกาชา · สายลมยิงเป็นชุด (ชาร์จ → รัว) แทน
 -- เลือดป้อม: บอสทุบพื้น (BossService.Slammed) → ลดเลือดทุกป้อม · หมด = ช็อต หยุดยิง/หยุดชาร์จ Combat.Turret.StunSeconds แล้วฟื้นเต็ม
@@ -34,7 +36,8 @@
 --        updateHealth (ฟื้นป้อมที่ช็อต) → TurretClassService.luau:update (DoT/หลุมดำ)
 --        → วนป้อมทุกตัว: statsOf (ClassMath.luau:stats) → ช็อตอยู่? ข้าม → สายลม? stepWind
 --        → ถึงเวลายิงหรือยัง → pickTarget (หาเป้า) → คำนวณจำนวนนัด → hit
---        → hit: shotDamage (คำนวณดาเมจ) → TurretLook.luau:aim (หันป้อม) → ทำดาเมจ → effect ของสาย → ใส่รายการเอฟเฟกต์
+--        → hit: shotDamage (คำนวณดาเมจ) → aimOf (จุดเล็ง + เวลาเดินทาง) → TurretLook.luau:aim (หันป้อม) → ใส่รายการเอฟเฟกต์
+--             → กระสุนถึงเป้า (afterTravel) → stillHittable → ทำดาเมจ → effect ของสาย
 --        → ท้ายรอบ: ส่งรายการเอฟเฟกต์ทั้งหมดให้ Client วาดทีเดียว (Remote "TurretFx")
 --   4) อ่านเสริม: onSlammed (บอสทุบ → ลดเลือด) · upgrade / useSkill (ผู้เล่นกดปุ่ม ผ่าน Network/TurretHandler.luau)
 --        · rebuildIfNeeded (คลาส/สายเปลี่ยน → ปั้นป้อมใหม่)
@@ -95,6 +98,9 @@ type Fx = { Kind: string, From: Vector3, To: Vector3, Color: Color3, Radius: num
 -- turrets = ป้อมของผู้เล่นแต่ละคน · folder = โฟลเดอร์ Workspace.Turrets ที่เก็บโมเดลป้อมทั้งหมด
 local turrets: { [Player]: Turret } = {}
 local folder: Folder
+-- เลขรอบบอส: เพิ่ม 1 ทุกครั้งที่บอสตัวใหม่เกิด · กระสุนที่ยิงใส่บอสตัวเก่าแล้วมาถึงตอนบอสตัวใหม่อยู่ → ไม่นับดาเมจ
+local bossGeneration = 0
+local bossWasActive = false
 
 -- ===== ตัวช่วย: เลเวล/ค่าพลัง/ชิ้นส่วน =====
 -- เลเวลป้อมของผู้เล่น (จาก PlayerData) · ยังโหลดข้อมูลไม่เสร็จ = Lv.1
@@ -316,7 +322,17 @@ local function updateHealth(now: number)
 end
 
 -- ===== การเล็งและการยิง =====
--- เลือกเป้า: บอสในระยะก่อน → มอนที่ใกล้ที่สุดในระยะ · nil ถ้าไม่มี
+-- เลขรอบบอสตอนนี้ (อัปเดตเมื่อเห็นบอสเปลี่ยนจาก "ไม่มี" → "มี") · ใช้เช็กว่ากระสุนที่ถึงเป้ายังเป็นบอสตัวเดิม
+local function currentBossGeneration(): number
+	local active = BossService.isActive()
+	if active and not bossWasActive then
+		bossGeneration += 1
+	end
+	bossWasActive = active
+	return bossGeneration
+end
+
+-- เลือกเป้า: บอสในระยะก่อน → มอนที่ใกล้ที่สุดในระยะ (เฉพาะเลนของป้อมนี้) · nil ถ้าไม่มี
 local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): Target?
 	local range = Combat.Turret.Range
 	local origin = turret.look.headPosition
@@ -327,9 +343,11 @@ local function pickTarget(turret: Turret, bossPosition: Vector3?, now: number): 
 	end
 	-- หามอนที่ใกล้ที่สุด: เริ่มจาก "ยังไม่มีตัวเก่ง" ระยะดีสุด = ระยะยิง แล้ววนดูทีละตัว
 	-- เจอตัวที่ใกล้กว่า → จำตัวนั้นแทน (ประกาศ/ตั้งค่า 3 ตัวแปรในบรรทัดเดียวได้ด้วยเครื่องหมาย ,)
+	-- ยิงเฉพาะมอนในเลนของตัวเอง: เลน = จากจุดบอสไปหาป้อมช่องนั้น (MonsterService ติด monster.slot ตอนเกิด)
+	-- ป้อมจึงไม่แย่งยิงมอนเลนข้างๆ แม้อยู่ในระยะ (แก้ 2026-09-30) · บอสยังยิงได้ทุกป้อมเหมือนเดิม
 	local best, bestPosition, bestDistance = nil, nil, range
 	for _, monster in MonsterService.getAlive() do
-		if monster.alive then
+		if monster.alive and monster.slot == turret.slot then
 			local position = MonsterService.positionOf(monster, now)
 			local distance = (position - origin).Magnitude
 			if distance <= bestDistance then
@@ -358,7 +376,42 @@ local function shotDamage(owner: Player, level: number, stats: ClassMath.Stats, 
 	return base, base * bossDamageMul * bossBonus
 end
 
--- ยิงใส่เป้า count นัด: ดาเมจตรง + effect ของสาย + เอฟเฟกต์ภาพ
+-- จุดเล็ง + ปากกระบอก + เวลาเดินทางของกระสุน kind (0 = โดนทันที)
+-- กระสุนวิ่งใส่มอน → เล็งดักหน้า: ตำแหน่งมอน ณ เวลาที่กระสุนจะถึง (ภาพกระสุนจะไปจบที่ตัวมอนพอดี)
+-- ตัวอย่าง: Shell ระยะ 60 → เดินทาง 0.5 วิ · มอนเดิน 8 studs/วิ → เล็งไปข้างหน้ามอน ~4 studs
+local function aimOf(turret: Turret, kind: string, target: Target, now: number): (Vector3, Vector3, number)
+	local point = target.position
+	local muzzle = TurretLook.muzzleOf(turret.look, point)
+	local travel = TurretMath.travelTime(kind, (point - muzzle).Magnitude)
+	if travel > 0 and target.monster then
+		point = MonsterService.positionOf(target.monster, now + travel)
+		muzzle = TurretLook.muzzleOf(turret.look, point)
+		travel = TurretMath.travelTime(kind, (point - muzzle).Magnitude)
+	end
+	return point, muzzle, travel
+end
+
+-- ตอนกระสุนถึง: เป้ายังตีได้ไหม · ผู้ยิงออกจากเกมแล้ว = ไม่นับ · บอส = ต้องยังอยู่และเป็นตัวเดิม · มอน = ยังไม่ตาย/ยังไม่ถึงปลายเลน
+local function stillHittable(owner: Player, target: Target, bossId: number): boolean
+	if owner.Parent == nil then
+		return false
+	end
+	if target.isBoss then
+		return BossService.isActive() and currentBossGeneration() == bossId
+	end
+	return target.monster ~= nil and target.monster.alive
+end
+
+-- เรียก land ทันที (travel = 0) หรือรอให้กระสุนถึงก่อน (task.delay = เรียกทีหลังโดยไม่หยุดรอบ tick)
+local function afterTravel(travel: number, land: () -> ())
+	if travel > 0 then
+		task.delay(travel, land)
+	else
+		land()
+	end
+end
+
+-- ยิงใส่เป้า count นัด: เอฟเฟกต์ภาพ (ส่งทันที) + ดาเมจตรง + effect ของสาย (เข้าตอนกระสุนถึงเป้า)
 local function hit(
 	turret: Turret,
 	stats: ClassMath.Stats,
@@ -368,62 +421,76 @@ local function hit(
 	now: number,
 	serverNow: number
 )
-	-- ขั้น 1: คำนวณดาเมจต่อนัด แล้วเลือกใช้ค่า "ใส่บอส" หรือ "ใส่มอน" ตามเป้า
+	-- ขั้น 1: คำนวณดาเมจต่อนัด (ณ ตอนยิง) แล้วเลือกใช้ค่า "ใส่บอส" หรือ "ใส่มอน" ตามเป้า
 	local owner = turret.owner
 	local base, bossShot = shotDamage(owner, levelOf(owner), stats, serverNow)
 	local perShot = if target.isBoss then bossShot else base
 
-	-- ขั้น 2: หันป้อมไปที่เป้า (แค่หน้าตา) → TurretLook.luau:aim
-	TurretLook.aim(turret.look, target.position)
-	-- ขั้น 3: ทำดาเมจตรง = ดาเมจต่อนัด × จำนวนนัด · บอสผ่าน TurretClassService.damageBoss (คูณพิษ) · มอนผ่าน MonsterService
-	-- ตัวอย่าง: perShot 36 × count 2 = 72 ในรอบนี้
-	if target.isBoss then
-		TurretClassService.damageBoss(owner, perShot * count, now)
-	elseif target.monster then
-		MonsterService.damage(target.monster, owner, perShot * count)
-	end
+	-- ขั้น 2: หาจุดเล็ง (ดักหน้ามอน) + เวลาเดินทาง แล้วหันป้อมไปที่เป้า (แค่หน้าตา) → TurretLook.luau:aim
+	local aimPoint, muzzle, travel = aimOf(turret, stats.Fx, target, now)
+	TurretLook.aim(turret.look, aimPoint)
 
-	-- ขั้น 4: เตรียม "ภาพกระสุน" 1 รายการ (Kind = ชนิดภาพ, From = ปากกระบอก, To = เป้า) ให้ Client วาด
-	-- ภาพล้วน ไม่มีผลกับดาเมจ · Client วาดตาม Kind (ดู Remotes.luau / Client TurretController)
+	-- ขั้น 3: เตรียม "ภาพกระสุน" 1 รายการ (Kind = ชนิดภาพ, From = ปากกระบอก, To = เป้า) ให้ Client วาด
+	-- ภาพล้วน ไม่มีผลกับดาเมจ · Client วาดตาม Kind ด้วยเวลาเดินทางสูตรเดียวกัน (TurretMath.travelTime)
 	local entry: Fx = {
 		Kind = stats.Fx,
-		From = TurretLook.muzzleOf(turret.look, target.position),
-		To = target.position,
+		From = muzzle,
+		To = aimPoint,
 		Color = stats.Color,
 	}
-	-- ขั้น 5: พลังพิเศษของสาย (ถ้ามี) · แค่ "จดไว้" ใน TurretClassService แล้ว update ค่อยทำดาเมจทีหลัง
-	-- ✏️ แก้ตรงนี้ถ้าเพิ่มสายใหม่ที่มี Effect.Kind ใหม่ (ต้องเพิ่ม elseif + ฟังก์ชันใน TurretClassService)
 	local effect = stats.Effect
-	if effect then
+	-- หลุมดำ: บอกขนาด/เวลาหลุมให้ Client วาด (entry.Radius / entry.Duration)
+	if effect and effect.Kind == "BlackHole" then
+		entry.Radius = effect.Radius
+		entry.Duration = effect.Seconds
+	end
+	-- table.insert(รายการ, ของ) = ต่อท้ายรายการ · fx เป็นรายการรวมของรอบนี้ tick จะส่งทีเดียวตอนจบรอบ
+	table.insert(fx, entry)
+
+	-- ขั้น 4: ตอนกระสุนถึงเป้า (land) → เช็กเป้ายังอยู่ → ทำดาเมจ + effect ของสาย
+	-- ⚠️ ระวัง: เวลาใน land ต้องใช้ os.clock() ตอนถึง (landedAt) ไม่ใช่ now ตอนยิง ไม่งั้น DoT/ลดเกราะหมดเร็วกว่าที่ควร
+	local bossId = currentBossGeneration()
+	afterTravel(travel, function()
+		if not stillHittable(owner, target, bossId) then
+			return -- เป้าตาย/ถึงปลายเลน/บอสไปแล้ว ระหว่างกระสุนวิ่ง → นัดนี้ไม่โดน
+		end
+		local landedAt = os.clock()
+		-- ดาเมจตรง = ดาเมจต่อนัด × จำนวนนัด · บอสผ่าน TurretClassService.damageBoss (คูณพิษ) · มอนผ่าน MonsterService
+		-- ตัวอย่าง: perShot 36 × count 2 = 72 ในรอบนี้
+		if target.isBoss then
+			TurretClassService.damageBoss(owner, perShot * count, landedAt)
+		elseif target.monster then
+			MonsterService.damage(target.monster, owner, perShot * count)
+		end
+		-- พลังพิเศษของสาย (ถ้ามี) · แค่ "จดไว้" ใน TurretClassService แล้ว update ค่อยทำดาเมจทีหลัง
+		-- ✏️ แก้ตรงนี้ถ้าเพิ่มสายใหม่ที่มี Effect.Kind ใหม่ (ต้องเพิ่ม elseif + ฟังก์ชันใน TurretClassService)
+		if not effect then
+			return
+		end
 		-- สายฟ้า: DoT ต่อวินาที = ดาเมจต่อนัด × DotPerSecond · ตัวอย่าง (สมมติดาเมจต่อนัด 50): 50 × 0.4 = 20/วิ นาน 3 วิ
 		-- → TurretClassService.luau:applyDot (target.monster = nil เมื่อเป็นบอส)
 		if effect.Kind == "Dot" then
-			TurretClassService.applyDot(owner, target.monster, perShot * effect.DotPerSecond, effect.DotSeconds, now)
+			TurretClassService.applyDot(owner, target.monster, perShot * effect.DotPerSecond, effect.DotSeconds, landedAt)
 		-- สายพิษ: ลดเกราะเฉพาะตอนยิงโดนบอส (ยิงมอนไม่มีผล) → TurretClassService.luau:applyArmorBreak
 		elseif effect.Kind == "ArmorBreak" then
 			if target.isBoss then
-				TurretClassService.applyArmorBreak(effect.ArmorBreak, effect.ArmorSeconds, now)
+				TurretClassService.applyArmorBreak(effect.ArmorBreak, effect.ArmorSeconds, landedAt)
 			end
 		-- สายมืด: สร้างหลุมดำที่จุดเป้า → TurretClassService.luau:spawnBlackHole
 		--   ดาเมจต่อวินาที = ดาเมจต่อนัด × DotPerSecond · ตัวอย่าง: base 30 × 0.8 = 24/วิ ใส่มอนทุกตัวในรัศมี 14 นาน 4 วิ
-		--   แล้วบอกขนาด/เวลาหลุมให้ Client วาด (entry.Radius / entry.Duration)
 		elseif effect.Kind == "BlackHole" then
 			TurretClassService.spawnBlackHole(
 				owner,
-				target.position,
+				aimPoint,
 				effect.Radius,
 				effect.Seconds,
 				base * effect.DotPerSecond,
 				bossShot * effect.DotPerSecond,
 				target.isBoss,
-				now
+				landedAt
 			)
-			entry.Radius = effect.Radius
-			entry.Duration = effect.Seconds
 		end
-	end
-	-- table.insert(รายการ, ของ) = ต่อท้ายรายการ · fx เป็นรายการรวมของรอบนี้ tick จะส่งทีเดียวตอนจบรอบ
-	table.insert(fx, entry)
+	end)
 end
 
 -- สายลม: ชาร์จ ChargeSeconds → ยิงรัว BurstCount ดอก ห่างกัน BurstGap → ชาร์จใหม่
@@ -483,6 +550,7 @@ local function tick(fxRemote: RemoteEvent)
 	local serverNow = workspace:GetServerTimeNow()
 	local bossPosition = BossService.getTarget()
 	local fx: { Fx } = {}
+	currentBossGeneration() -- จดว่าบอสตัวใหม่เกิดหรือยัง (ใช้เช็กกระสุนที่กำลังวิ่งใส่บอส)
 	updateHealth(now)
 	TurretClassService.update(now) -- DoT/หลุมดำ/ลดเกราะ (เรียกที่นี่ที่เดียว)
 
@@ -590,18 +658,13 @@ function TurretService.useSkill(player: Player): boolean
 	SkillService.activate(player, id, def, level, serverNow)
 
 	if target then
+		local hitTarget: Target = target -- ตัวแปรชนิดแน่นอน (ไม่ใช่ nil) ไว้ใช้ในฟังก์ชัน land ด้านล่าง
 		-- ดาเมจสกิลคงสูตรเดิม (ไม่คูณตัวคูณคลาส) · ตีบอส = คูณลดเกราะด้วย
 		local _, damageMul, bossDamageMul = SkillService.modifiers(player, serverNow)
-		local bossMul = if target.isBoss then bossDamageMul else 1
+		local bossMul = if hitTarget.isBoss then bossDamageMul else 1
 		local multiplier = damageMul * bossMul * (1 + FriendBoostService.get(player))
 		-- ตัวอย่าง (สมมติ burst = 10): Lv.5 ดาเมจ 30 × 10 × ตัวคูณรวม 1 = 300 (ตัวคูณคลาส เช่น นักเวท 1.2 ไม่ถูกนำมาคูณ)
 		local amount = TurretMath.damage(levelOf(player)) * burst * multiplier
-		TurretLook.aim(turret.look, target.position)
-		if target.isBoss then
-			TurretClassService.damageBoss(player, amount, now)
-		elseif target.monster then
-			MonsterService.damage(target.monster, player, amount)
-		end
 		-- เอฟเฟกต์ใช้ Kind ของคลาส/สาย · หลุมดำไม่เกิดจากสกิล → ใช้ Fx ของคลาส (มีด) แทน
 		local stats = statsOf(player)
 		local kind = stats.Fx
@@ -609,16 +672,31 @@ function TurretService.useSkill(player: Player): boolean
 			local classId = TurretClassService.get(player)
 			kind = ClassMath.stats(classId, "", levelOf(player)).Fx
 		end
+		-- เล็ง (ดักหน้ามอน) + เวลาเดินทางสูตรเดียวกับการยิงปกติ → ดาเมจสกิลเข้าตอนกระสุนถึงเป้า
+		local aimPoint, muzzle, travel = aimOf(turret, kind, hitTarget, now)
+		TurretLook.aim(turret.look, aimPoint)
 		-- `:: RemoteEvent` = บอกตัวตรวจโค้ดว่า "ค่านี้คือ RemoteEvent" (แค่คำใบ้ชนิด ไม่เปลี่ยนการทำงาน)
 		local fxRemote = Remotes.get("TurretFx") :: RemoteEvent
 		fxRemote:FireAllClients({
 			{
 				Kind = kind,
-				From = TurretLook.muzzleOf(turret.look, target.position),
-				To = target.position,
+				From = muzzle,
+				To = aimPoint,
 				Color = stats.Color,
 			},
 		})
+		-- [Proposed] เป้าตาย/บอสไประหว่างกระสุนวิ่ง → ดาเมจสกิลหาย (คูลดาวน์เสียไปแล้ว) · สกิลกาชาจะถูกแทนที่ภายหลัง
+		local bossId = currentBossGeneration()
+		afterTravel(travel, function()
+			if not stillHittable(player, hitTarget, bossId) then
+				return
+			end
+			if hitTarget.isBoss then
+				TurretClassService.damageBoss(player, amount, os.clock())
+			elseif hitTarget.monster then
+				MonsterService.damage(hitTarget.monster, player, amount)
+			end
+		end)
 	end
 	return true
 end

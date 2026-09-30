@@ -21,13 +21,14 @@
 | สีบอลไฟตามเลเวล (ปืนใหญ่) | `Config/Skill_class_default.luau` | `FireColors` |
 | หน้าตาป้อมแต่ละคลาส (ชิ้นส่วน ขนาด สี) | `src/server/Services/TurretLook.luau` | ฟังก์ชันสร้างของแต่ละคลาส |
 | เอฟเฟกต์กระสุน/ลำแสง/หลุมดำ (ที่เห็นบนจอ) | `src/client/Controllers/TurretController.luau` | ฟังก์ชันวาดตาม `Kind` |
+| ความเร็วกระสุน (ดาเมจเข้าตอนกระสุนถึง · ภาพกับดาเมจใช้ค่าเดียวกัน) · ชนิดที่โดนทันที | `Config/Combat.luau` | `Turret.Projectile` (`Speed` `Speeds` `Instant` `MaxTravel`) |
 | หน้าเลือกคลาส (ปุ่ม ตำแหน่ง ข้อความ) · ปุ่มลัด C | `src/client/UI/ClassUI.luau` | |
 | สกิลกาชา (รายชื่อ ผล คูลดาวน์ โอกาสสุ่ม) | `src/shared/Config/Skills.luau` | `List` `Rarities` |
 | ราคาอัปป้อม · เงินจากมอน · รางวัลบอส · ตั๋วกาชา | `src/shared/Config/Economy.luau` | `Turret` `MonsterReward` `Boss` `Gacha` |
 | มอน (จำนวนต่อ wave, เลือด, ความเร็ว, เวลาพัก) | `Config/Combat.luau` | `Monster.*` |
 | บอส (เวลาอยู่, ช่วงเวลามา, ลำดับสลับ, ท่า Animation ID, ทุบ) | `Config/Combat.luau` | `Boss.*` (`Rotation`, `Animations`, `Duration`, `SlamDamage`) |
 | ตำแหน่งบอส / ป้อม / บ้าน | **ใน Studio** ติด Tag `BossSpawn` `Turret1..6` `House1..6` | ชื่อ Tag อยู่ `Config/Tags.luau` |
-| เลนมอน / ระยะเกิด | `src/shared/Config/Map.luau` | `Layout.*` `Lane.*` |
+| เลนมอน / ระยะเกิด · การวัดพื้นตามเลน (มอนเดินติดพื้น) | `src/shared/Config/Map.luau` | `Layout.*` (`FloorSampleStep` `FloorMaxClimb` `FloorProbeDepth`) `Lane.*` |
 | หน้าจอ HUD เงิน / แถบบอส / ปุ่มอัป-สกิล | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
 | หน้ากาชา | `src/client/UI/GachaUI.luau` | |
 | สี/ฟอนต์ UI ทั้งเกม | `src/client/UI/Theme.luau` | |

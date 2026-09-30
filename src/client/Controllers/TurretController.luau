@@ -3,11 +3,13 @@
 -- ปุ่มลัด: สกิล = Q / ปุ่ม X (Gamepad) · อัปเกรด = U / ปุ่ม Y (Gamepad) · มือถือใช้ปุ่มบนจอ (CombatUI)
 --
 -- TurretFx (Server → Client): { { Kind, From: Vector3, To: Vector3, Color: Color3, Radius: number?, Duration: number? } }
---   Kind = ค่า Fx ใน Config/Skill_class_default · Kind ที่ไม่รู้จัก → วาดเป็น Tracer
+--   Kind = ค่า Fx ใน Config/Skill_class_default · Kind ที่ไม่รู้จัก → Tracer (ถ้าอยู่ใน Projectile.Instant) หรือลูกกลมวิ่ง
 -- ประสิทธิภาพ (มือถือ): ชิ้นส่วน Neon แบบ Anchored + Debris · จำกัดจำนวนต่ออีเวนต์ + จำนวนชิ้นพร้อมกัน · ไม่วาดที่ไกลกล้อง
 --
 -- อยากปรับ:
---   หน้าตากระสุนของแต่ละคลาส/สาย → ฟังก์ชัน drawXxx ในหมวด "วาดตาม Kind" (ขนาด = Vector3 · ความเร็ว = ตัวเลขท้าย projectile เป็น studs/วินาที)
+--   หน้าตากระสุนของแต่ละคลาส/สาย → ฟังก์ชัน drawXxx ในหมวด "วาดตาม Kind" (ขนาด = Vector3)
+--   ความเร็วกระสุน → src/shared/Config/Combat.luau (Turret.Projectile) · Server ใช้ค่าเดียวกันตั้งเวลาทำดาเมจ
+--     ภาพกระสุนถึงเป้า = จังหวะที่ดาเมจเข้า (สูตร Util/TurretMath.travelTime) → ห้ามใส่ความเร็วเองในไฟล์นี้
 --   เพิ่มเอฟเฟกต์ชนิดใหม่ → เขียน drawXxx ใหม่ + เพิ่มใน DRAWERS + ตั้ง Fx ใน Config/Skill_class_default ให้ตรงชื่อ
 --   เครื่องกระตุก → ลด MAX_ACTIVE_PARTS / MAX_FX_PER_EVENT / CULL_DISTANCE
 --   เปลี่ยนปุ่มลัด → Enum.KeyCode ใน TurretController.Init (ข้อความบอกปุ่มบนจออยู่ที่ UI/CombatUI keyHint)
@@ -31,6 +33,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 
 -- ===== ค่าคงที่ของเอฟเฟกต์ =====
 -- ✏️ แก้ตรงนี้ถ้าอยาก: ลดภาระเครื่อง (ลด MAX_*/CULL_DISTANCE) · เปลี่ยนสีสำรอง · ปรับลำแสงรุ้ง (BEAM_TIME/RAINBOW_STEPS)
@@ -179,17 +182,23 @@ local function ring(position: Vector3, diameter: number, color: Color3, seconds:
 	return part
 end
 
+-- เวลาเดินทางของกระสุนชนิด kind จาก from ถึง to (วินาที) · สูตรเดียวกับ Server (ดาเมจเข้าตอนนี้พอดี)
+local function travelOf(kind: string, from: Vector3, to: Vector3): number
+	return TurretMath.travelTime(kind, (to - from).Magnitude)
+end
+
 -- กระสุนวิ่ง from→to ด้วยความเร็วคงที่ · คืนเวลาเดินทาง (ใช้ตั้งเวลาเอฟเฟกต์ตอนถึง)
+-- kind = ชนิด Fx → ความเร็วจาก Config/Combat.Turret.Projectile (ผ่าน TurretMath.travelTime)
 local function projectile(
 	from: Vector3,
 	to: Vector3,
 	shape: Enum.PartType,
 	size: Vector3,
 	color: Color3,
-	speed: number
+	kind: string
 ): number
-	-- เวลาเดินทาง = ระยะ ÷ ความเร็ว · math.clamp(x, ต่ำสุด, สูงสุด) = บีบค่าให้อยู่ในช่วง (ไม่เร็ว/ช้าเกินไป)
-	local travel = math.clamp((to - from).Magnitude / speed, 0.04, 0.6)
+	-- เวลาเดินทาง = ระยะ ÷ ความเร็ว บีบในช่วง MinTravel..MaxTravel · อย่างน้อย 0.04 วิ ให้ยังเห็นกระสุน
+	local travel = math.max(travelOf(kind, from, to), 0.04)
 	-- สร้างกระสุนที่ from หันไปทาง to แล้ว tween ให้เลื่อนไปที่ to (look.Rotation + to = ทิศเดิม ตำแหน่งใหม่)
 	local look = CFrame.lookAt(from, to)
 	local part = makePart(shape, size, look, color, travel + 0.03)
@@ -202,7 +211,7 @@ end
 -- ---------------------------------------------------------------- วาดตาม Kind
 -- ✏️ แก้ตรงนี้ถ้าอยากเปลี่ยนหน้าตากระสุนของแต่ละคลาส/สาย — รูปแบบตัวเลขที่พบบ่อย:
 --   segment(from, to, ความหนา, สี, อายุวินาที, จางไหม)
---   projectile(from, to, รูปทรง, ขนาด Vector3, สี, ความเร็ว studs/วินาที)
+--   projectile(from, to, รูปทรง, ขนาด Vector3, สี, ชนิด Fx) · ความเร็วตาม Config/Combat.Turret.Projectile.Speeds
 --   burst(จุด, รัศมี, สี, วินาที) · ring(จุด, เส้นผ่านศูนย์กลาง, สี, วินาที, ความใส)
 -- fx.Color มาจาก Server (สีคลาส/สาย หรือสีบอลไฟตามเลเวล) · อยากได้สีตายตัว → ใส่ Color3.fromRGB(...) แทน fx.Color
 
@@ -219,28 +228,28 @@ end
 
 -- Bolt: ลูกเวทกลม + แตกตอนถึง (คลาสนักเวท)
 local function drawBolt(fx: Fx)
-	-- ✏️ ลูกเวทขนาด 0.9 ความเร็ว 170 · ระเบิดรัศมี 1.2 นาน 0.15 วิ
+	-- ✏️ ลูกเวทขนาด 0.9 · ระเบิดรัศมี 1.2 นาน 0.15 วิ (ความเร็ว = Speeds.Bolt)
 	-- task.delay(travel, burst, ...) = รอจนกระสุนถึงเป้า แล้วเรียก burst(...) ด้วยค่าที่ต่อท้าย
-	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 0.9, fx.Color, 170)
+	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 0.9, fx.Color, fx.Kind)
 	task.delay(travel, burst, fx.To, 1.2, fx.Color, 0.15)
 end
 
 -- Arrow: ลูกธนูยาวบาง (คลาสนักธนู)
 local function drawArrow(fx: Fx)
-	-- ✏️ ขนาด (กว้าง, สูง, ยาว) = (0.15, 0.15, 2.4) · ความเร็ว 230 (เร็วที่สุดในกลุ่ม)
-	projectile(fx.From, fx.To, Enum.PartType.Block, Vector3.new(0.15, 0.15, 2.4), fx.Color, 230)
+	-- ✏️ ขนาด (กว้าง, สูง, ยาว) = (0.15, 0.15, 2.4) · ความเร็ว = Speeds.Arrow (เร็วที่สุดในกลุ่ม)
+	projectile(fx.From, fx.To, Enum.PartType.Block, Vector3.new(0.15, 0.15, 2.4), fx.Color, fx.Kind)
 end
 
 -- Dagger: มีดสั้น (คลาสนักฆ่า)
 local function drawDagger(fx: Fx)
 	-- ใบมีดแบนสั้น
-	projectile(fx.From, fx.To, Enum.PartType.Block, Vector3.new(0.1, 0.55, 1.3), fx.Color, 170)
+	projectile(fx.From, fx.To, Enum.PartType.Block, Vector3.new(0.1, 0.55, 1.3), fx.Color, fx.Kind)
 end
 
 -- Shell: ลูกปืนใหญ่ + ระเบิดตอนถึง (คลาสปืนใหญ่)
 local function drawShell(fx: Fx)
-	-- ✏️ ลูกปืนใหญ่ขนาด 1.4 ช้ากว่า (120) · ระเบิดใหญ่รัศมี 2.5
-	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 1.4, fx.Color, 120)
+	-- ✏️ ลูกปืนใหญ่ขนาด 1.4 (ความเร็ว = Speeds.Shell ช้ากว่า) · ระเบิดใหญ่รัศมี 2.5
+	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 1.4, fx.Color, fx.Kind)
 	task.delay(travel, burst, fx.To, 2.5, fx.Color, 0.2)
 end
 
@@ -319,9 +328,9 @@ end
 -- Poison: ลูกพิษ (สายพิษ)
 local function drawPoison(fx: Fx)
 	-- ลูกพิษโค้งขึ้นแล้วตกใส่เป้า (2 ช่วง) + กระเซ็นเป็นวงเขียว
-	-- apex = จุดสูงสุดของโค้ง: กึ่งกลางทาง ยกขึ้นตามระยะ (2–20 studs) · ✏️ ความเร็ว 70 / ความสูง 0.25
+	-- apex = จุดสูงสุดของโค้ง: กึ่งกลางทาง ยกขึ้นตามระยะ (2–20 studs) · ✏️ ความสูง 0.25 (ความเร็ว = Speeds.Poison)
 	local length = (fx.To - fx.From).Magnitude
-	local travel = math.clamp(length / 70, 0.15, 0.6)
+	local travel = math.max(travelOf(fx.Kind, fx.From, fx.To), 0.04)
 	local apex = (fx.From + fx.To) / 2 + Vector3.new(0, math.clamp(length * 0.25, 2, 20), 0)
 	local ball = makePart(Enum.PartType.Ball, Vector3.one * 1.1, CFrame.new(fx.From), fx.Color, travel + 0.05)
 	-- ครึ่งแรก: ลอยขึ้นไป apex (Out = ช้าลงตอนใกล้ยอด) · ครึ่งหลัง: ตกลงเป้า (In = เร่งตอนตก)
@@ -410,13 +419,20 @@ end
 -- Fireball: บอลไฟ (สายไฟ)
 local function drawFireball(fx: Fx)
 	-- บอลไฟสีตามเลเวล (Server ส่งสีมาใน Color) + ระเบิดเล็กตอนถึง
-	-- ✏️ บอลไฟขนาด 1.8 ความเร็ว 95 (ช้าสุด ดูหนัก) · ตอนถึง: ระเบิดสีไฟรัศมี 3 + แกนขาว 1.5
+	-- ✏️ บอลไฟขนาด 1.8 (ความเร็ว = Speeds.Fireball ช้าสุด ดูหนัก) · ตอนถึง: ระเบิดสีไฟรัศมี 3 + แกนขาว 1.5
 	-- ⚠️ สีบอลไฟตามเลเวลตัดสินที่ Server (ClassMath.fireColor) — ที่นี่แค่ใช้ fx.Color ที่ได้รับ
-	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 1.8, fx.Color, 95)
+	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 1.8, fx.Color, fx.Kind)
 	task.delay(travel, function()
 		burst(fx.To, 3, fx.Color, 0.25)
 		burst(fx.To, 1.5, WHITE, 0.15)
 	end)
+end
+
+-- Kind ที่ไม่มีฟังก์ชันวาด แต่ Server ถือว่าเป็นกระสุนวิ่ง (ไม่อยู่ใน Projectile.Instant) → ลูกกลมวิ่งความเร็ว Speed
+-- ให้ภาพถึงเป้าตรงกับจังหวะดาเมจ (ถ้าวาดเป็น Tracer จะเห็นโดนก่อนดาเมจเข้า)
+local function drawGenericProjectile(fx: Fx)
+	local travel = projectile(fx.From, fx.To, Enum.PartType.Ball, Vector3.one * 0.8, fx.Color, fx.Kind)
+	task.delay(travel, burst, fx.To, 1, fx.Color, 0.12)
 end
 
 -- ตารางจับคู่ ชื่อ Kind → ฟังก์ชันวาด (ชื่อต้องตรงกับ Fx ใน Config/Skill_class_default)
@@ -514,9 +530,12 @@ local function onTurretFx(list: any)
 		end
 		local fx = readFx(list[index])
 		if fx and isNearCamera(fx) then
-			-- หาฟังก์ชันวาดจากชื่อ Kind (ไม่มีในตาราง → Tracer)
+			-- หาฟังก์ชันวาดจากชื่อ Kind (ไม่มีในตาราง → โดนทันที = Tracer · กระสุนวิ่ง = ลูกกลมทั่วไป)
 			-- pcall(ฟังก์ชัน, ค่า) = เรียกแบบกัน error: ถ้าวาดพัง เกมไม่หยุด ได้ ok = false + ข้อความ err แทน
-			local draw = DRAWERS[fx.Kind] or drawTracer
+			local draw = DRAWERS[fx.Kind]
+			if not draw then
+				draw = if TurretMath.travelTime(fx.Kind, 1) > 0 then drawGenericProjectile else drawTracer
+			end
 			local ok, err = pcall(draw, fx)
 			if not ok then
 				warn(`[TurretController] วาด {fx.Kind} ล้มเหลว: {err}`)
