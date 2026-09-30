@@ -35,7 +35,7 @@
 | ตำแหน่งบอส / ป้อม / บ้าน | **ใน Studio** ติด Tag `BossSpawn` `Turret1..6` `House1..6` | ชื่อ Tag อยู่ `Config/Tags.luau` |
 | เลนมอน / ระยะเกิด · การวัดพื้นตามเลน (มอนเดินติดพื้น) | `src/shared/Config/Map.luau` | `Layout.*` (`FloorSampleStep` `FloorMaxClimb` `FloorProbeDepth`) `Lane.*` |
 | หน้าจอ HUD เงิน / แถบบอส / ปุ่มอัป-สกิล / ปุ่มอุปกรณ์ | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
-| หน้าอุปกรณ์ (ยังเป็นแผงชั่วคราว "Gear" ใน HudUI · ข้อมูลที่ UI ใช้ได้ ดู `design/equipment.md` หัวข้อ "สัญญากับ Client") | `src/client/UI/HudUI.luau` | `placeholderPanel(... "Gear" ...)` |
+| หน้าอุปกรณ์ (ช่อง 4 ช่อง · กระเป๋า · ใส่/รวม/แยก · ป๊อปอัปของดรอป) · ปุ่มลัด G / RB · ข้อมูลที่ใช้ ดู `design/equipment.md` หัวข้อ "สัญญากับ Client" | `src/client/UI/GearUI.luau` · `src/client/Controllers/GearController.luau` | |
 | สี/ฟอนต์ UI ทั้งเกม | `src/client/UI/Theme.luau` | |
 
 ## ระบบทำงานยังไง (ภาพรวม)

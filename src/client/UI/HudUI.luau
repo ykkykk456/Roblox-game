@@ -84,8 +84,7 @@ function HudUI.Init()
 	Components.button(menu, "🎒  กระเป๋า", { order = 3 }, function()
 		Panels.toggle("Bag")
 	end)
-	-- ✏️ ปุ่มอุปกรณ์ป้อม (แทนปุ่มกาชาที่ถอดแล้ว) · แผงจริงยังไม่ทำ → ใช้แผงชั่วคราว "Gear" ด้านล่าง
-	--   UI อุปกรณ์ตัวจริง: register แผงชื่อ "Gear" แทน placeholder (สัญญาข้อมูล: design/equipment.md หัวข้อ "สัญญากับ Client")
+	-- ✏️ ปุ่มอุปกรณ์ป้อม (แทนปุ่มกาชาที่ถอดแล้ว) · แผง "Gear" สร้าง/ลงทะเบียนใน UI/GearUI (ปุ่มลัด G / RB อยู่ในไฟล์นั้น)
 	Components.button(menu, "🛠  อุปกรณ์", { order = 4 }, function()
 		Panels.toggle("Gear")
 	end)
@@ -93,7 +92,6 @@ function HudUI.Init()
 	-- แผงชั่วคราวของปุ่มที่ยังไม่มีระบบ
 	placeholderPanel(gui, "Shop", "ร้านค้า", "ร้านค้ากำลังพัฒนา\nจะเปิดเมื่อมีระบบเงินและไอเทม")
 	placeholderPanel(gui, "Bag", "กระเป๋า", "กระเป๋ากำลังพัฒนา\nจะแสดงไอเทมที่คุณมี")
-	placeholderPanel(gui, "Gear", "อุปกรณ์ป้อม", "หน้าอุปกรณ์กำลังพัฒนา\nตีบอสเพื่อรับอุปกรณ์ป้อม")
 
 	-- ===== ตัวนับ FPS (ซ้ายล่าง · แสดงเมื่อเปิดในตั้งค่า) =====
 	-- ตำแหน่ง/ขนาด = position / size ด้านล่าง
