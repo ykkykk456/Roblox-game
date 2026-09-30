@@ -19,8 +19,10 @@
 -- คุยกับไฟล์ไหนบ้าง:
 --   • BaseService — ช่องไหนมีเจ้าของ (ปล่อยมอนเลนนั้น) · BossService — มีบอสอยู่ไหม (พักปล่อยมอน)
 --   • LayoutService — จุดบอส/แท่นป้อม/พื้นจากแมพ · Wallet — แจกเงินตอนมอนตาย
---   • TurretService / TurretClassService — เรียก getAlive, positionOf, damage เพื่อเล็งและทำดาเมจ
+--   • TurretService / TurretElementService / ElementSkillService — เรียก getAlive, positionOf, damage เพื่อเล็งและทำดาเมจ
 --     (monster.slot = เลขเลน/ช่อง · TurretService ให้ป้อมยิงเฉพาะมอนที่ slot ตรงกับป้อม)
+--   • ธาตุป้อม (design/element-skills.md) เรียก slow / knockback / pullToward เพื่อหน่วง/ผลัก/ดูดมอน
+--     วิธีทำ: มอนเดินตามเวลา (legStart) → "เลื่อน legStart ไปข้างหน้า" = มอนถอยหลัง/ช้าลง โดยไม่ต้องขยับโมเดลเอง
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -55,6 +57,9 @@ export type Monster = {
 	heights: { number }?,
 	alive: boolean,
 	damageBy: { [Player]: number },
+	-- ช้าลง: slowAmount (0.2 = ช้าลง 20% · 1 = หยุดเดิน/แช่แข็ง) จนถึงเวลา slowUntil (os.clock) · 0 = ไม่ช้า
+	slowAmount: number,
+	slowUntil: number,
 }
 
 -- Wave = สถานะการปล่อยมอนของ 1 เลน
@@ -259,6 +264,8 @@ local function spawnMonster(slot: number)
 		heights = heights,
 		alive = true,
 		damageBy = {},
+		slowAmount = 0,
+		slowUntil = 0,
 	}
 	table.insert(monsters, monster)
 end
@@ -317,7 +324,7 @@ function MonsterService.positionOf(monster: Monster, now: number): Vector3
 	return Vector3.new(flat.X, ground + monster.lift, flat.Z)
 end
 
--- ทำดาเมจ amount ใส่มอน (จด player ไว้แบ่งเงิน) · เลือดหมด = ลบโมเดล + แจกเงิน · เรียกจาก TurretService/TurretClassService
+-- ทำดาเมจ amount ใส่มอน (จด player ไว้แบ่งเงิน) · เลือดหมด = ลบโมเดล + แจกเงิน · เรียกจาก TurretService/TurretElementService
 function MonsterService.damage(monster: Monster, player: Player, amount: number)
 	if not monster.alive then
 		return
@@ -333,6 +340,57 @@ function MonsterService.damage(monster: Monster, player: Player, amount: number)
 	end
 end
 
+-- ===== ผลจากป้อมธาตุ: ช้าลง / ถอย / ดูด (design/element-skills.md) =====
+-- ช้าลง amount (0–1) นาน seconds · ติดซ้ำ = ใช้ค่าที่แรงกว่า และเวลาที่ยาวกว่า (ไม่ซ้อนกันจนหยุดถาวร)
+-- ตัวอย่าง: slow(มอน, 0.2, 1.5) = เดินเหลือ 80% นาน 1.5 วิ · slow(มอน, 1, 2) = หยุดเดิน 2 วิ (แช่แข็ง)
+function MonsterService.slow(monster: Monster, amount: number, seconds: number)
+	if not monster.alive or amount ~= amount or seconds ~= seconds then
+		return
+	end
+	local now = os.clock()
+	amount = math.clamp(amount, 0, 1)
+	if now >= monster.slowUntil then
+		monster.slowAmount = amount
+	else
+		monster.slowAmount = math.max(monster.slowAmount, amount)
+	end
+	monster.slowUntil = math.max(monster.slowUntil, now + math.max(seconds, 0))
+end
+
+-- ผลักมอนถอยกลับไปทางต้นเลน studs หน่วย · ไม่ถอยเลยจุดเกิด
+-- วิธีทำ: เลื่อนเวลาเริ่มเดิน (legStart) ไปข้างหน้า = มอน "เพิ่งเดินมาได้น้อยลง" → ตำแหน่งถอยหลัง
+-- ตัวอย่าง: มอนเร็ว 8 studs/วิ ถอย 4 studs → legStart + 0.5 วิ
+function MonsterService.knockback(monster: Monster, studs: number)
+	if not monster.alive or studs ~= studs or studs <= 0 or monster.speed <= 0 then
+		return
+	end
+	monster.legStart = math.min(monster.legStart + studs / monster.speed, os.clock())
+end
+
+-- ดูดมอนเข้าหาจุด point ตามแนวเลน (ไม่เกิน studs หน่วยต่อครั้ง) · ใช้กับหลุมดำ
+-- เลนเป็นเส้นตรง from → to จึงเลื่อนได้แค่ "หน้า/หลัง" ตามเลน (ไม่หลุดออกนอกเลน)
+function MonsterService.pullToward(monster: Monster, point: Vector3, studs: number)
+	if not monster.alive or studs ~= studs or studs <= 0 or monster.legTime <= 0 then
+		return
+	end
+	local now = os.clock()
+	local lane = monster.to - monster.from
+	local length = Vector3.new(lane.X, 0, lane.Z).Magnitude
+	if length < 0.1 then
+		return
+	end
+	-- t = ตำแหน่งตามเลน 0 (ต้นเลน) → 1 (ปลายเลน) · tPoint = ตำแหน่งของจุดดูดบนเลนเดียวกัน
+	local flatDir = Vector3.new(lane.X, 0, lane.Z) / length
+	local offset = point - monster.from
+	local tPoint = math.clamp((offset.X * flatDir.X + offset.Z * flatDir.Z) / length, 0, 1)
+	local t = math.clamp((now - monster.legStart) / monster.legTime, 0, 1)
+	local step = studs / length
+	local newT = t + math.clamp(tPoint - t, -step, step)
+	-- กันดูดจนถึงปลายเลน (= หายไปหน้าป้อม) · 0.98 = เผื่อไว้นิดหน่อย
+	newT = math.clamp(newT, 0, 0.98)
+	monster.legStart = now - newT * monster.legTime
+end
+
 -- ===== ลูปเดิน + ลูปปล่อย wave =====
 -- Init: สร้างโฟลเดอร์ Monsters + ขยับมอนทุกเฟรม (Heartbeat) · วนจากท้ายไปหน้าเพื่อลบออกจากรายการได้ระหว่างวน
 function MonsterService.Init()
@@ -340,10 +398,18 @@ function MonsterService.Init()
 	folder.Name = "Monsters"
 	folder.Parent = workspace
 
+	-- lastBeat = เวลาเฟรมก่อน (ใช้คิดว่ามอนที่โดนช้าลงต้อง "เสียเวลาเดิน" ไปเท่าไรในเฟรมนี้)
+	local lastBeat = os.clock()
 	RunService.Heartbeat:Connect(function()
 		local now = os.clock()
+		local dt = math.min(now - lastBeat, 0.5) -- เซิร์ฟกระตุกนานๆ ไม่ให้มอนถอยหลังก้อนใหญ่
+		lastBeat = now
 		for index = #monsters, 1, -1 do
 			local monster = monsters[index]
+			-- ช้าลง: เลื่อน legStart ตาม dt × ความช้า (1 = หยุดนิ่ง) · หมดเวลา = เดินปกติ
+			if monster.alive and now < monster.slowUntil then
+				monster.legStart = math.min(monster.legStart + dt * monster.slowAmount, now)
+			end
 			if not monster.alive then
 				table.remove(monsters, index)
 			elseif now >= monster.legStart + monster.legTime then

@@ -13,7 +13,7 @@ local Players = game:GetService("Players")
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- field ใน PlayerData ที่เปิดให้ Client เห็น (เพิ่มได้ เช่น "Level") · ห้ามใส่ข้อมูลลับ
-local PUBLIC_FIELDS = { "Coins", "TurretLevel", "GachaTickets", "EquippedSkill", "TurretClass", "TurretBranch" }
+local PUBLIC_FIELDS = { "Coins", "TurretLevel", "GachaTickets", "EquippedSkill", "Element" }
 -- field ที่เป็นตาราง (Attribute เก็บตารางไม่ได้) → ส่งเป็น JSON string
 local JSON_FIELDS = { "Skills" }
 

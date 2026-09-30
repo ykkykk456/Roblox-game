@@ -1,6 +1,6 @@
 -- สูตรค่าสถานะ/ราคาป้อม (ฟังก์ชันบริสุทธิ์) — Server ใช้คำนวณจริง · Client ใช้แสดงผลเท่านั้น
 -- ตัวเลขอยู่ที่ Config/Combat.Turret (ดาเมจ/อัตรายิง) และ Config/Economy.Turret (ราคา) · ไฟล์นี้เก็บแค่สูตร
--- ใครใช้: Server = Services/TurretService, TurretClassService · Client = UI/CombatUI, Controllers/TurretController (travelTime)
+-- ใครใช้: Server = Services/TurretService, TurretElementService · Util/ElementMath · Client = UI/CombatUI, Controllers/TurretController (travelTime)
 
 local Combat = require(script.Parent.Parent.Config.Combat)
 local Economy = require(script.Parent.Parent.Config.Economy)
@@ -15,12 +15,12 @@ function TurretMath.clampLevel(level: any): number
 	return math.clamp(math.floor(level), 1, Combat.Turret.MaxLevel)
 end
 
--- ดาเมจต่อนัดของป้อมเลเวลนี้ (ยังไม่คูณคลาส/สกิล)
+-- ดาเมจต่อนัดของป้อมเลเวลนี้ (ยังไม่คูณตัวคูณธาตุ)
 function TurretMath.damage(level: number): number
 	return Combat.Turret.BaseDamage + Combat.Turret.DamagePerLevel * (level - 1)
 end
 
--- อัตรายิงของป้อมเลเวลนี้ (นัดต่อวินาที · ยังไม่คูณคลาส/สกิล)
+-- อัตรายิงของป้อมเลเวลนี้ (นัดต่อวินาที · ยังไม่คูณตัวคูณธาตุ/บัฟ)
 function TurretMath.fireRate(level: number): number
 	return Combat.Turret.BaseFireRate + Combat.Turret.FireRatePerLevel * (level - 1)
 end

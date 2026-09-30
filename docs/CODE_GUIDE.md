@@ -15,15 +15,18 @@
 |---|---|---|
 | ดาเมจ / อัตรายิง / ระยะยิงพื้นฐานของป้อม | `src/shared/Config/Combat.luau` | `Turret.BaseDamage` `DamagePerLevel` `BaseFireRate` `FireRatePerLevel` `Range` `MaxLevel` |
 | เลือดป้อม / เวลาช็อต | `Config/Combat.luau` | `Turret.MaxHp` `StunSeconds` |
-| **คลาสป้อม** (ตัวคูณดาเมจ/ยิงเร็ว, ชื่อ, คำอธิบาย, สี) | `src/shared/Config/Skill_class_default.luau` | `Classes.<คลาส>` |
-| **สายธาตุ** (สายฟ้า ลม พิษ ฯลฯ) + ความสามารถพิเศษ | `Config/Skill_class_default.luau` | `Branches.<สาย>` + `Effect` |
-| เลเวลที่ปลดล็อกสายธาตุ | `Config/Skill_class_default.luau` | `BranchLevel` |
-| สีบอลไฟตามเลเวล (ปืนใหญ่) | `Config/Skill_class_default.luau` | `FireColors` |
-| หน้าตาป้อมแต่ละคลาส (ชิ้นส่วน ขนาด สี) | `src/server/Services/TurretLook.luau` | ฟังก์ชันสร้างของแต่ละคลาส |
-| เอฟเฟกต์กระสุน/ลำแสง/หลุมดำ (ที่เห็นบนจอ) | `src/client/Controllers/TurretController.luau` | ฟังก์ชันวาดตาม `Kind` |
+| **ธาตุป้อม** 🔥💧🪨🌪️ (ตัวคูณดาเมจ/ยิงเร็ว, ชื่อ, คำอธิบาย, สี, ผลกระสุน, Passive) | `src/shared/Config/Elements.luau` | `Elements.<ธาตุ>` (`Damage` `FireRate` `Shot` `Passive`) |
+| **สกิลกด Q ของแต่ละธาตุ** (ชื่อ คูลดาวน์ ดาเมจ จำนวนลูก ฯลฯ) | `Config/Elements.luau` | `Elements.<ธาตุ>.Skill` (`Cooldown` `Pattern` `Status`) |
+| ราคาเปลี่ยนธาตุ (เลือกครั้งแรกฟรี) | `Config/Elements.luau` | `ChangeElementCost` |
+| สีบอลไฟตามเลเวล (ธาตุไฟ) | `Config/Elements.luau` | `FireColors` |
+| เลเวลที่หน้าตาป้อมอัปขั้น (ทุก 10 เลเวล) · ป้อมโตขั้นละเท่าไร | `Config/Elements.luau` | `LookTiers` `LookScalePerTier` |
+| หน้าตาป้อมโค้ดแต่ละธาตุ + ของแต่งตามขั้น (ชิ้นส่วน ขนาด สี) | `src/server/Services/TurretLook.luau` | `buildFire` `buildWater` `buildEarth` `buildWind` `tierDecor` |
+| **ใช้โมเดลป้อมที่ปั้นเอง** แทนป้อมโค้ด | Studio: `ServerStorage > TurretModels` · ค่า: `Config/Elements.luau` | ดูหัวข้อ "โมเดลป้อมที่ import เอง" ด้านล่าง · `CustomModel` |
+| ใบพัดหมุน/ลูกแก้วลอย/วงแหวนลอยบนป้อม (ขยับฝั่ง Client) | `TurretLook.luau` (ค่า `anim`) · `src/client/Controllers/TurretAnimController.luau` | |
+| เอฟเฟกต์กระสุน/สกิล (ที่เห็นบนจอ) | `src/client/Controllers/TurretController.luau` | ฟังก์ชันวาดตาม `Kind` (`drawFireball` `drawWave` ...) |
 | ความเร็วกระสุน (ดาเมจเข้าตอนกระสุนถึง · ภาพกับดาเมจใช้ค่าเดียวกัน) · ชนิดที่โดนทันที | `Config/Combat.luau` | `Turret.Projectile` (`Speed` `Speeds` `Instant` `MaxTravel`) |
-| หน้าเลือกคลาส (ปุ่ม ตำแหน่ง ข้อความ) · ปุ่มลัด C | `src/client/UI/ClassUI.luau` | |
-| สกิลกาชา (รายชื่อ ผล คูลดาวน์ โอกาสสุ่ม) | `src/shared/Config/Skills.luau` | `List` `Rarities` |
+| หน้าเลือกธาตุ (ปุ่ม ตำแหน่ง ข้อความ) · ปุ่มลัด C | `src/client/UI/ElementUI.luau` | |
+| สกิลกาชา (รายชื่อ ผล คูลดาวน์ โอกาสสุ่ม) — ⚠️ ปุ่ม Q ไม่ใช้สกิลกาชาแล้ว (ใช้สกิลธาตุ) · รอถอดระบบกาชา | `src/shared/Config/Skills.luau` | `List` `Rarities` |
 | ราคาอัปป้อม · เงินจากมอน · รางวัลบอส · ตั๋วกาชา | `src/shared/Config/Economy.luau` | `Turret` `MonsterReward` `Boss` `Gacha` |
 | มอน (จำนวนต่อ wave, เลือด, ความเร็ว, เวลาพัก) | `Config/Combat.luau` | `Monster.*` |
 | บอส (เวลาอยู่, ช่วงเวลามา, ลำดับสลับ, ท่า Animation ID, ทุบ) | `Config/Combat.luau` | `Boss.*` (`Rotation`, `Animations`, `Duration`, `SlamDamage`) |
@@ -46,9 +49,11 @@
 ## ไฟล์ฝั่ง Server หลักๆ
 | ไฟล์ | ทำอะไร |
 |---|---|
-| `Services/TurretService.luau` | ป้อม: สร้าง · เล็ง · ยิง · อัปเลเวล · ใช้สกิล · เลือดป้อม |
-| `Services/TurretClassService.luau` | เลือกคลาส/สาย · ดาเมจต่อเนื่อง · ลดเกราะ · หลุมดำ |
-| `Services/TurretLook.luau` | หน้าตาป้อมตามคลาส |
+| `Services/TurretService.luau` | ป้อม: สร้าง · เล็ง · ยิง · อัปเลเวล · ใช้สกิลธาตุ (คูลดาวน์) · เลือดป้อม · Passive ป้อม |
+| `Services/TurretElementService.luau` | เลือก/เปลี่ยนธาตุ (หักเงิน) · ผลกระสุน (ระเบิด ช้าลง ถอย ทะลุ) · ติดไฟ (DoT) |
+| `Services/ElementSkillService.luau` | สกิลกดของธาตุ (ยิงเป็นชุด / คลื่นตามเลน · + แบบที่เตรียมไว้ให้วิวัฒนาการ) |
+| `Services/TurretLook.luau` | หน้าตาป้อมตามธาตุ + ขั้นเลเวล · หรือโมเดลที่ import เอง |
+| `Network/ElementHandler.luau` | รับคำขอเลือกธาตุ (Remote `ChooseElement`) |
 | `Services/BossService.luau` | บอส (🔒 ล็อก) |
 | `Services/MonsterService.luau` | มอนเป็น wave ตามเลน |
 | `Services/LayoutService.luau` | อ่านตำแหน่งจาก Tag ในแมพ |
@@ -56,6 +61,14 @@
 | `Services/SkillService.luau` | กาชา · คลังสกิล · คูลดาวน์ |
 | `Data/PlayerData.luau` | เซฟ/โหลดข้อมูลผู้เล่น (ระวัง!) |
 | `Network/Guard.luau` | ด่านตรวจทุกคำขอจากผู้เล่น (กันโกง) |
+
+## โมเดลป้อมที่ import เอง (แทนป้อมโค้ด)
+รายละเอียดเต็มอยู่หัวไฟล์ `src/server/Services/TurretLook.luau` (หัวข้อ "📦 วิธีทำโมเดลป้อมเอง")
+1. Studio: สร้างโฟลเดอร์ `ServerStorage > TurretModels` · ใส่ Model ชื่อ `<ธาตุ>_<เลเวลขั้น>` เช่น `Fire_1` `Fire_10` `Fire_20` … `Fire_50` (ไม่มีขั้นนั้น → ใช้ขั้นต่ำกว่าที่ใกล้สุด → ชื่อ `Fire` เฉยๆ → ไม่มีเลย = ป้อมโค้ด) · ยังไม่เลือกธาตุ = `Unchosen`
+2. ตั้งชื่อชิ้น: `Base` (ฐาน อยู่นิ่ง) · `Head` (หมุนซ้าย-ขวา · จุดหมุนเล็ง) · `Barrel` (ก้ม/เงย) · `Spin` (ไม่ใส่ก็ได้ หมุนรอบลำกล้อง) · `Glow` (ไม่ใส่ก็ได้ = สีธาตุเรืองแสง) · Attachment `Muzzle` ใต้ Barrel ที่ปากกระบอก (ไม่ใส่ก็ได้)
+3. Pivot ของ Model ตั้งตรง ลูกศรหน้า (-Z) ชี้ไปทางปากกระบอก · เกมวางก้นโมเดลบนแท่น `TurretN` และหันไปทางบอสเอง
+4. เกมตั้งให้เอง: Anchored ทุกชิ้น · ชิ้นที่ไม่ใช่ Base ไม่ชน · ลบ Script ในโมเดลทิ้ง · ขนาด → `Elements.CustomModel.Height` (ว่าง = ขนาดเดิม)
+5. หน้าตาอัปทุก 10 เลเวล (`Elements.LookTiers`) → ถึงขั้นใหม่ เกมเปลี่ยนโมเดลให้เอง
 
 ## เพิ่มของใหม่
 - **ไฟล์ใหม่**: วางใน `Services/` (Server) หรือ `Controllers/` / `UI/` (Client) ได้เลย ระบบโหลดให้อัตโนมัติ · ต้อง `return { Init = ..., Start = ... }`

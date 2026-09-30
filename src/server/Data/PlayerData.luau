@@ -33,7 +33,7 @@ local Skills = require(ReplicatedStorage.Shared.Config.Skills)
 -- ชื่อ DataStore · ห้ามแก้
 local STORE_NAME = "PlayerData"
 -- เวอร์ชันโครงข้อมูลปัจจุบัน · แก้ได้เฉพาะตอนเพิ่ม migration (เพิ่มทีละ 1)
-local VERSION = 5
+local VERSION = 6
 -- ลองเรียก DataStore กี่ครั้งก่อนยอมแพ้ (ปรับได้ 3–5 · มากไป = ผู้เล่นรอนานตอนโหลดพัง)
 local MAX_ATTEMPTS = 3
 -- บันทึกอัตโนมัติทุกกี่วินาที (ปรับได้ · ต่ำไปเสี่ยงชนโควตา DataStore · สูงไปเสียข้อมูลมากขึ้นถ้าเซิร์ฟล่ม)
@@ -53,12 +53,13 @@ local DEFAULT = {
 	Rebirths = 0, -- v4
 	LastSeen = 0, -- v4: os.time() ฝั่ง Server ตอนออกเกม (คิดเงิน idle ตอนออฟไลน์)
 	Login = { Day = 0, Streak = 0 }, -- v4: Day = เลขวัน UTC ที่รับรางวัลล่าสุด
-	TurretClass = "", -- v5: คลาสป้อม ("" = ยังไม่เลือก → Unchosen) · ค่าอยู่ใน Config/Skill_class_default
-	TurretBranch = "", -- v5: สายธาตุ ("" = ยังไม่เลือก · เลือกแล้วล็อก)
+	-- v5 TurretClass / TurretBranch (คลาสป้อมเดิม) → ถูกแทนด้วย Element ใน v6 (ดู MIGRATIONS[5])
+	Element = "", -- v6: ธาตุป้อม ("" = ยังไม่เลือก → Unchosen · UI เด้งให้เลือก) · id อยู่ใน Config/Elements
+	-- (วิวัฒนาการยังไม่ทำ → ยังไม่มี field Evolution · ตอนทำค่อยเพิ่ม v7) · Gear (v4) เตรียมไว้ให้ระบบอุปกรณ์ป้อม
 }
 
 -- MIGRATIONS[n] แปลงข้อมูลจากเวอร์ชัน n เป็น n + 1
--- เพิ่ม field ใหม่: ใส่ใน DEFAULT + VERSION = 6 + เพิ่ม [5] = function(data) ... return data end ต่อท้าย
+-- เพิ่ม field ใหม่: ใส่ใน DEFAULT + VERSION = 7 + เพิ่ม [6] = function(data) ... return data end ต่อท้าย
 local MIGRATIONS: { [number]: (any) -> any } = {
 	-- v1 → v2: เพิ่มเลเวลป้อม
 	[1] = function(data)
@@ -85,6 +86,16 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 	[4] = function(data)
 		data.TurretClass = ""
 		data.TurretBranch = ""
+		return data
+	end,
+	-- v5 → v6: คลาสป้อม → ธาตุป้อม (design/element-skills.md หัวข้อ 6.2) [Proposed]
+	-- คลาสเก่ากับธาตุใหม่เทียบกันไม่ตรง → รีเซ็ตให้เลือกใหม่ฟรี (ไม่แมป) · TurretLevel / เงิน / ของอื่นไม่แตะ
+	-- ลบแค่ TurretClass / TurretBranch (field ที่ถูกแทน) · field กาชา (Skills, EquippedSkill, GachaTickets) คงไว้ก่อน
+	--   (ระบบกาชาจะถูกถอดแยกอีกงาน · ตอนนั้นค่อยเพิ่ม migration ลบ)
+	[5] = function(data)
+		data.Element = ""
+		data.TurretClass = nil
+		data.TurretBranch = nil
 		return data
 	end,
 }

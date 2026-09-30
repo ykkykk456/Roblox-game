@@ -1,58 +1,89 @@
--- หน้าตาป้อมตามคลาส/สายธาตุ (เจ้าของ: Gameplay_Scripter) · โมดูลช่วยของ TurretService (ไม่มี Init/Start)
--- สร้างจาก Part ล้วนด้วยโค้ด · Anchored ทุกชิ้น · ขยับด้วยการตั้ง CFrame ทุกครั้งที่เล็ง
--- กลุ่มชิ้นส่วน (ตำแหน่งเทียบกับจุดหมุน = หัวป้อม หันไป -Z):
+-- หน้าตาป้อมตามธาตุ + ขั้นเลเวล (เจ้าของ: Gameplay_Scripter) · โมดูลช่วยของ TurretService (ไม่มี Init/Start)
+-- สเปก: design/element-skills.md หัวข้อ 2.2 · หน้าตาอัปทุก 10 เลเวล (Config/Elements.LookTiers: Lv.1/10/20/30/40/50)
+-- ป้อมมี 2 แบบ:
+--   (ก) ป้อมโค้ด (prototype) — ปั้นจาก Part ล้วนในไฟล์นี้ (buildFire / buildWater / buildEarth / buildWind)
+--   (ข) โมเดลที่ import เอง — ถ้ามีใน ServerStorage > TurretModels จะใช้แทนป้อมโค้ดทันที (ดู "วิธีทำโมเดลเอง" ด้านล่าง)
+-- ทุกชิ้น Anchored · ขยับด้วยการตั้ง CFrame ทุกครั้งที่เล็ง · กลุ่มชิ้นส่วน (ตำแหน่งเทียบจุดหมุน = หัวป้อม หันไป -Z):
+--   base   = ฐาน/ของตกแต่ง วางครั้งเดียว ไม่หมุนตามเป้า
 --   head   = หมุนซ้าย-ขวาตามเป้า (yaw) อย่างเดียว
---   barrel = หมุนตามเป้าเต็มทิศ (yaw + pitch)
---   spin   = เหมือน barrel แต่หมุนรอบแกนลำกล้องทุกครั้งที่เล็ง (Gatling)
--- [Proposed] หน้าตาเป็นร่างแรก · ยังไม่ได้ดูใน Studio
+--   barrel = หมุนตามเป้าเต็มทิศ (yaw + pitch = ก้ม/เงย)
+--   spin   = เหมือน barrel แต่หมุนรอบแกนลำกล้องทุกครั้งที่ยิง (ลำกล้องหมุนแบบปืนกล)
+-- ชิ้นที่ "ขยับเอง" (ใบพัดหมุน ลูกแก้วลอย ประกายกะพริบ วงแหวนลอย) = ติด Attribute "Anim" → Client ขยับเอง
+--   (Controllers/TurretAnimController) ลื่นกว่าและ Server ไม่ต้องส่งข้อมูลทุกเฟรม
+--
+-- ===== 📦 วิธีทำโมเดลป้อมเอง (import แทนป้อมโค้ด) =====
+--   1) ใน Studio สร้างโฟลเดอร์ ServerStorage > TurretModels (ชื่อโฟลเดอร์ตั้งได้ที่ Elements.CustomModel.Folder)
+--   2) ใส่ Model ชื่อ "<ธาตุ>_<เลเวลขั้น>" เช่น Fire_1, Fire_10, Fire_20, Fire_30, Fire_40, Fire_50
+--        ไม่มีขั้นที่ตรง → ใช้ขั้นต่ำกว่าที่ใกล้ที่สุด → ไม่มีเลย ใช้ชื่อ "<ธาตุ>" เฉยๆ (เช่น "Fire") → ไม่มีอีก = ป้อมโค้ด
+--        ป้อมที่ยังไม่เลือกธาตุ ใช้ชื่อ "Unchosen" / "Unchosen_1" ได้
+--   3) ตั้งชื่อชิ้นส่วนตามหน้าที่ (ชิ้นที่อยู่ใน Model/Folder ชื่อเหล่านี้ก็นับด้วย):
+--        Base   = ฐาน อยู่นิ่ง (ชนได้)            Head   = หัว หมุนซ้าย-ขวาตามเป้า
+--        Barrel = ลำกล้อง ก้ม/เงย + หมุนตามเป้า   Spin   = (ไม่ใส่ก็ได้) หมุนรอบลำกล้องทุกนัด
+--        Glow   = (ไม่ใส่ก็ได้) เปลี่ยนเป็นสีธาตุ + Neon อัตโนมัติ
+--        Attachment ชื่อ Muzzle (ไม่ใส่ก็ได้) ไว้ใต้ชิ้น Barrel ที่ปากกระบอก = จุดที่กระสุนออก
+--        ชิ้นชื่ออื่น = นับเป็น Base (อยู่นิ่ง)
+--   4) Pivot ของ Model (Model > Edit Pivot) ต้อง "ตั้งตรง" และลูกศรหน้า (-Z / LookVector) ชี้ไปทางปากกระบอก
+--      เกมวาง "ก้นโมเดล" (ด้านล่างสุดของกล่องครอบ) ลงบนแท่น TurretN แล้วหันหน้าไปทางบอสเอง
+--   5) จุดหมุนตอนเล็ง = ตำแหน่งชิ้น Head (ไม่มี Head = สูง 75% ของโมเดล)
+--   6) เกมตั้งให้เอง: Anchored ทุกชิ้น · ชิ้นที่ไม่ใช่ Base ไม่ชน (CanCollide = false) · ลบ Script ในโมเดลทิ้ง (กันโค้ดแปลกปลอม)
+--   7) ขนาด: Elements.CustomModel.Height = ตัวเลข → ย่อ/ขยายให้สูงเท่านั้น (studs) · nil = ใช้ขนาดตามที่ปั้น
+--   ⚠️ โมเดลที่ใช้ MeshPart + Texture จะไม่เปลี่ยนเป็นสีเทาตอนช็อตชัดเจน (สีเปลี่ยนแค่ส่วนที่ไม่มีลายผิว) [Inferred]
 --
 -- ===== อยากปรับอะไร → ไปแก้ที่ไหน =====
---   • สีหลักของคลาส/สาย (accent) → Color ใน src/shared/Config/Skill_class_default.luau
---   • รูปทรงป้อมแต่ละคลาส → ฟังก์ชัน buildMage / buildArcher / buildGatling / buildAssassin / buildCannon ในไฟล์นี้
+--   • สีหลักของธาตุ (accent) → Color ใน src/shared/Config/Elements.luau (ไฟ: FireColors ตามเลเวล)
+--   • เลเวลที่หน้าตาเปลี่ยน / ขนาดที่โตต่อขั้น → Elements.LookTiers / LookScalePerTier
+--   • รูปทรงป้อมโค้ดแต่ละธาตุ → buildFire / buildWater / buildEarth / buildWind · ของแต่งตามขั้น → tierDecor
 --     (ขนาด = Vector3.new(กว้าง, สูง, ยาว) · ตำแหน่ง = CFrame.new(ขวา, ขึ้น, หน้า) · ค่า Z ติดลบ = ไปทางปากกระบอก)
---   • สีโลหะ/ไม้/ฐาน/สีตอนช็อต → ค่าคงที่ด้านล่าง
+--   • ความเร็วใบพัด/ลูกแก้ว/วงแหวน → ค่า anim = { Speed, Amp } ในแต่ละชิ้น · สีตอนช็อต → STUNNED_COLOR
 --
--- คุยกับไฟล์ไหนบ้าง: TurretService เรียก build / aim / setStunned / muzzleOf / keyOf · ClassMath ให้สีและสายที่ถูกต้อง
--- ไฟล์นี้แค่ "หน้าตา" ไม่มีผลกับดาเมจ → แก้รูปทรง/สีได้ปลอดภัย (ห้ามเปลี่ยนชื่อ "Head" และ query = true ของชิ้นหัว)
+-- คุยกับไฟล์ไหนบ้าง: TurretService เรียก build / aim / setStunned / setShield / muzzleOf / keyOf · ElementMath ให้สี/ขั้น
+-- ไฟล์นี้แค่ "หน้าตา" ไม่มีผลกับดาเมจ → แก้รูปทรง/สีได้ปลอดภัย (ป้อมโค้ด: ห้ามเปลี่ยนชื่อ "Head" และ query = true ของชิ้นหัว)
 --
 -- 📖 อ่านตามลำดับนี้
 --   1) TurretLook.build (ท้ายไฟล์) — TurretService.luau:buildLook เรียกตอนสร้าง/เปลี่ยนป้อม
---        สร้างฐาน → ถาม Util/ClassMath.luau:stats ว่าสีอะไร → เลือกฟังก์ชันปั้นตามคลาส → ติดป้ายชื่อ → หันไปที่บอส
---   2) builder (ด้านบน) — "เครื่องปั้น" add(...) ที่ทุก build* ใช้ สร้างชิ้นส่วน + จดว่าชิ้นนี้หมุนกลุ่มไหน
---   3) buildMage / buildArcher / buildGatling / buildAssassin / buildCannon / buildUnchosen — หน้าตาแต่ละคลาส
---        ✏️ อยากเปลี่ยนรูปทรงป้อม → แก้ในฟังก์ชันเหล่านี้
---   4) TurretLook.aim — TurretService.luau:hit เรียกทุกครั้งที่ยิง · หมุนหัว/ลำกล้องตามกลุ่ม head / barrel / spin
---   5) setStunned / muzzleOf / keyOf — ตัวช่วยเล็กๆ (สีตอนช็อต · จุดปากกระบอก · คีย์บอกว่าต้องปั้นใหม่ไหม)
---
--- วิธีอ่านตัวเลขตำแหน่งชิ้นส่วน (ใช้ทั้งไฟล์):
---   Vector3.new(กว้าง X, สูง Y, ยาว Z) = ขนาดชิ้น (studs)
---   CFrame.new(x, y, z) = เลื่อนจากจุดหมุนหัวป้อม · x+ = ขวา · y+ = ขึ้น · z− = ไปข้างหน้า (ทางปากกระบอก)
---   CFrame.Angles(rx, ry, rz) = หมุนรอบแกน X/Y/Z หน่วยเรเดียน · math.pi = 180° · math.rad(25) = แปลง 25° เป็นเรเดียน
---   a * b = ทำ a ก่อน แล้วทำ b ต่อ "จากมุมมองของ a" (เช่น หมุนก่อนแล้วค่อยเลื่อน = เลื่อนไปในทิศที่หมุนแล้ว)
+--        หาโมเดล import (findTemplate) → มี = buildCustom · ไม่มี = buildPrototype (ปั้นด้วยโค้ด)
+--   2) builder — "เครื่องปั้น" add(...) ที่ป้อมโค้ดทุกตัวใช้ (สร้างชิ้น + จดกลุ่มการหมุน + ขยายตามขั้น)
+--   3) buildUnchosen / buildFire / buildWater / buildEarth / buildWind + tierDecor (ของแต่งตามขั้นเลเวล)
+--   4) buildCustom — ใช้โมเดล import: วางบนแท่น · แบ่งกลุ่มตามชื่อชิ้น · หาปากกระบอก
+--   5) TurretLook.aim — TurretService.luau:hit เรียกทุกครั้งที่ยิง · หมุนชิ้นตามกลุ่ม head / barrel / spin
+--   6) setStunned / setShield / muzzleOf / keyOf — ตัวช่วยเล็กๆ
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
-local ClassMath = require(ReplicatedStorage.Shared.Util.ClassMath)
+local Elements = require(ReplicatedStorage.Shared.Config.Elements)
+local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
 
 -- ===== ค่าคงที่ (สีปรับได้ปลอดภัย) =====
--- ✏️ แก้ตรงนี้ถ้าอยากเปลี่ยนสีวัสดุที่ใช้ร่วมกันทุกคลาส · Color3.fromRGB(แดง, เขียว, น้ำเงิน) ค่าละ 0–255
--- HEAD_HEIGHT: TurretService ใช้ด้วย · เพิ่ม = ป้อมสูงขึ้น (ฐานยาวขึ้น, จุดยิงสูงขึ้น) · ต้องมากกว่า 1
-local HEAD_HEIGHT = 5 -- ความสูงจุดหมุนหัวป้อมจากฐาน (เท่าป้อมเดิม)
+-- HEAD_HEIGHT: TurretService ใช้ด้วย (ป้อมว่าง) · เพิ่ม = ป้อมสูงขึ้น · ต้องมากกว่า 1
+local HEAD_HEIGHT = 5
 local PEDESTAL_COLOR = Color3.fromRGB(70, 74, 86)
 local UNCHOSEN_HEAD = Color3.fromRGB(60, 160, 170)
 local DARK_METAL = Color3.fromRGB(40, 42, 50)
-local STEEL = Color3.fromRGB(190, 195, 205)
-local WOOD = Color3.fromRGB(120, 80, 45)
-local BRONZE = Color3.fromRGB(176, 120, 60)
+local SILVER = Color3.fromRGB(205, 210, 220)
+local BASALT = Color3.fromRGB(48, 46, 50)
+local STONE = Color3.fromRGB(120, 92, 64)
+local MOSS = Color3.fromRGB(80, 140, 60)
+local AMBER = Color3.fromRGB(255, 190, 60)
+local WHITE = Color3.new(1, 1, 1)
 local STUNNED_COLOR = Color3.fromRGB(110, 110, 116)
--- GATLING_SPIN_STEP: เพิ่ม = ลำกล้อง Gatling หมุนเร็วขึ้น · 0 = ไม่หมุน
-local GATLING_SPIN_STEP = math.rad(40) -- องศาที่ลำกล้อง Gatling หมุนต่อการเล็งหนึ่งครั้ง
+local SHIELD_COLOR = Color3.fromRGB(150, 120, 85)
+-- SPIN_STEP: เพิ่ม = กลุ่ม spin หมุนเร็วขึ้นต่อการยิง 1 ครั้ง · 0 = ไม่หมุน
+local SPIN_STEP = math.rad(40)
 
 -- ===== ชนิดข้อมูล =====
--- Piece = ชิ้นส่วน 1 ชิ้น + ตำแหน่งเทียบหัวป้อม + กลุ่มการหมุน · Look = ข้อมูลหน้าตาป้อมทั้งตัว (TurretService ถือไว้)
--- type = คำใบ้ชนิดช่วยตัวตรวจโค้ด (ไม่มีผลตอนรัน) · `"head" | "barrel" | "spin"` = ต้องเป็นข้อความ 1 ใน 3 ตัวนี้
--- export type = ให้ไฟล์อื่นใช้ชื่อชนิดนี้ได้ (TurretService เขียน TurretLook.Look)
-type Piece = { part: BasePart, offset: CFrame, group: "head" | "barrel" | "spin" }
+type Group = "base" | "head" | "barrel" | "spin"
+type Piece = { part: BasePart, offset: CFrame, group: Group }
+-- Anim = การขยับฝั่ง Client: Kind (Orbit/Flap/Bob/Rise/Blink/Hue) · Speed · Amp · PivotAt/Axis (ตำแหน่ง/แกนในพื้นที่ของกลุ่ม)
+type Anim = { Kind: string, Speed: number?, Amp: number?, PivotAt: Vector3?, Axis: Vector3?, Phase: number? }
+type Opts = {
+	shape: Enum.PartType?,
+	material: Enum.Material?,
+	tint: boolean?, -- ช็อตแล้วเปลี่ยนเป็นสีเทา
+	query: boolean?, -- ให้ raycast ชนได้ (ใช้กับชิ้นหัว)
+	transparency: number?,
+	anim: Anim?,
+}
 
 export type Look = {
 	model: Model,
@@ -61,15 +92,18 @@ export type Look = {
 	barrel: BasePart, -- ลำกล้องหลัก
 	label: TextLabel,
 	headPosition: Vector3, -- จุดหมุนสำหรับเล็ง
+	foot: Vector3, -- ฐานป้อมบนพื้น
+	scale: number, -- ขนาดเทียบป้อมขั้น 1 (ใช้วางเกราะหิน)
 	muzzleDistance: number, -- ระยะจากจุดหมุนถึงปากกระบอก
 	pieces: { Piece },
 	tinted: { [BasePart]: Color3 }, -- ชิ้นที่เปลี่ยนเป็นสีเทาตอนช็อต → สีเดิม
 	spinAngle: number,
-	key: string, -- คลาส|สาย|ขั้นสีไฟ · เปลี่ยน = ต้องสร้างใหม่
+	shield: BasePart?, -- เกราะหิน (มีเมื่อ setShield true)
+	custom: boolean, -- true = โมเดลที่ import เอง
+	key: string, -- คีย์หน้าตา · เปลี่ยน = ต้องสร้างใหม่
 }
 
 -- ===== ตัวช่วยสร้างชิ้นส่วน =====
--- สร้าง Part ยึดอยู่กับที่ ใส่ใน parent · คืน Part
 local function newPart(name: string, size: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -84,47 +118,56 @@ local function newPart(name: string, size: Vector3, color: Color3, parent: Insta
 	return part
 end
 
--- ตัวช่วยสร้างหัวป้อม: add(...) = ชิ้นประดับ (ชนไม่ได้ ยิง ray ไม่โดน)
---   opts: shape = รูปทรง (Ball/Cylinder) · material = วัสดุ · tint = เปลี่ยนเป็นเทาตอนช็อต · query = ให้ ray ชนได้ (ใช้กับชิ้นหัว)
--- เทคนิค: builder "คืนฟังก์ชัน" ที่จำ model / pieces / tinted ไว้ข้างใน (เรียกว่า closure)
---   ผลคือ build* ทุกตัวเรียกแค่ add(กลุ่ม, ชื่อ, ขนาด, สี, ตำแหน่ง, ตัวเลือก) ไม่ต้องส่ง model ซ้ำทุกครั้ง
--- ตัวอย่างการเรียก: add("barrel", "Barrel", Vector3.new(0.8, 0.8, 4), DARK_METAL, CFrame.new(0, 0, -3))
---   = ลำกล้องหนา 0.8 ยาว 4 สีเหล็กเข้ม อยู่หน้าจุดหมุน 3 studs หมุนตามเป้าเต็มทิศ
-local function builder(model: Model, pieces: { Piece }, tinted: { [BasePart]: Color3 })
-	return function(
-		group: "head" | "barrel" | "spin",
-		name: string,
-		size: Vector3,
-		color: Color3,
-		offset: CFrame,
-		opts: { shape: Enum.PartType?, material: Enum.Material?, tint: boolean?, query: boolean? }?
-	): Part
-		-- `opts or {}` = ไม่ได้ส่งตัวเลือกมา (nil) → ใช้ตารางว่างแทน จะได้อ่าน o.shape ได้โดยไม่ error
-		-- CanCollide = false → คน/ของเดินทะลุได้ · CanQuery = ให้ raycast ชนได้ไหม (เปิดเฉพาะชิ้นหัว)
-		local o = opts or {}
-		local part = newPart(name, size, color, model)
+-- เครื่องปั้น: คืนฟังก์ชัน add(กลุ่ม, ชื่อ, ขนาด, สี, ตำแหน่ง, ตัวเลือก) ที่จำ model/pieces/tinted/scale ไว้ข้างใน (closure)
+-- scale = ขยายทุกชิ้น (ขนาด + ระยะจากจุดหมุน) ตามขั้นเลเวล · anim = ติด Attribute ให้ Client ขยับเอง
+-- ตัวอย่าง: add("barrel", "Barrel", Vector3.new(0.8, 0.8, 4), DARK_METAL, CFrame.new(0, 0, -3))
+local function builder(model: Model, pieces: { Piece }, tinted: { [BasePart]: Color3 }, scale: number)
+	return function(group: Group, name: string, size: Vector3, color: Color3, offset: CFrame, opts: Opts?): Part
+		local o: Opts = opts or {}
+		local part = newPart(name, size * scale, color, model)
 		part.CanCollide = false
 		part.CanQuery = o.query == true
+		part.CastShadow = o.material ~= Enum.Material.Neon -- ชิ้นเรืองแสงไม่ทำเงา (เบาเครื่อง + ดูสว่าง)
 		if o.shape then
 			part.Shape = o.shape
 		end
 		if o.material then
 			part.Material = o.material
 		end
-		-- tint = จำสีเดิมไว้ (ตอนช็อตเปลี่ยนเป็นเทา ฟื้นแล้วคืนสีนี้)
+		if o.transparency then
+			part.Transparency = o.transparency
+		end
 		if o.tint then
 			tinted[part] = color
 		end
-		-- table.insert = ต่อท้ายรายการ pieces · aim จะวนรายการนี้เพื่อหมุนทุกชิ้นตามกลุ่ม
-		table.insert(pieces, { part = part, offset = offset, group = group })
+		-- ขยายระยะจากจุดหมุนตาม scale แต่คงการหมุนเดิม
+		local scaled = CFrame.new(offset.Position * scale) * offset.Rotation
+		local anim = o.anim
+		if anim then
+			-- แปลงจุดหมุน/แกน (ในพื้นที่ของกลุ่ม) → พื้นที่ของชิ้นนี้ ให้ Client คำนวณง่าย
+			local amp = anim.Amp or 0
+			if anim.Kind == "Bob" or anim.Kind == "Rise" then
+				amp *= scale
+			end
+			part:SetAttribute("Anim", anim.Kind)
+			part:SetAttribute("AnimSpeed", anim.Speed or 1)
+			part:SetAttribute("AnimAmp", amp)
+			part:SetAttribute("AnimPhase", anim.Phase or 0)
+			local pivotAt = if anim.PivotAt then anim.PivotAt * scale else scaled.Position
+			part:SetAttribute("AnimPivot", scaled:PointToObjectSpace(pivotAt))
+			part:SetAttribute("AnimAxis", scaled:VectorToObjectSpace(anim.Axis or Vector3.new(0, 0, 1)).Unit)
+		end
+		table.insert(pieces, { part = part, offset = scaled, group = group })
 		return part
 	end
 end
 
 -- ทรงกระบอกของ Roblox ยาวตามแกน X → หมุนให้ยาวตามแกน Z (ทิศยิง) [Verified: Cylinder shape axis = X]
 local ALONG_Z = CFrame.Angles(0, math.pi / 2, 0)
+-- ทรงกระบอกตั้งขึ้น (แกน X ชี้ฟ้า) = แผ่นกลม/เสาตั้ง
+local UPRIGHT = CFrame.Angles(0, 0, math.pi / 2)
 
--- ใส่แสงเรืองรอบชิ้น part (range = รัศมีแสงเป็น studs)
+-- ใส่แสงเรืองรอบชิ้น (range = รัศมีแสง studs)
 local function glow(part: BasePart, color: Color3, range: number)
 	local light = Instance.new("PointLight")
 	light.Color = color
@@ -133,226 +176,488 @@ local function glow(part: BasePart, color: Color3, range: number)
 	light.Parent = part
 end
 
--- Add = ชนิดของฟังก์ชัน add · Built = ผลของ build* แต่ละแบบ (หัว, ลำกล้อง, muzzle = ระยะจุดหมุนถึงปากกระบอก)
--- typeof(...) ในบรรทัด type = ให้ตัวตรวจโค้ด "ดูเอาเอง" ว่า add หน้าตาเป็นยังไง (ไม่ได้สร้าง Model จริงตอนเกมรัน)
-type Add = typeof(builder(Instance.new("Model"), {}, {}))
-type Built = { head: BasePart, barrel: BasePart, muzzle: number }
+type Add = typeof(builder(Instance.new("Model"), {}, {}, 1))
+-- head = ชิ้นหัว (ติดป้าย) · barrel = ลำกล้องหลัก · muzzle = ระยะจุดหมุนถึงปากกระบอก (ก่อนขยาย) · accentPart = ชิ้นที่ใส่แสงตามขั้น
+type Built = { head: BasePart, barrel: BasePart, muzzle: number, accentPart: BasePart? }
+-- ทรงแท่นฐาน (Pedestal) ของแต่ละธาตุ · width = กว้าง/เส้นผ่านศูนย์กลาง (studs)
+type Base = { shape: Enum.PartType, width: number, color: Color3, material: Enum.Material }
 
--- ===== หน้าตาแต่ละแบบ (accent = สีหลักของคลาส/สายจาก Config) =====
--- ✏️ แก้ตรงนี้ถ้าอยากเปลี่ยนรูปทรงป้อม: ทุกฟังก์ชันด้านล่างทำแบบเดียวกัน
---   (1) สร้างชิ้น "Head" (ต้องมี query = true) (2) สร้างชิ้น "Barrel" (3) ชิ้นประดับ (4) คืน { head, barrel, muzzle }
---   muzzle = ระยะจากจุดหมุนถึงปากกระบอก (กระสุนเริ่มวาดตรงนั้น) · ยืดลำกล้องยาวขึ้น → เพิ่ม muzzle ตาม
---   เพิ่มชิ้นใหม่: ก๊อปบรรทัด add(...) มาแก้ขนาด/ตำแหน่ง/สี ได้เลย
+-- ===== ป้อมโค้ด: หน้าตาแต่ละธาตุ (accent = สีธาตุ / สีบอลไฟตามเลเวล · tier = ขั้นหน้าตา 1..6) =====
+-- ✏️ ทุกฟังก์ชันทำแบบเดียวกัน: (1) ชิ้น "Head" (query = true) (2) ชิ้น "Barrel" (3) ของประดับ (4) คืน { head, barrel, muzzle }
+-- ขั้นสูงขึ้น = มีชิ้นเพิ่ม (if tier >= N then ...) + tierDecor ใส่ของแต่งกลางๆ ให้ทุกธาตุ
 
--- ยังไม่เลือกคลาส: หัวกล่องสีฟ้าอมเขียว + ลำกล้องธรรมดา
-local function buildUnchosen(add: Add): Built
+-- ยังไม่เลือกธาตุ: หัวกล่องสีฟ้าอมเขียว + ลำกล้องธรรมดา
+local function buildUnchosen(add: Add, _accent: Color3, _tier: number): Built
 	local head = add("head", "Head", Vector3.new(3, 2.5, 3), UNCHOSEN_HEAD, CFrame.new(), { tint = true, query = true })
 	local barrel = add("barrel", "Barrel", Vector3.new(0.8, 0.8, 4), DARK_METAL, CFrame.new(0, 0, -3))
 	return { head = head, barrel = barrel, muzzle = 5 }
 end
 
--- นักเวท: ลูกแก้วคริสตัลลอย + หนามคริสตัลรอบๆ · ลำกล้อง = แท่งคริสตัล
-local function buildMage(add: Add, accent: Color3, branchId: string): Built
-	local collarAt = CFrame.new(0, -1.2, 0) * CFrame.Angles(0, 0, math.pi / 2) -- แผ่นกลมแนวราบใต้ลูกแก้ว
-	add("head", "Collar", Vector3.new(0.6, 3.2, 3.2), DARK_METAL, collarAt, { shape = Enum.PartType.Cylinder })
-	local head = add("head", "Head", Vector3.new(2.6, 2.6, 2.6), accent, CFrame.new(0, 0.3, 0), {
-		shape = Enum.PartType.Ball,
-		material = Enum.Material.Neon,
-		tint = true,
-		query = true,
-	})
-	-- `for index = 0, 3 do` = วนนับ 0,1,2,3 (4 รอบ) → หนามคริสตัล 4 อัน รอบลูกแก้ว
-	-- มุม = index × 90° + 45° → 45°, 135°, 225°, 315° (เฉียงสี่มุม)
-	-- วิธีวาง: หมุนรอบแกนตั้งไปที่มุมนั้น → เลื่อนออกไป 1.7 → เอียงหนาม · accent:Lerp(ขาว, 0.4) = ผสมสีหลักกับขาว 40% (สีอ่อนลง)
+-- 🔥 ไฟ: ฐานกล่องเตี้ยกว้างหินบะซอลต์ + ช่องระบายไฟ 4 ด้าน · ลำกล้องครกสั้นอ้วนเหล็กแดงเข้ม · แกนลูกบาศก์ Neon
+-- ขั้น 3+: ลำกล้องมีวงเรืองแสงเพิ่ม · ขั้น 5+: ไฟลุกบนช่องระบาย (กะพริบ)
+local function buildFire(add: Add, accent: Color3, tier: number): Built
 	for index = 0, 3 do
-		local angle = index * math.pi / 2 + math.pi / 4
-		add(
-			"head",
-			"Crystal",
-			Vector3.new(0.5, 1.8, 0.5),
-			accent:Lerp(Color3.new(1, 1, 1), 0.4),
-			CFrame.Angles(0, angle, 0) * CFrame.new(0, 0.2, -1.7) * CFrame.Angles(math.rad(-25), 0, math.rad(45)),
-			{ material = Enum.Material.Glass, tint = true }
-		)
-	end
-	local barrel = add(
-		"barrel",
-		"Barrel",
-		Vector3.new(0.6, 0.6, 3),
-		accent:Lerp(Color3.new(1, 1, 1), 0.5),
-		CFrame.new(0, 0.3, -2.6) * CFrame.Angles(0, 0, math.pi / 4),
-		{ material = Enum.Material.Glass }
-	)
-	if branchId == "Lightning" then
-		-- สายฟ้า: หนามฟ้าแหลมด้านบน
-		-- `for index = -1, 1, 2` = เริ่ม −1 ไปถึง 1 ก้าวละ 2 → ได้แค่ −1 กับ 1 = ซ้าย/ขวา (ทริคสร้างของคู่สมมาตร)
-		for index = -1, 1, 2 do
-			local at = CFrame.new(index * 0.7, 1.9, 0) * CFrame.Angles(0, 0, index * 0.4)
-			add("head", "Bolt", Vector3.new(0.3, 1.6, 0.3), accent, at, { material = Enum.Material.Neon })
-		end
-	elseif branchId == "Alchemist" then
-		-- นักแปรธาตุ: วงแหวนรุ้งรอบลูกแก้ว
-		local ring = {
-			Color3.fromRGB(255, 90, 90),
-			Color3.fromRGB(255, 220, 80),
-			Color3.fromRGB(90, 220, 120),
-			Color3.fromRGB(90, 150, 255),
-		}
-		for index, color in ring do
-			local angle = (index - 1) * math.pi / 2
-			local at = CFrame.Angles(0, angle, 0) * CFrame.new(0, 0.3, -2.1)
-			add("head", "Rune", Vector3.new(0.5, 0.5, 0.5), color, at, {
-				shape = Enum.PartType.Ball,
+		local turn = CFrame.Angles(0, index * math.pi / 2, 0)
+		add("base", "Vent", Vector3.new(2.2, 0.8, 0.3), accent, turn * CFrame.new(0, 1.6, -3.05), { material = Enum.Material.Neon })
+		if tier >= 5 then
+			add("base", "Flame", Vector3.new(1.2, 1.2, 0.3), accent:Lerp(WHITE, 0.3), turn * CFrame.new(0, 4.4, -2.7), {
 				material = Enum.Material.Neon,
+				anim = { Kind = "Blink", Speed = 7, Phase = index * 1.3 },
 			})
 		end
 	end
-	return { head = head, barrel = barrel, muzzle = 4.2 }
-end
-
--- นักธนู: ตัวหน้าไม้ไม้ + แขนคันศรสองข้าง + สาย · ลำกล้อง = ราง
-local function buildArcher(add: Add, accent: Color3, branchId: string): Built
-	local head = add("head", "Head", Vector3.new(2.4, 1.8, 2.6), WOOD, CFrame.new(0, -0.2, 0.3), {
+	local head = add("head", "Head", Vector3.new(3.2, 2, 3.2), BASALT, CFrame.new(0, -0.2, 0.3), {
+		material = Enum.Material.Slate,
 		tint = true,
 		query = true,
 	})
-	add("head", "Trim", Vector3.new(2.5, 0.3, 2.7), accent, CFrame.new(0, 0.75, 0.3), { tint = true })
-	local barrel = add("barrel", "Barrel", Vector3.new(0.6, 0.5, 4.2), WOOD, CFrame.new(0, 0.2, -1.6), { tint = true })
-	for side = -1, 1, 2 do
-		add(
-			"barrel",
-			"Arm",
-			Vector3.new(2.2, 0.35, 0.35),
-			accent,
-			CFrame.new(side * 1.2, 0.2, -3.1) * CFrame.Angles(0, side * math.rad(-20), 0),
-			{ tint = true }
-		)
-	end
-	add("barrel", "String", Vector3.new(4.2, 0.08, 0.08), Color3.fromRGB(235, 230, 210), CFrame.new(0, 0.2, -2.3))
-	add("barrel", "Bolt", Vector3.new(0.15, 0.15, 3.2), STEEL, CFrame.new(0, 0.5, -2.6), {
-		material = Enum.Material.Metal,
+	local core = add("head", "Core", Vector3.new(1.1, 1.1, 1.1), accent, CFrame.new(0, 1.2, 0.4) * CFrame.Angles(math.rad(35), math.rad(45), 0), {
+		material = Enum.Material.Neon,
 	})
-	if branchId == "Wind" then
-		-- ลม: วงแหวนลมหน้าหน้าไม้
-		add("barrel", "WindRing", Vector3.new(0.25, 2.4, 2.4), accent, CFrame.new(0, 0.2, -4) * ALONG_Z, {
-			shape = Enum.PartType.Cylinder,
-			material = Enum.Material.Neon,
-		})
-		add("head", "Fin", Vector3.new(0.2, 1.4, 1.6), accent, CFrame.new(0, 1.3, 1), { material = Enum.Material.Neon })
-	end
-	return { head = head, barrel = barrel, muzzle = 4.2 }
-end
-
--- Gatling (สายของนักธนู): เปลี่ยนร่างเป็นปืนกลหกลำกล้องหมุน
-local function buildGatling(add: Add, accent: Color3): Built
-	local head = add("head", "Head", Vector3.new(2.8, 2.2, 2.8), Color3.fromRGB(90, 94, 104), CFrame.new(0, 0, 0.4), {
-		material = Enum.Material.DiamondPlate,
-		tint = true,
-		query = true,
-	})
-	add("head", "Ammo", Vector3.new(0.8, 1.4, 1.6), Color3.fromRGB(150, 120, 60), CFrame.new(1.8, -0.2, 0.6))
-	local barrel = add("barrel", "Barrel", Vector3.new(1.4, 1.4, 1.4), DARK_METAL, CFrame.new(0, 0, -1.2) * ALONG_Z, {
+	local barrel = add("barrel", "Barrel", Vector3.new(3, 2.2, 2.2), Color3.fromRGB(110, 40, 35), CFrame.new(0, 0, -1.6) * ALONG_Z, {
 		shape = Enum.PartType.Cylinder,
 		material = Enum.Material.Metal,
+		tint = true,
 	})
-	-- ลำกล้องหมุน 6 ท่อ วางเป็นวงกลมรัศมี 0.65 · มุมห่างกัน 60° (math.pi / 3)
-	-- จุดบนวงกลม: x = cos(มุม) × รัศมี, y = sin(มุม) × รัศมี · กลุ่ม "spin" = aim จะหมุนท่อพวกนี้ทุกครั้งที่ยิง
-	for index = 0, 5 do
-		local angle = index * math.pi / 3
-		add(
-			"spin",
-			"Tube",
-			Vector3.new(4.2, 0.4, 0.4),
-			accent,
-			CFrame.new(math.cos(angle) * 0.65, math.sin(angle) * 0.65, -3.2) * ALONG_Z,
-			{ shape = Enum.PartType.Cylinder, material = Enum.Material.Metal, tint = true }
-		)
-	end
-	for _, z in { -2, -4.8 } do
-		add("spin", "Clamp", Vector3.new(0.3, 1.9, 1.9), DARK_METAL, CFrame.new(0, 0, z) * ALONG_Z, {
+	add("barrel", "Rim", Vector3.new(0.4, 2.6, 2.6), DARK_METAL, CFrame.new(0, 0, -3) * ALONG_Z, { shape = Enum.PartType.Cylinder })
+	add("barrel", "Ember", Vector3.new(0.2, 1.6, 1.6), accent, CFrame.new(0, 0, -3.2) * ALONG_Z, {
+		shape = Enum.PartType.Cylinder,
+		material = Enum.Material.Neon,
+	})
+	if tier >= 3 then
+		add("barrel", "HeatBand", Vector3.new(0.3, 2.35, 2.35), accent, CFrame.new(0, 0, -0.9) * ALONG_Z, {
 			shape = Enum.PartType.Cylinder,
-		})
-	end
-	return { head = head, barrel = barrel, muzzle = 5.5 }
-end
-
--- นักฆ่า: หัวเหลี่ยมคม (ข้าวหลามตัด) สีเข้ม + ใบมีดสองข้าง · ลำกล้อง = มีดสั้นกลาง
-local function buildAssassin(add: Add, accent: Color3, branchId: string, classColor: Color3): Built
-	local head = add(
-		"head",
-		"Head",
-		Vector3.new(2.3, 1.8, 2.3),
-		classColor,
-		CFrame.Angles(0, math.pi / 4, 0),
-		{ material = Enum.Material.Slate, tint = true, query = true }
-	)
-	local hoodAt = CFrame.new(0, 1.2, 0.2) * CFrame.Angles(0, math.pi / 4, 0)
-	add("head", "Hood", Vector3.new(1.4, 1.2, 1.4), classColor, hoodAt, { tint = true })
-	add("head", "Eye", Vector3.new(1.2, 0.2, 0.2), accent, CFrame.new(0, 0.3, -1.65), { material = Enum.Material.Neon })
-	local barrel = add("barrel", "Barrel", Vector3.new(0.3, 0.6, 3.2), STEEL, CFrame.new(0, 0, -2.4), {
-		material = Enum.Material.Metal,
-	})
-	-- ยังไม่มีสาย → ใบมีดเหล็กธรรมดา · มีสาย → ใบมีดเรืองแสงสีของสาย
-	local bladeColor = if branchId == "" then STEEL else accent
-	for side = -1, 1, 2 do
-		add(
-			"barrel",
-			"Blade",
-			Vector3.new(0.2, 0.7, 3.2),
-			bladeColor,
-			CFrame.new(side * 1.5, 0, -1.4) * CFrame.Angles(0, side * math.rad(12), 0),
-			{ material = if branchId == "" then Enum.Material.Metal else Enum.Material.Neon }
-		)
-	end
-	if branchId == "Poison" then
-		add("head", "Vial", Vector3.new(0.9, 0.9, 0.9), accent, CFrame.new(0, 1.3, 1.2), {
-			shape = Enum.PartType.Ball,
-			material = Enum.Material.Glass,
-		})
-	elseif branchId == "Dark" then
-		local orb = add("head", "Void", Vector3.new(1.1, 1.1, 1.1), accent, CFrame.new(0, 2.2, 0.2), {
-			shape = Enum.PartType.Ball,
 			material = Enum.Material.Neon,
 		})
-		glow(orb, accent, 8)
 	end
-	return { head = head, barrel = barrel, muzzle = 4 }
+	return { head = head, barrel = barrel, muzzle = 3.4, accentPart = core }
 end
 
--- ปืนใหญ่: ป้อมทองเหลืองลำกล้องอ้วน · สายไฟ = มีบอลไฟเรืองแสงที่ปากกระบอกตามสีเลเวล
-local function buildCannon(add: Add, accent: Color3, branchId: string, classColor: Color3): Built
-	local head = add("head", "Head", Vector3.new(3.2, 3.2, 3.2), classColor, CFrame.new(0, 0, 0.4), {
+-- 💧 น้ำ: ฐานกลมขาวน้ำเงิน · ลำกล้องยาวเรียว Glass ฟ้าใส · ลูกแก้วน้ำลอยเหนือหัว (ลอยขึ้นลงช้าๆ ฝั่ง Client)
+-- ขั้น 3+: ครีบน้ำ 2 ข้าง · ขั้น 5+: ลูกแก้วเล็ก 3 ลูกโคจรรอบลูกแก้วใหญ่
+local function buildWater(add: Add, accent: Color3, tier: number): Built
+	add("base", "Stripe", Vector3.new(0.4, 6.2, 6.2), accent, CFrame.new(0, 3, 0) * UPRIGHT, {
+		shape = Enum.PartType.Cylinder,
+		material = Enum.Material.Neon,
+	})
+	local head = add("head", "Head", Vector3.new(1.6, 2.8, 2.8), Color3.fromRGB(225, 238, 250), CFrame.new(0, -0.3, 0.2) * UPRIGHT, {
+		shape = Enum.PartType.Cylinder,
+		material = Enum.Material.SmoothPlastic,
+		tint = true,
+		query = true,
+	})
+	local orb = add("head", "Orb", Vector3.new(2, 2, 2), accent:Lerp(WHITE, 0.3), CFrame.new(0, 2, 0.3), {
 		shape = Enum.PartType.Ball,
+		material = Enum.Material.Neon,
+		transparency = 0.3,
+		anim = { Kind = "Bob", Speed = 1.5, Amp = 0.35 },
+	})
+	if tier >= 5 then
+		for index = 0, 2 do
+			local turn = CFrame.Angles(0, index * math.pi * 2 / 3, 0)
+			add("head", "Droplet", Vector3.new(0.5, 0.5, 0.5), accent, CFrame.new(0, 2, 0.3) * turn * CFrame.new(0, 0, -1.8), {
+				shape = Enum.PartType.Ball,
+				material = Enum.Material.Neon,
+				anim = { Kind = "Orbit", Speed = 2.5, PivotAt = Vector3.new(0, 2, 0.3), Axis = Vector3.new(0, 1, 0) },
+			})
+		end
+	end
+	local barrel = add("barrel", "Barrel", Vector3.new(5, 1, 1), accent:Lerp(WHITE, 0.4), CFrame.new(0, 0, -2.6) * ALONG_Z, {
+		shape = Enum.PartType.Cylinder,
+		material = Enum.Material.Glass,
+		transparency = 0.4,
+	})
+	add("barrel", "Ring", Vector3.new(0.3, 1.4, 1.4), accent, CFrame.new(0, 0, -4.9) * ALONG_Z, {
+		shape = Enum.PartType.Cylinder,
+		material = Enum.Material.Neon,
+	})
+	if tier >= 3 then
+		for side = -1, 1, 2 do
+			add("barrel", "Fin", Vector3.new(0.15, 1, 2.2), accent, CFrame.new(side * 0.7, 0, -2) * CFrame.Angles(0, 0, side * 0.5), {
+				material = Enum.Material.Neon,
+				transparency = 0.2,
+			})
+		end
+	end
+	return { head = head, barrel = barrel, muzzle = 5.2, accentPart = orb }
+end
+
+-- 🪨 ดิน: หินกองซ้อน + มอสส์ + รอยแตก Neon อำพัน · ลำกล้องหินเหลี่ยม 2×2×4
+-- ขั้น 3+: หินก้อนที่ 3 บนกอง · ขั้น 5+: หินลอย 3 ก้อนโคจรรอบหัว
+local function buildEarth(add: Add, accent: Color3, tier: number): Built
+	add("base", "Rock1", Vector3.new(6.2, 1.8, 6.2), STONE, CFrame.new(0, 0.9, 0) * CFrame.Angles(0, math.rad(12), 0), {
+		material = Enum.Material.Slate,
+	})
+	add("base", "Rock2", Vector3.new(4.8, 1.6, 4.8), STONE:Lerp(Color3.new(0, 0, 0), 0.12), CFrame.new(0.2, 2.5, -0.1) * CFrame.Angles(0, math.rad(-20), 0), {
+		material = Enum.Material.Slate,
+	})
+	add("base", "Moss", Vector3.new(4.4, 0.3, 4.4), MOSS, CFrame.new(0.2, 3.4, -0.1) * CFrame.Angles(0, math.rad(-20), 0), {
+		material = Enum.Material.Grass,
+	})
+	for index = 0, 2 do
+		local turn = CFrame.Angles(0, index * math.pi * 2 / 3, 0)
+		add("base", "Crack", Vector3.new(0.15, 1.4, 0.15), AMBER, turn * CFrame.new(0, 1.2, -3.12) * CFrame.Angles(0, 0, math.rad(20)), {
+			material = Enum.Material.Neon,
+		})
+	end
+	if tier >= 3 then
+		add("base", "Rock3", Vector3.new(1.8, 1.4, 1.8), STONE, CFrame.new(-2, 4.1, 1.6) * CFrame.Angles(math.rad(10), math.rad(30), 0), {
+			material = Enum.Material.Slate,
+		})
+	end
+	local head = add("head", "Head", Vector3.new(3, 2.2, 3), STONE, CFrame.new(0, 0, 0.3) * CFrame.Angles(0, math.rad(8), 0), {
+		material = Enum.Material.Slate,
+		tint = true,
+		query = true,
+	})
+	local crack = add("head", "Crack", Vector3.new(0.15, 1.6, 0.15), AMBER, CFrame.new(1.52, 0, 0.3) * CFrame.Angles(math.rad(25), 0, 0), {
+		material = Enum.Material.Neon,
+	})
+	if tier >= 5 then
+		for index = 0, 2 do
+			local turn = CFrame.Angles(0, index * math.pi * 2 / 3, 0)
+			add("head", "Boulder", Vector3.new(0.9, 0.9, 0.9), accent, turn * CFrame.new(0, 1.6, -2.4), {
+				material = Enum.Material.Slate,
+				anim = { Kind = "Orbit", Speed = 1.2, PivotAt = Vector3.new(0, 1.6, 0), Axis = Vector3.new(0, 1, 0) },
+			})
+		end
+	end
+	local barrel = add("barrel", "Barrel", Vector3.new(2, 2, 4), Color3.fromRGB(105, 95, 85), CFrame.new(0, 0, -2.4), {
+		material = Enum.Material.Rock,
+		tint = true,
+	})
+	add("barrel", "Crack", Vector3.new(2.05, 0.15, 0.15), AMBER, CFrame.new(0, 0.3, -3.2), { material = Enum.Material.Neon })
+	return { head = head, barrel = barrel, muzzle = 4.4, accentPart = crack }
+end
+
+-- 🌪️ ลม: ฐานสามเหลี่ยมบาง (Wedge 3 ชิ้น) โลหะเงิน · ลำกล้องคู่เรียวยาว · ใบพัด Neon เขียวมิ้นต์หมุนรอบลำกล้อง (Client)
+-- ขั้น 3+: ใบพัดชุดที่ 2 ที่ปลายลำกล้อง · ขั้น 5+: ใบพัดชุดแรกเพิ่มเป็น 5 ใบ
+local function buildWind(add: Add, accent: Color3, tier: number): Built
+	for index = 0, 2 do
+		local turn = CFrame.Angles(0, index * math.pi * 2 / 3, 0)
+		add("base", "Fin", Vector3.new(0.4, 2.6, 3.2), SILVER, turn * CFrame.new(0, 1.3, -3.4) * CFrame.Angles(0, math.pi, 0), {
+			shape = Enum.PartType.Wedge,
+			material = Enum.Material.Metal,
+		})
+	end
+	local head = add("head", "Head", Vector3.new(2, 1.4, 2.4), SILVER, CFrame.new(0, 0, 0.4), {
 		material = Enum.Material.Metal,
 		tint = true,
 		query = true,
 	})
-	for side = -1, 1, 2 do
-		add("head", "Wheel", Vector3.new(0.4, 2.2, 2.2), WOOD, CFrame.new(side * 1.7, -0.6, 0.4), {
-			shape = Enum.PartType.Cylinder,
-		})
-	end
-	local barrel = add("barrel", "Barrel", Vector3.new(4.4, 1.9, 1.9), BRONZE, CFrame.new(0, 0, -2.4) * ALONG_Z, {
+	local barrel = add("barrel", "Barrel", Vector3.new(4.5, 0.6, 0.6), SILVER, CFrame.new(-0.4, 0, -2.4) * ALONG_Z, {
 		shape = Enum.PartType.Cylinder,
 		material = Enum.Material.Metal,
 		tint = true,
 	})
-	add("barrel", "Rim", Vector3.new(0.5, 2.4, 2.4), DARK_METAL, CFrame.new(0, 0, -4.5) * ALONG_Z, {
+	add("barrel", "Barrel2", Vector3.new(4.5, 0.6, 0.6), SILVER, CFrame.new(0.4, 0, -2.4) * ALONG_Z, {
 		shape = Enum.PartType.Cylinder,
+		material = Enum.Material.Metal,
+		tint = true,
 	})
-	-- สายไฟ: accent = สีตามขั้นเลเวล (ClassMath.fireColor) · ข้ามขั้นสี → keyOf เปลี่ยน → TurretService ปั้นใหม่ให้เอง
-	if branchId == "Fire" then
-		add("barrel", "Band", Vector3.new(0.3, 2.1, 2.1), accent, CFrame.new(0, 0, -1.4) * ALONG_Z, {
+	-- ใบพัด: วางรอบแกนลำกล้องที่ z = -1.2 · Orbit = หมุนรอบแกนนั้น (PivotAt = จุดบนแกน)
+	local function propeller(z: number, blades: number, speed: number): BasePart?
+		local first: BasePart? = nil
+		for index = 0, blades - 1 do
+			local turn = CFrame.Angles(0, 0, index * math.pi * 2 / blades)
+			local blade = add("barrel", "Blade", Vector3.new(0.15, 1.5, 0.5), accent, CFrame.new(0, 0, z) * turn * CFrame.new(0, 1.1, 0), {
+				material = Enum.Material.Neon,
+				anim = { Kind = "Orbit", Speed = speed, PivotAt = Vector3.new(0, 0, z), Axis = Vector3.new(0, 0, 1) },
+			})
+			first = first or blade
+		end
+		return first
+	end
+	local blade = propeller(-1.2, if tier >= 5 then 5 else 3, 9)
+	if tier >= 3 then
+		propeller(-4, 3, -12)
+	end
+	return { head = head, barrel = barrel, muzzle = 4.8, accentPart = blade }
+end
+
+-- ของแต่งตามขั้นเลเวล (ทุกธาตุ): ขั้น 2+ วงแหวนสีธาตุที่ลำกล้อง · ขั้น 3+ แสงเรือง · ขั้น 4+ วงแหวนลอยรอบฐาน
+--   · ขั้น 6 (Lv.50) มงกุฎเรืองแสงลอยเหนือหัว
+-- ✏️ แก้ตรงนี้ถ้าอยากเปลี่ยนว่าขั้นไหนได้อะไร (ตัวเลข tier = ลำดับใน Elements.LookTiers)
+local function tierDecor(add: Add, accent: Color3, tier: number, built: Built)
+	if tier >= 2 then
+		add("barrel", "TierBand", Vector3.new(0.25, 1.9, 1.9), accent, CFrame.new(0, 0, -0.4) * ALONG_Z, {
 			shape = Enum.PartType.Cylinder,
 			material = Enum.Material.Neon,
+			transparency = 0.1,
 		})
-		local fireball = add("barrel", "Fireball", Vector3.new(1.4, 1.4, 1.4), accent, CFrame.new(0, 0, -4.9), {
-			shape = Enum.PartType.Ball,
-			material = Enum.Material.Neon,
-		})
-		glow(fireball, accent, 12)
 	end
-	return { head = head, barrel = barrel, muzzle = 5.2 }
+	if tier >= 3 and built.accentPart then
+		glow(built.accentPart, accent, 6 + tier * 2)
+	end
+	if tier >= 4 then
+		add("base", "TierRing", Vector3.new(0.25, 8.5, 8.5), accent, CFrame.new(0, 1.2, 0) * UPRIGHT, {
+			shape = Enum.PartType.Cylinder,
+			material = Enum.Material.Neon,
+			transparency = 0.35,
+			anim = { Kind = "Bob", Speed = 1.2, Amp = 0.6 },
+		})
+	end
+	if tier >= 6 then
+		for index = 0, 4 do
+			local turn = CFrame.Angles(0, index * math.pi * 2 / 5, 0)
+			add("head", "Crown", Vector3.new(0.3, 0.9, 0.3), accent:Lerp(WHITE, 0.4), turn * CFrame.new(0, 2.9, -0.9), {
+				material = Enum.Material.Neon,
+				anim = { Kind = "Orbit", Speed = 0.8, PivotAt = Vector3.new(0, 2.9, 0), Axis = Vector3.new(0, 1, 0) },
+			})
+		end
+	end
+end
+
+-- ===== ตารางจับคู่ ธาตุ → ฟังก์ชันปั้น + ทรงฐาน =====
+-- ✏️ เพิ่มธาตุใหม่: เขียน buildXxx แล้วเพิ่มแถวที่นี่ (ชื่อ = id ใน Config/Elements) · ไม่มีแถว = ได้หน้าตา "ยังไม่เลือก"
+local BUILDERS: { [string]: (Add, Color3, number) -> Built } = {
+	Fire = buildFire,
+	Water = buildWater,
+	Earth = buildEarth,
+	Wind = buildWind,
+}
+local BASES: { [string]: Base } = {
+	Fire = { shape = Enum.PartType.Block, width = 6, color = BASALT, material = Enum.Material.Basalt },
+	Water = { shape = Enum.PartType.Cylinder, width = 6, color = Color3.fromRGB(215, 232, 250), material = Enum.Material.SmoothPlastic },
+	Earth = { shape = Enum.PartType.Block, width = 2.5, color = STONE, material = Enum.Material.Slate },
+	Wind = { shape = Enum.PartType.Cylinder, width = 2.2, color = SILVER, material = Enum.Material.Metal },
+}
+local DEFAULT_BASE: Base = { shape = Enum.PartType.Cylinder, width = 6, color = PEDESTAL_COLOR, material = Enum.Material.Plastic }
+
+-- ===== ป้ายชื่อ =====
+-- ป้ายชื่อเหนือหัว (ข้อความ TurretService ใส่ใน refreshLabel) · ไกลเกิน 150 studs ไม่แสดง
+local function makeLabel(parent: BasePart, height: number): TextLabel
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(200, 28)
+	gui.StudsOffset = Vector3.new(0, height, 0)
+	gui.MaxDistance = 150
+	gui.Parent = parent
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.TextColor3 = WHITE
+	label.TextStrokeTransparency = 0.4
+	label.Parent = gui
+	return label
+end
+
+-- ทิศหันเริ่มต้น (แนวราบไปทางบอส) ที่ตำแหน่ง at
+local function facingFrame(at: Vector3, facing: Vector3): CFrame
+	local flat = Vector3.new(facing.X, at.Y, facing.Z)
+	return if (flat - at).Magnitude > 0.01 then CFrame.lookAt(at, flat) else CFrame.new(at)
+end
+
+-- ===== (ก) ป้อมโค้ด =====
+local function buildPrototype(foot: Vector3, id: string, accent: Color3, tier: number, facing: Vector3): Look
+	-- ขนาดโตตามขั้น: ขั้น 1 = 1 · ขั้น 6 = 1 + 0.06 × 5 = 1.3
+	local scale = 1 + Elements.LookScalePerTier * (tier - 1)
+	local model = Instance.new("Model")
+	local pieces: { Piece } = {}
+	local tinted: { [BasePart]: Color3 } = {}
+	local add = builder(model, pieces, tinted, scale)
+
+	-- แท่นฐาน (Pedestal) ทรงตามธาตุ · สูง (HEAD_HEIGHT − 1) × scale · ฐานแตะพื้นพอดี
+	local base = BASES[id] or DEFAULT_BASE
+	local height = (HEAD_HEIGHT - 1) * scale
+	local width = base.width * scale
+	local pedestal: Part
+	if base.shape == Enum.PartType.Block then
+		pedestal = newPart("Pedestal", Vector3.new(width, height, width), base.color, model)
+		pedestal.CFrame = CFrame.new(foot + Vector3.new(0, height / 2, 0))
+	else
+		pedestal = newPart("Pedestal", Vector3.new(height, width, width), base.color, model)
+		pedestal.Shape = Enum.PartType.Cylinder
+		pedestal.CFrame = CFrame.new(foot + Vector3.new(0, height / 2, 0)) * UPRIGHT
+	end
+	pedestal.Material = base.material
+
+	-- ปั้นตามธาตุ · ไม่รู้จัก → ป้อม "ยังไม่เลือก" (ไม่มีของแต่งตามขั้น)
+	local build = BUILDERS[id]
+	local built = if build then build(add, accent, tier) else buildUnchosen(add, accent, tier)
+	if build then
+		tierDecor(add, accent, tier, built)
+	end
+
+	-- วางชิ้นกลุ่ม base ครั้งเดียว (หันตามทิศบอสแนวราบ)
+	local baseFrame = facingFrame(foot, facing)
+	for _, piece in pieces do
+		if piece.group == "base" then
+			piece.part.CFrame = baseFrame * piece.offset
+		end
+	end
+
+	model.PrimaryPart = pedestal
+	return {
+		model = model,
+		pedestal = pedestal,
+		head = built.head,
+		barrel = built.barrel,
+		label = makeLabel(built.head, 3.5 * scale),
+		headPosition = foot + Vector3.new(0, HEAD_HEIGHT * scale, 0),
+		foot = foot,
+		scale = scale,
+		muzzleDistance = built.muzzle * scale,
+		pieces = pieces,
+		tinted = tinted,
+		spinAngle = 0,
+		shield = nil,
+		custom = false,
+		key = "",
+	}
+end
+
+-- ===== (ข) โมเดลที่ import เอง =====
+-- หาโมเดลใน ServerStorage > TurretModels: "<ธาตุ>_<ขั้นนี้>" → ขั้นต่ำกว่าที่ใกล้สุด → "<ธาตุ>" · ไม่มี = nil
+local function findTemplate(id: string, tier: number): Model?
+	local folder = ServerStorage:FindFirstChild(Elements.CustomModel.Folder)
+	if not folder then
+		return nil
+	end
+	local name = if id ~= "" then id else "Unchosen"
+	for index = tier, 1, -1 do
+		local found = folder:FindFirstChild(`{name}_{Elements.LookTiers[index]}`)
+		if found and found:IsA("Model") then
+			return found
+		end
+	end
+	local plain = folder:FindFirstChild(name)
+	return if plain and plain:IsA("Model") then plain else nil
+end
+
+-- กลุ่มของชิ้นในโมเดล import: ดูชื่อตัวเองและชั้นแม่ (Model/Folder) ขึ้นไปจนถึงตัวโมเดล · ไม่ตรงชื่อไหน = base
+local GROUP_NAMES: { [string]: Group } = { Base = "base", Head = "head", Barrel = "barrel", Spin = "spin" }
+local function groupOf(part: Instance, root: Instance): Group
+	local node: Instance? = part
+	while node and node ~= root do
+		local group = GROUP_NAMES[node.Name]
+		if group then
+			return group
+		end
+		node = node.Parent
+	end
+	return "base"
+end
+
+-- ชิ้น BasePart แรกที่ชื่อ name (ค้นทุกชั้น) หรือ BasePart แรกใน Model/Folder ชื่อ name
+local function findPart(root: Instance, name: string): BasePart?
+	for _, item in root:GetDescendants() do
+		if item.Name == name then
+			if item:IsA("BasePart") then
+				return item
+			end
+			local inner = item:FindFirstChildWhichIsA("BasePart", true)
+			if inner then
+				return inner
+			end
+		end
+	end
+	return nil
+end
+
+local function buildCustom(template: Model, foot: Vector3, accent: Color3, facing: Vector3): Look?
+	local model = template:Clone()
+	-- ขั้น 1: ตั้งค่าความปลอดภัย/ฟิสิกส์ · ลบสคริปต์ที่ติดมากับโมเดล (กันโค้ดแปลกปลอมรันในเกม)
+	for _, item in model:GetDescendants() do
+		if item:IsA("BaseScript") or item:IsA("ModuleScript") then
+			item:Destroy()
+		elseif item:IsA("BasePart") then
+			item.Anchored = true
+			item.CanTouch = false
+			item.CanQuery = false
+			if groupOf(item, model) ~= "base" then
+				item.CanCollide = false
+			end
+			-- Glow = สีธาตุ + เรืองแสง
+			if item.Name == "Glow" then
+				item.Color = accent
+				item.Material = Enum.Material.Neon
+			end
+		end
+	end
+	local anyPart = model:FindFirstChildWhichIsA("BasePart", true)
+	if not anyPart then
+		model:Destroy()
+		warn(`[TurretLook] โมเดล {template.Name} ไม่มีชิ้นส่วน (BasePart) → ใช้ป้อมโค้ดแทน`)
+		return nil
+	end
+
+	-- ขั้น 2: ย่อ/ขยายให้สูงเท่า CustomModel.Height (ถ้าตั้งไว้) · ScaleTo = ย่อขยายทั้งโมเดลพร้อมกัน [Inferred: API ปี 2023+]
+	local wanted = Elements.CustomModel.Height
+	if type(wanted) == "number" and wanted > 0 then
+		local _, size = model:GetBoundingBox()
+		if size.Y > 0.01 then
+			local ok, err = pcall(function()
+				model:ScaleTo(model:GetScale() * wanted / size.Y)
+			end)
+			if not ok then
+				warn(`[TurretLook] ย่อ/ขยายโมเดล {template.Name} ไม่ได้: {err}`)
+			end
+		end
+	end
+
+	-- ขั้น 3: วาง "ก้นโมเดล" ลงบนแท่น · หันหน้า (-Z ของ Pivot) ไปทางบอสแนวราบ
+	-- rel = ก้นโมเดลเทียบกับ Pivot · Pivot ใหม่ = จุดวาง × เลื่อนกลับ rel → ก้นโมเดลอยู่ที่ foot พอดี
+	local pivot = model:GetPivot()
+	local boxFrame, boxSize = model:GetBoundingBox()
+	local bottom = (boxFrame * CFrame.new(0, -boxSize.Y / 2, 0)).Position
+	local rel = pivot:PointToObjectSpace(bottom)
+	local placed = facingFrame(foot, facing)
+	model:PivotTo(placed * CFrame.new(-rel))
+
+	-- ขั้น 4: จุดหมุนเล็ง = ชิ้น Head (ไม่มี = สูง 75% ของโมเดล) · จดทุกชิ้นที่หมุนเทียบกับจุดหมุนนั้น
+	local head = findPart(model, "Head")
+	local barrel = findPart(model, "Barrel")
+	local pedestal = findPart(model, "Base") or model.PrimaryPart or anyPart
+	local pivotPosition = if head then head.Position else foot + Vector3.new(0, boxSize.Y * 0.75, 0)
+	local frame0 = CFrame.lookAt(pivotPosition, pivotPosition + placed.LookVector)
+	local pieces: { Piece } = {}
+	local tinted: { [BasePart]: Color3 } = {}
+	for _, item in model:GetDescendants() do
+		if item:IsA("BasePart") then
+			local group = groupOf(item, model)
+			if group ~= "base" then
+				table.insert(pieces, { part = item, offset = frame0:ToObjectSpace(item.CFrame), group = group })
+				if item.Name ~= "Glow" then
+					tinted[item] = item.Color
+				end
+			end
+		end
+	end
+	if head then
+		head.CanQuery = true
+	end
+
+	-- ขั้น 5: ปากกระบอก = Attachment "Muzzle" · ไม่มี = ปลายชิ้น Barrel (ประมาณ) · ไม่มี Barrel = 4 studs
+	local muzzleDistance = 4
+	local muzzle = model:FindFirstChild("Muzzle", true)
+	if muzzle and muzzle:IsA("Attachment") then
+		muzzleDistance = (muzzle.WorldPosition - pivotPosition).Magnitude
+	elseif barrel then
+		local longest = math.max(barrel.Size.X, barrel.Size.Y, barrel.Size.Z)
+		muzzleDistance = (barrel.Position - pivotPosition).Magnitude + longest / 2
+	end
+
+	model.PrimaryPart = pedestal
+	local labelOn = head or pedestal
+	return {
+		model = model,
+		pedestal = pedestal,
+		head = labelOn,
+		barrel = barrel or labelOn,
+		label = makeLabel(labelOn, 3.5),
+		headPosition = pivotPosition,
+		foot = foot,
+		scale = math.max((pivotPosition.Y - foot.Y) / HEAD_HEIGHT, 0.5),
+		muzzleDistance = math.max(muzzleDistance, 0.5),
+		pieces = pieces,
+		tinted = tinted,
+		spinAngle = 0,
+		shield = nil,
+		custom = true,
+		key = "",
+	}
 end
 
 -- ===== API ให้ TurretService เรียก =====
@@ -360,38 +665,29 @@ local TurretLook = {}
 
 TurretLook.HEAD_HEIGHT = HEAD_HEIGHT
 
--- คีย์หน้าตา: เปลี่ยนเมื่อคลาส/สายเปลี่ยน หรือสายไฟข้ามขั้นสีใน FireColors
-function TurretLook.keyOf(classId: string, branchId: string, level: number): string
-	-- คีย์ = "คลาส|สาย|ขั้นสีไฟ" · ขั้นสีไฟนับเฉพาะสายไฟ (สายอื่น = 0 เพราะเลเวลไม่เปลี่ยนหน้าตา)
-	-- ตัวอย่าง: นักเวทสายฟ้า → "Mage|Lightning|0" · ปืนใหญ่สายไฟ Lv.25 → "Cannon|Fire|2"
-	-- ⚠️ ระวัง: ถ้าเพิ่มสิ่งที่ทำให้หน้าตาเปลี่ยน (เช่น ตามเลเวล) ต้องใส่ลงคีย์นี้ด้วย ไม่งั้นป้อมไม่ถูกปั้นใหม่
-	local stats = ClassMath.stats(classId, branchId, level)
-	local tier = if stats.Effect and stats.Effect.Kind == "FireColor" then ClassMath.fireTier(level) else 0
-	local class = if ClassMath.isClass(classId) then classId else ""
-	return `{class}|{ClassMath.validBranch(classId, branchId)}|{tier}`
+-- คีย์หน้าตา: "ธาตุ|ขั้นหน้าตา|ขั้นสีไฟ" (ElementMath.lookKey) · ต่าง = TurretService ปั้นใหม่
+function TurretLook.keyOf(element: string, level: number): string
+	return ElementMath.lookKey(element, level)
 end
 
--- เล็งเป้า: หัวหมุนแนวราบ · ลำกล้องหันตรงไปที่เป้า · Gatling หมุนลำกล้องเพิ่มทีละขั้น
+-- เล็งเป้า: หัวหมุนแนวราบ · ลำกล้องหันตรงไปที่เป้า · กลุ่ม spin หมุนเพิ่มทีละขั้น · กลุ่ม base ไม่ขยับ
 function TurretLook.aim(look: Look, target: Vector3)
-	-- CFrame.lookAt(จุดวาง, จุดที่มอง) = ท่าทางที่ "ยืนที่จุดวางแล้วหันหน้าไปหาจุดที่มอง"
-	-- yaw  = หันแนวราบอย่างเดียว (ใช้ความสูงของหัวป้อมเองแทนความสูงเป้า → ไม่ก้ม/เงย) ใช้กับกลุ่ม head
-	-- full = หันตรงไปที่เป้าเต็มทิศ (ก้ม/เงยด้วย) ใช้กับกลุ่ม barrel / spin
-	-- เช็ก > 0.01 กันกรณีเป้าอยู่ตรงจุดหมุนพอดี (หาทิศไม่ได้ lookAt จะเพี้ยน) → nil = ไม่ขยับ
 	local pivot = look.headPosition
 	local flat = Vector3.new(target.X, pivot.Y, target.Z)
 	local yaw = if (flat - pivot).Magnitude > 0.01 then CFrame.lookAt(pivot, flat) else nil
 	local full = if (target - pivot).Magnitude > 0.01 then CFrame.lookAt(pivot, target) else yaw
-	-- มุมหมุนของ Gatling เพิ่มทีละ 40° ทุกครั้งที่เล็ง · % (2π) = วนกลับเป็น 0 เมื่อครบรอบ 360° (ตัวเลขไม่โตไปเรื่อยๆ)
-	look.spinAngle = (look.spinAngle + GATLING_SPIN_STEP) % (2 * math.pi)
+	-- % (2π) = วนกลับเป็น 0 เมื่อครบรอบ (ตัวเลขไม่โตไปเรื่อยๆ)
+	look.spinAngle = (look.spinAngle + SPIN_STEP) % (2 * math.pi)
 	local roll = CFrame.Angles(0, 0, look.spinAngle)
-	-- วางทุกชิ้นใหม่: ท่าทางของกลุ่ม × offset ของชิ้น (ตำแหน่งเทียบหัวที่จดไว้ตอน add) = ตำแหน่งจริงในโลก
 	for _, piece in look.pieces do
 		if piece.group == "head" then
 			if yaw then
 				piece.part.CFrame = yaw * piece.offset
 			end
-		elseif full then
-			piece.part.CFrame = if piece.group == "spin" then full * roll * piece.offset else full * piece.offset
+		elseif piece.group == "barrel" or piece.group == "spin" then
+			if full then
+				piece.part.CFrame = if piece.group == "spin" then full * roll * piece.offset else full * piece.offset
+			end
 		end
 	end
 end
@@ -403,10 +699,26 @@ function TurretLook.setStunned(look: Look, stunned: boolean)
 	end
 end
 
--- จุดปากกระบอกในโลก (จุดเริ่มกระสุนที่ส่งให้ Client วาด): จากหัวป้อมไปทางเป้า muzzleDistance studs
+-- เกราะหิน (สกิลดิน): กล่องหินโปร่งครอบป้อม · on = false → ลบ
+function TurretLook.setShield(look: Look, on: boolean)
+	if on and not look.shield then
+		local height = HEAD_HEIGHT * look.scale + 3
+		local box = newPart("StoneShield", Vector3.new(8, 0, 8) * math.max(look.scale, 1) + Vector3.new(0, height, 0), SHIELD_COLOR, look.model)
+		box.Material = Enum.Material.Slate
+		box.Transparency = 0.6
+		box.CanCollide = false
+		box.CanQuery = false
+		box.CastShadow = false
+		box.CFrame = CFrame.new(look.foot + Vector3.new(0, height / 2, 0))
+		look.shield = box
+	elseif not on and look.shield then
+		look.shield:Destroy()
+		look.shield = nil
+	end
+end
+
+-- จุดปากกระบอกในโลก: จากหัวป้อมไปทางเป้า muzzleDistance studs
 function TurretLook.muzzleOf(look: Look, target: Vector3): Vector3
-	-- direction = ลูกศรจากหัวป้อมไปเป้า · .Unit = ลูกศรทิศเดิมแต่ยาว 1 · × muzzleDistance = ยาวเท่าลำกล้อง
-	-- ตัวอย่าง: หัวอยู่ (0,5,0) เป้าอยู่ (0,5,−100) muzzle 4.2 → ปากกระบอก = (0,5,−4.2)
 	local direction = target - look.headPosition
 	if direction.Magnitude < 0.01 then
 		return look.headPosition
@@ -415,77 +727,21 @@ function TurretLook.muzzleOf(look: Look, target: Vector3): Vector3
 end
 
 -- สร้างป้อมที่ฐาน foot (ระดับพื้น) · หันไปที่ facing · ยังไม่ใส่ Parent (TurretService ใส่เอง)
-function TurretLook.build(foot: Vector3, classId: string, branchId: string, level: number, facing: Vector3): Look
-	-- ขั้น 1: เตรียมกล่อง Model + รายการชิ้น + "เครื่องปั้น" add ที่ผูกกับ model นี้
-	local model = Instance.new("Model")
-	local pieces: { Piece } = {}
-	local tinted: { [BasePart]: Color3 } = {}
-	local add = builder(model, pieces, tinted)
-
-	-- ขั้น 2: ฐานทรงกระบอก (ไม่หมุนตามเป้า จึงไม่ใช้ add) · Cylinder ยาวตามแกน X → หมุน 90° ให้ตั้งขึ้น
-	-- สูง HEAD_HEIGHT − 1 = 4 · ศูนย์กลางอยู่ที่ครึ่งความสูง (2) → ฐานแตะพื้นพอดี
-	local pedestal = newPart("Pedestal", Vector3.new(HEAD_HEIGHT - 1, 6, 6), PEDESTAL_COLOR, model)
-	pedestal.Shape = Enum.PartType.Cylinder
-	pedestal.CFrame = CFrame.new(foot + Vector3.new(0, (HEAD_HEIGHT - 1) / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2)
-
-	-- ขั้น 3: ถาม ClassMath ว่าสีหลักคืออะไร (สีสาย ถ้ามีสาย · สีคลาส ถ้ายังไม่มี · สายไฟ = สีตามเลเวล)
-	local stats = ClassMath.stats(classId, branchId, level)
-	local class = if ClassMath.isClass(classId) then classId else ""
-	local branch = ClassMath.validBranch(classId, branchId) -- ไม่ตรงคลาส/ข้อมูลเสีย = ไม่มีสาย
-	local accent = stats.Color
-
-	-- เลือกหน้าตาตามคลาส · ชื่อคลาส/สายต้องตรงกับ Config (สะกดผิด = ได้หน้าตา "ยังไม่เลือก")
-	-- ขั้น 4: เรียกฟังก์ชันปั้นตามคลาส · นักธนูสาย Gatling เปลี่ยนร่างทั้งตัว จึงแยกไป buildGatling
-	--   นักฆ่า/ปืนใหญ่ ส่งสีคลาส (stats ของคลาสแบบไม่มีสาย) ไปด้วย เพราะตัวป้อมใช้สีคลาส ส่วนประดับใช้สีสาย
-	-- ✏️ แก้ตรงนี้ถ้าเพิ่มคลาสใหม่ (เพิ่ม elseif class == "ชื่อคลาส" then built = buildชื่อใหม่(...))
-	local built: Built
-	if class == "Mage" then
-		built = buildMage(add, accent, branch)
-	elseif class == "Archer" then
-		built = if branch == "Gatling" then buildGatling(add, accent) else buildArcher(add, accent, branch)
-	elseif class == "Assassin" then
-		built = buildAssassin(add, accent, branch, ClassMath.stats(class, "", level).Color)
-	elseif class == "Cannon" then
-		built = buildCannon(add, accent, branch, ClassMath.stats(class, "", level).Color)
-	else
-		built = buildUnchosen(add)
+function TurretLook.build(foot: Vector3, element: string, level: number, facing: Vector3): Look
+	-- ขั้น 1: ธาตุที่ใช้ได้จริง · สี · ขั้นหน้าตา (1..6)
+	local stats = ElementMath.stats(element, level)
+	local tier = ElementMath.lookTier(level)
+	-- ขั้น 2: มีโมเดล import → ใช้ · ไม่มี/ใช้ไม่ได้ → ป้อมโค้ด
+	local template = findTemplate(stats.Id, tier)
+	local look = if template then buildCustom(template, foot, stats.Color, facing) else nil
+	if not look then
+		look = buildPrototype(foot, stats.Id, stats.Color, tier, facing)
 	end
-
-	-- ป้ายชื่อเหนือหัว (ข้อความ TurretService ใส่ให้ใน refreshLabel) · ไกลเกิน 150 studs ไม่แสดง
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(180, 28)
-	gui.StudsOffset = Vector3.new(0, 3.5, 0)
-	gui.MaxDistance = 150
-	gui.Parent = built.head
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.4
-	label.Parent = gui
-
-	-- PrimaryPart = ชิ้นหลักของ Model (ใช้อ้างตำแหน่งทั้งโมเดล)
-	model.PrimaryPart = pedestal
-
-	-- ขั้น 5: รวมข้อมูลทั้งหมดเป็น Look ให้ TurretService เก็บไว้ · จุดหมุนหัว = ฐาน + สูงขึ้น HEAD_HEIGHT (5)
-	-- แล้วเล็งไปทางบอสครั้งแรก (aim จะจัดทุกชิ้นให้อยู่ที่ของมัน · ก่อนหน้านี้ชิ้นยังกองอยู่ที่จุดศูนย์)
-	local look: Look = {
-		model = model,
-		pedestal = pedestal,
-		head = built.head,
-		barrel = built.barrel,
-		label = label,
-		headPosition = foot + Vector3.new(0, HEAD_HEIGHT, 0),
-		muzzleDistance = built.muzzle,
-		pieces = pieces,
-		tinted = tinted,
-		spinAngle = 0,
-		key = TurretLook.keyOf(classId, branchId, level),
-	}
-	TurretLook.aim(look, Vector3.new(facing.X, look.headPosition.Y, facing.Z))
-	return look
+	local result = look :: Look
+	result.key = TurretLook.keyOf(element, level)
+	-- ขั้น 3: เล็งไปทางบอสครั้งแรก (จัดทุกชิ้นให้เข้าที่)
+	TurretLook.aim(result, Vector3.new(facing.X, result.headPosition.Y, facing.Z))
+	return result
 end
 
 return TurretLook

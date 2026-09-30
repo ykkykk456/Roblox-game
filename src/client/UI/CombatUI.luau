@@ -8,6 +8,7 @@
 --   ย้ายแผงป้อม/ปุ่มอัป/ปุ่มสกิล → หมวด "แผงป้อม" (panel.Position / Size)
 --   ข้อความที่แสดง → renderBoss / renderBoard / renderTurret · สี → UI/Theme.luau
 --   ปุ่มลัด U/Y (อัป) และ Q/X (สกิล) ที่โชว์บนปุ่ม → keyHint(...) ใน renderTurret (ปุ่มจริงผูกใน TurretController)
+--   ชื่อสกิลบนปุ่ม = สกิลของธาตุ (Config/Elements · Skill.Name) · คูลดาวน์จาก Attribute SkillReadyAt/SkillActiveUntil (Server ตั้ง)
 -- ⚠️ ตัวเลขดาเมจ/ราคาบนจอเป็นแค่การแสดงผล · ดาเมจจริงและการหักเงินทำที่ Server เท่านั้น
 
 local HttpService = game:GetService("HttpService")
@@ -17,8 +18,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
-local Skills = require(ReplicatedStorage.Shared.Config.Skills)
-local ClassMath = require(ReplicatedStorage.Shared.Util.ClassMath)
+local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local Components = require(script.Parent.Components)
 local Theme = require(script.Parent.Theme)
@@ -127,8 +127,8 @@ local function renderTurret()
 	local level = TurretMath.clampLevel(player:GetAttribute("TurretLevel"))
 	local boost = numberAttr(player, "FriendBoost", 0)
 	local boostText = if boost > 0 then ` · 👥 +{math.floor(boost * 100 + 0.5)}%` else ""
-	-- รวมตัวคูณคลาส/สายธาตุ (ClassMath) เพื่อแสดงผลเท่านั้น · ดาเมจจริงคำนวณที่ Server
-	local stats = ClassMath.stats(player:GetAttribute("TurretClass"), player:GetAttribute("TurretBranch"), level)
+	-- รวมตัวคูณธาตุ (ElementMath) เพื่อแสดงผลเท่านั้น · ดาเมจจริงคำนวณที่ Server
+	local stats = ElementMath.stats(player:GetAttribute("Element"), level)
 	local rateText = string.format("%.1f", TurretMath.fireRate(level) * stats.FireRate)
 	local damageText = shortNumber(TurretMath.damage(level) * stats.Damage)
 	turretInfo.Text =
@@ -145,12 +145,16 @@ local function renderTurret()
 		upgradeButton.TextTransparency = if coins >= cost then 0 else 0.5
 	end
 
-	local equipped = Skills.List[player:GetAttribute("EquippedSkill") or ""]
-	local skillName = if equipped then equipped.Name else "-"
+	-- ปุ่มสกิล = สกิลของธาตุ (Config/Elements) · เวลาคูลดาวน์มาจาก Attribute ที่ Server ตั้ง (SkillReadyAt / SkillActiveUntil)
+	local skill = stats.Skill
+	local skillName = if skill then skill.Name else "-"
 	local serverNow = workspace:GetServerTimeNow()
 	local activeLeft = numberAttr(player, "SkillActiveUntil", 0) - serverNow
 	local readyLeft = numberAttr(player, "SkillReadyAt", 0) - serverNow
-	if activeLeft > 0 then
+	if not skill then
+		skillButton.Text = `⚡ เลือกธาตุก่อน{keyHint("C", "LB")}`
+		skillButton.TextTransparency = 0.5
+	elseif activeLeft > 0 then
 		skillButton.Text = `⚡ {skillName} {math.ceil(activeLeft)} วิ`
 		skillButton.TextTransparency = 0
 	elseif readyLeft > 0 then
@@ -296,7 +300,7 @@ function CombatUI.Start()
 	end)
 	bossState:GetAttributeChangedSignal("Top"):Connect(renderBoard)
 	player:GetAttributeChangedSignal("BossDamage"):Connect(renderBoard)
-	for _, name in { "TurretLevel", "Coins", "FriendBoost", "EquippedSkill", "TurretClass", "TurretBranch" } do
+	for _, name in { "TurretLevel", "Coins", "FriendBoost", "Element", "SkillReadyAt" } do
 		player:GetAttributeChangedSignal(name):Connect(renderTurret)
 	end
 	renderBoard()

@@ -8,7 +8,7 @@
 --   RemoteEvent = ส่งทางเดียว ไม่รอคำตอบ · RemoteFunction = ส่งแล้วรอคำตอบ
 -- อยากเพิ่ม Remote → เพิ่ม 1 บรรทัดใน NAMES ด้านล่าง แล้วไปเขียนตัวรับใน src/server/Network/ (ผ่าน Guard)
 -- ใครใช้ไฟล์นี้: src/server/Network/*Handler.luau · Services/TurretService, SkillService ·
---   src/client/Controllers/TurretController, SkillController, ClassController
+--   src/client/Controllers/TurretController, SkillController, ElementController
 -- ⚠️ ไฟล์ shared = ผู้เล่นอ่านได้ · ข้อมูลที่ Client ส่งมาเชื่อไม่ได้ ต้องตรวจที่ Server เสมอ
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,13 +18,14 @@ local RunService = game:GetService("RunService")
 local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	-- ตัวอย่าง: BuyItem = "RemoteEvent",
 	UpgradeTurret = "RemoteEvent", -- Client → Server: ขออัปเลเวลป้อม (ไม่มี argument)
-	UseTurretSkill = "RemoteEvent", -- Client → Server: ขอใช้สกิลป้อม (ไม่มี argument)
-	-- Server → Client: เอฟเฟกต์การยิงสำหรับวาดเท่านั้น (แทน TurretFired เดิม) · ส่งรวมทุกป้อมต่อรอบคำนวณ
-	-- payload: { { Kind: string, From: Vector3, To: Vector3, Color: Color3, Radius: number?, Duration: number? } }
-	-- Kind = ค่า Fx ใน Config/Skill_class_default (ไม่รู้จัก → วาดเป็น Tracer) · BlackHole: To = จุดหลุม + Radius + Duration
+	UseTurretSkill = "RemoteEvent", -- Client → Server: ขอใช้สกิลธาตุของป้อม (ไม่มี argument · Server ดูธาตุเอง)
+	-- Server → Client: เอฟเฟกต์การยิงสำหรับวาดเท่านั้น · ส่งรวมทุกป้อมต่อรอบคำนวณ (สกิลส่งแยกตอนเกิด)
+	-- payload: { { Kind: string, From: Vector3, To: Vector3, Color: Color3,
+	--              Radius: number?, Duration: number?, Travel: number?, Spread: number?, Arc: number? } }
+	-- Kind = ค่า Fx ใน Config/Elements (ไม่รู้จัก → Tracer/ลูกกลมวิ่ง) · Travel = เวลาเดินทางจริงของกระสุนสกิล (วิ)
+	-- Radius = รัศมีระเบิด/โซน · Duration = เวลาอยู่ของโซน/ลำแสง/บัฟ · Spread = มุมพัด (องศา) · Arc = ความสูงโค้ง
 	TurretFx = "RemoteEvent",
-	ChooseTurretClass = "RemoteEvent", -- Client → Server: (classId: string) เลือกคลาสป้อม
-	ChooseTurretBranch = "RemoteEvent", -- Client → Server: (branchId: string) เลือกสายธาตุ
+	ChooseElement = "RemoteEvent", -- Client → Server: (elementId: string) เลือกธาตุ (ครั้งแรกฟรี · เปลี่ยน = เสียเงิน)
 	RollGacha = "RemoteEvent", -- Client → Server: (count: number) สุ่มสกิลด้วยตั๋ว
 	EquipSkill = "RemoteEvent", -- Client → Server: (skillId: string) เลือกสกิลที่ใช้
 	UpgradeSkill = "RemoteEvent", -- Client → Server: (skillId: string) อัปขั้นด้วยสกิลซ้ำ

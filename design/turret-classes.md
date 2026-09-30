@@ -1,5 +1,10 @@
 # Feature Spec — คลาสป้อมเริ่มต้น + สายธาตุ (2026-09-28)
 
+> ⛔ **เลิกใช้แล้ว (2026-09-30)** — ถูกแทนด้วย `design/element-skills.md` (ธาตุป้อม 🔥💧🪨🌪️)
+> โค้ดเดิม (`Skill_class_default.luau`, `ClassMath`, `TurretClassService`, `TurretClassHandler`, `ClassUI`, `ClassController`,
+> Remote `ChooseTurretClass` / `ChooseTurretBranch`) ถูกลบแล้ว · ข้อมูลผู้เล่น `TurretClass`/`TurretBranch` ถูก migrate (PlayerData v5 → v6)
+> เป็น `Element = ""` (ผู้เล่นเลือกธาตุใหม่ฟรี) · เก็บไฟล์นี้ไว้อ้างอิงไอเดียเก่าเท่านั้น
+
 ค่าทั้งหมด: `src/shared/Config/Skill_class_default.luau` (แยกจากสกิลกาชา `Config/Skills.luau` — ทั้งสองระบบทำงานซ้อนกัน)
 สถานะ: [Proposed] prototype · ยังไม่ได้ทดสอบใน Studio · รอเอกสารระบบธาตุฉบับเต็มจากผู้ใช้
 

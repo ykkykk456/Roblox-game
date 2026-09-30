@@ -1,6 +1,6 @@
 -- ชิ้นส่วน UI ที่ใช้ซ้ำ (ปุ่ม แผง สไลเดอร์ สวิตช์) — ทุกชิ้นรองรับ เมาส์ / สัมผัส / Gamepad
 -- โมดูล helper: ไม่มี Init/Start (loader require แล้วข้ามไป)
--- ใครใช้: UI ทุกไฟล์ (HudUI, SettingsUI, GachaUI, ClassUI, CombatUI)
+-- ใครใช้: UI ทุกไฟล์ (HudUI, SettingsUI, GachaUI, ElementUI, CombatUI)
 -- ⚠️ แก้ไฟล์นี้ = ทุกหน้าจอเปลี่ยนตาม · อยากแก้แค่หน้าเดียว → ส่ง options (size/position/color) จากไฟล์หน้านั้นแทน
 -- สี/ฟอนต์/ความสูงปุ่ม → UI/Theme.luau
 
