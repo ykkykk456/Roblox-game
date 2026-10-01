@@ -3,7 +3,7 @@
 -- ปุ่มบนจอใช้ได้ทั้งสัมผัส/เมาส์/Gamepad · ปุ่มลัดอยู่ใน TurretController
 --
 -- อยากปรับ:
---   ย้าย/ขยายแถบบอส → BOSS_BAR_TOP / BOSS_BAR_HEIGHT ด้านบนไฟล์ · สีรุ้ง/ความเร็ววิ้ง → RAINBOW_* / SHINE_*
+--   ย้าย/ขยายแถบบอส → BOSS_BAR_NUDGE / BOSS_BAR_HEIGHT ด้านบนไฟล์ (แถบอยู่แถวเดียวกับปุ่มระบบ Roblox) · สีรุ้ง/ความเร็ววิ้ง → RAINBOW_* / SHINE_*
 --   ย้ายตารางดาเมจ → หมวด "ตารางดาเมจ" (board.Position / Size) · จำนวนแถว = for index = 1, 5
 --   ย้ายแผงป้อม/ปุ่มสกิล → หมวด "แผงป้อม" (panel.Position / Size)
 --   ปุ่มอัปเกรดย้ายไปอยู่แผงป้อมที่เปิดด้วยการคลิกป้อม (UI/TurretPanelUI) · ไม่มีปุ่มลัดอัปแล้ว
@@ -12,6 +12,7 @@
 --   ชื่อสกิลบนปุ่ม = สกิลของธาตุ (Config/Elements · Skill.Name) · คูลดาวน์จาก Attribute SkillReadyAt/SkillActiveUntil (Server ตั้ง)
 -- ⚠️ ตัวเลขดาเมจ/ราคาบนจอเป็นแค่การแสดงผล · ดาเมจจริงและการหักเงินทำที่ Server เท่านั้น
 
+local GuiService = game:GetService("GuiService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,8 +34,11 @@ local REFRESH_INTERVAL = 0.2
 local RESULT_SHOW_TIME = 8 -- วินาทีที่แสดงผลรอบล่าสุดหลังบอสจบ
 
 -- ✏️ แถบบอสสีรุ้งวิบวับ (แสดงผลล้วน)
-local BOSS_BAR_TOP = 10 -- ✏️ ระยะห่างจากขอบบน (พิกเซล · นับใต้ปุ่มระบบ Roblox ที่ ScreenInsets เว้นให้แล้ว)
-local BOSS_BAR_HEIGHT = 26 -- ✏️ ความสูงแถบ (ถ้าเปลี่ยน ให้แก้ BANNER_TOP ใน TutorialUI ด้วย)
+-- แถบบอสอยู่ "ในแถวเดียวกับปุ่มระบบ Roblox" (มุมซ้ายบน) ตามกรอบที่เจ้าของเกมวาด 2026-10-01
+-- ตำแหน่งแนวตั้ง = กึ่งกลางแถบบนของ Roblox (GuiService.TopbarInset) + BOSS_BAR_NUDGE
+local BOSS_BAR_NUDGE = 0 -- ✏️ ขยับขึ้น/ลงเพิ่ม (พิกเซล · ลบ = ขึ้น · บวก = ลง)
+local BOSS_BAR_FALLBACK_TOP = 16 -- ✏️ ใช้เมื่ออ่านความสูงแถบบนของ Roblox ไม่ได้ (พิกเซลจากขอบจอบน)
+local BOSS_BAR_HEIGHT = 30 -- ✏️ ความสูงแถบ
 local RAINBOW_SPEED = 0.25 -- ✏️ ความเร็วสีรุ้งไหล (รอบต่อวินาที · มาก = ไหลเร็ว)
 local RAINBOW_SATURATION = 0.75 -- ✏️ ความสดของสีรุ้ง (0 = ขาว · 1 = สดสุด)
 local SHINE_PERIOD = 1.6 -- ✏️ วินาทีต่อการวิ้งแสงขาวพาดผ่านแถบ 1 ครั้ง
@@ -190,22 +194,36 @@ local CombatUI = {}
 -- สร้าง HUD การต่อสู้ทั้งหมดตอนเริ่มเกม
 function CombatUI.Init()
 	local gui = Components.screen("CombatGui", 4)
+	-- แถบบอสใช้ ScreenGui แยก ที่ไม่เว้นแถบปุ่มระบบ Roblox (ScreenInsets = None) → วางในแถวเดียวกับปุ่มระบบได้
+	local topGui = Components.screen("BossBarGui", 4)
+	topGui.ScreenInsets = Enum.ScreenInsets.None
 
 	-- ===== แถบบอส (บนกลาง) =====
-	-- ✏️ ตำแหน่ง = BOSS_BAR_TOP (ห่างขอบบน · ScreenInsets เว้นแถบปุ่มระบบ Roblox ให้แล้ว) · สูง = BOSS_BAR_HEIGHT
-	--    กว้าง 50% ของจอ · กว้างสุด 460 (UISizeConstraint)
+	-- ✏️ ตำแหน่ง = กึ่งกลางแถบบนของ Roblox + BOSS_BAR_NUDGE (ดู placeBossBar) · สูง = BOSS_BAR_HEIGHT
+	--    กว้าง 42% ของจอ · กว้างสุด 700 (UISizeConstraint)
 	-- ข้างในมี (ซ้อนตำแหน่งเดียวกัน โชว์ทีละอย่าง):
 	--   bossTitle = ข้อความตอนไม่มีบอส (บอสมาในอีก… / เตือน / ผลรอบ)
 	--   bossBarBack (พื้นแถบ) · bossFill (แถบสีรุ้งหดตามเวลา) · bossShine (แสงวิ้ง) · bossHpText (ดาเมจรวม) = ตอนบอสอยู่
 	local bossFrame = Instance.new("Frame")
 	bossFrame.Name = "Boss"
 	bossFrame.AnchorPoint = Vector2.new(0.5, 0)
-	bossFrame.Position = UDim2.new(0.5, 0, 0, BOSS_BAR_TOP)
-	bossFrame.Size = UDim2.new(0.5, 0, 0, BOSS_BAR_HEIGHT)
+	bossFrame.Size = UDim2.new(0.42, 0, 0, BOSS_BAR_HEIGHT)
 	bossFrame.BackgroundTransparency = 1
-	bossFrame.Parent = gui
+	bossFrame.Parent = topGui
+	-- วางกึ่งกลางแนวตั้งของแถบบนของ Roblox · TopbarInset เปลี่ยนเมื่อหมุนจอ/เปลี่ยนขนาด → ตามทุกครั้ง
+	-- [Inferred] GuiService.TopbarInset = พื้นที่แถบบน (Rect) · ถ้าได้ความสูง 0 ใช้ BOSS_BAR_FALLBACK_TOP
+	local function placeBossBar()
+		local inset = GuiService.TopbarInset
+		local top = BOSS_BAR_FALLBACK_TOP
+		if inset.Height > 0 then
+			top = inset.Min.Y + (inset.Height - BOSS_BAR_HEIGHT) / 2
+		end
+		bossFrame.Position = UDim2.new(0.5, 0, 0, top + BOSS_BAR_NUDGE)
+	end
+	placeBossBar()
+	GuiService:GetPropertyChangedSignal("TopbarInset"):Connect(placeBossBar)
 	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(460, BOSS_BAR_HEIGHT)
+	limit.MaxSize = Vector2.new(700, BOSS_BAR_HEIGHT)
 	limit.Parent = bossFrame
 
 	bossTitle = Components.label(bossFrame, "", {
@@ -278,7 +296,7 @@ function CombatUI.Init()
 	Components.list(board, 2)
 	Components.label(
 		board,
-		"🏆 ดาเมจบอส",
+		"🏆 ดาเมจบอสรอบนี้",
 		{ size = UDim2.new(1, 0, 0, 22), bold = true, textSize = 16, order = 0 }
 	)
 	for index = 1, 5 do

@@ -60,6 +60,7 @@
 | `Services/ElementSkillService.luau` | สกิลกดของธาตุ (ยิงเป็นชุด / คลื่นตามเลน · + แบบที่เตรียมไว้ให้วิวัฒนาการ) |
 | `Services/TurretLook.luau` | หน้าตาป้อมตามธาตุ + ขั้นเลเวล · หรือโมเดลที่ import เอง |
 | `Network/ElementHandler.luau` | รับคำขอเลือกธาตุ (Remote `ChooseElement`) |
+| `Services/ServerBoardService.luau` | สกอร์บอร์ดเซิร์ฟ "ดาเมจรวม" (รายชื่อผู้เล่นขวาบน · สะสมทุกรอบบอส · ไม่บันทึก) · ตารางซ้ายบน = ดาเมจรอบนี้ (รีเซ็ตทุกบอส ใช้แจกรางวัล) |
 | `Services/BossService.luau` | บอส (🔒 ล็อก) |
 | `Services/MonsterService.luau` | มอนเป็น wave ตามเลน |
 | `Services/LayoutService.luau` | อ่านตำแหน่งจาก Tag ในแมพ |
