@@ -37,6 +37,8 @@
 | หน้าจอ HUD เงิน / แถบบอส / ปุ่มอัป-สกิล / ปุ่มอุปกรณ์ | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
 | หน้าอุปกรณ์ (ช่อง 4 ช่อง · กระเป๋า · ใส่/รวม/แยก · ป๊อปอัปของดรอป) · ปุ่มลัด G / RB · ข้อมูลที่ใช้ ดู `design/equipment.md` หัวข้อ "สัญญากับ Client" | `src/client/UI/GearUI.luau` · `src/client/Controllers/GearController.luau` | |
 | สี/ฟอนต์ UI ทั้งเกม | `src/client/UI/Theme.luau` | |
+| **ฝึกสอนตอนเข้าเกม** (ข้อความแต่ละขั้น · จำนวน/เลือดมอนฝึก · เวลา · เลื่อนบอสได้นานสุด · โบนัสจบ · ปิดระบบฝึก) · สเปก `design/tutorial.md` | `src/shared/Config/Tutorial.luau` | `Steps[n].Text` `WatchMonsters` `SkillMonsters` `TrainingMonsterHp` `WatchTimeout` `ReadSeconds` `MinReadSeconds` `MaxBossHold` `RewardCoins` `Enabled` |
+| ลำดับ/เงื่อนไขจบของขั้นฝึก · สิ่งที่ล็อกระหว่างฝึก | `src/server/Services/TutorialService.luau` | `enterStep` `Start` (ลูปเช็กขั้น) `allows` `holdBoss` |
 
 ## ระบบทำงานยังไง (ภาพรวม)
 ```
@@ -61,6 +63,8 @@
 | `Services/LayoutService.luau` | อ่านตำแหน่งจาก Tag ในแมพ |
 | `Services/MapService.luau` | สร้าง/ล็อกแมพ · จุดเกิด |
 | `Services/GearService.luau` | อุปกรณ์ป้อม: ใส่/ถอด · เปิดช่อง · ย่อย · รวม 3→1 · ดรอปจากบอส · โบนัสให้ป้อม (ระบบกาชาถูกถอดแล้ว) |
+| `Services/TutorialService.luau` | ฝึกสอน 5 ขั้น: เลื่อนขั้น (Server เท่านั้น) · มอนฝึก · เติมเงินขั้นอัป · เลื่อนบอสตอนมีคนฝึกขั้นมอน · โบนัสจบ · บอกระบบอื่นว่าทำอะไรได้ (`isDone` `step` `allows`) |
+| `Network/TutorialHandler.luau` | รับปุ่ม "เข้าใจแล้ว!" ขั้นสุดท้าย (Remote `TutorialAck`) |
 | `Network/GearHandler.luau` | รับคำขออุปกรณ์ (Remote `EquipGear` `UnequipGear` `UnlockGearSlot` `SalvageGear` `SalvageRarity` `MergeGear`) |
 | `Data/PlayerData.luau` | เซฟ/โหลดข้อมูลผู้เล่น (ระวัง!) |
 | `Network/Guard.luau` | ด่านตรวจทุกคำขอจากผู้เล่น (กันโกง) |

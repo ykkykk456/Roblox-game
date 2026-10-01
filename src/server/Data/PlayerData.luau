@@ -34,7 +34,7 @@ local GearMath = require(ReplicatedStorage.Shared.Util.GearMath)
 -- ชื่อ DataStore · ห้ามแก้
 local STORE_NAME = "PlayerData"
 -- เวอร์ชันโครงข้อมูลปัจจุบัน · แก้ได้เฉพาะตอนเพิ่ม migration (เพิ่มทีละ 1)
-local VERSION = 7
+local VERSION = 8
 -- ลองเรียก DataStore กี่ครั้งก่อนยอมแพ้ (ปรับได้ 3–5 · มากไป = ผู้เล่นรอนานตอนโหลดพัง)
 local MAX_ATTEMPTS = 3
 -- บันทึกอัตโนมัติทุกกี่วินาที (ปรับได้ · ต่ำไปเสี่ยงชนโควตา DataStore · สูงไปเสียข้อมูลมากขึ้นถ้าเซิร์ฟล่ม)
@@ -57,11 +57,15 @@ local DEFAULT = {
 	Login = { Day = 0, Streak = 0 }, -- v4: Day = เลขวัน UTC ที่รับรางวัลล่าสุด
 	-- v5 TurretClass / TurretBranch (คลาสป้อมเดิม) → ถูกแทนด้วย Element ใน v6 (ดู MIGRATIONS[5])
 	Element = "", -- v6: ธาตุป้อม ("" = ยังไม่เลือก → Unchosen · UI เด้งให้เลือก) · id อยู่ใน Config/Elements
-	-- (วิวัฒนาการยังไม่ทำ → ยังไม่มี field Evolution · ตอนทำค่อยเพิ่ม v8)
+	-- (วิวัฒนาการยังไม่ทำ → ยังไม่มี field Evolution · ตอนทำค่อยเพิ่มเวอร์ชันถัดไป)
+	-- v8: ระบบฝึกสอน (design/tutorial.md) · แก้ผ่าน Services/TutorialService เท่านั้น
+	--   TutorialStep = ขั้นที่กำลังทำ 1..5 (6 = จบ) · TutorialDone = ฝึกจบแล้ว (true = ไม่ต้องฝึกอีก)
+	TutorialStep = 1, -- v8
+	TutorialDone = false, -- v8
 }
 
 -- MIGRATIONS[n] แปลงข้อมูลจากเวอร์ชัน n เป็น n + 1
--- เพิ่ม field ใหม่: ใส่ใน DEFAULT + VERSION = 8 + เพิ่ม [7] = function(data) ... return data end ต่อท้าย
+-- เพิ่ม field ใหม่: ใส่ใน DEFAULT + VERSION = 9 + เพิ่ม [8] = function(data) ... return data end ต่อท้าย
 local MIGRATIONS: { [number]: (any) -> any } = {
 	-- v1 → v2: เพิ่มเลเวลป้อม
 	[1] = function(data)
@@ -126,6 +130,14 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		data.GachaTickets = nil
 		data.Skills = nil
 		data.EquippedSkill = nil
+		return data
+	end,
+	-- v7 → v8: ระบบฝึกสอน 5 ขั้น (design/tutorial.md) [Proposed]
+	--   บังคับฝึกทุกคน รวมผู้เล่นเก่า → ทุกคนเริ่มขั้น 1 · ยังไม่จบ · ของอื่น (เงิน เลเวล ธาตุ อุปกรณ์) ไม่แตะ
+	--   ผู้เล่นเก่าที่มีธาตุแล้ว → ขั้น 1 (เลือกธาตุ) ผ่านเองทันทีตอนเข้าเกม (TutorialService) ไม่ต้องเสียเงินเลือกใหม่
+	[7] = function(data)
+		data.TutorialStep = 1
+		data.TutorialDone = false
 		return data
 	end,
 }

@@ -554,6 +554,16 @@ end
 
 local ElementUI = {}
 
+-- เปิดหน้าเลือกธาตุจากภายนอก (UI/TutorialUI ขั้น 1 ใช้บังคับเปิด) · ข้อมูลยังไม่โหลด = ไม่เปิด
+-- ใช้ openView เพื่อวาดเนื้อหาใหม่ก่อนเปิด (Panels.open ตรง ๆ อาจได้แผงว่าง/ค้างมุมมองเก่า)
+function ElementUI.openPicker()
+	if not readState().known then
+		return
+	end
+	promptedElement = true
+	openView("Element")
+end
+
 -- สร้างปุ่ม HUD + แผง + ผูกปุ่มลัดตอนเริ่มเกม
 function ElementUI.Init()
 	-- ===== ปุ่ม HUD: กลางล่าง เหนือแผงป้อมของ CombatUI (แผงนั้นสูงจากขอบล่าง 48 + 94 px) =====

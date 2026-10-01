@@ -291,6 +291,11 @@ function CombatUI.Init()
 	)
 end
 
+-- ปุ่มอัป/ปุ่มสกิลของแผงป้อม (สร้างใน Init) · ใช้โดย UI/TutorialUI เพื่อทำไฮไลต์/หรี่ปุ่มระหว่างฝึก (ไม่แตะการทำงานของปุ่ม)
+function CombatUI.getButtons(): (TextButton?, TextButton?)
+	return upgradeButton, skillButton
+end
+
 -- เริ่มทำงาน: รอข้อมูลบอสจาก Server · ฟัง Attribute ที่เปลี่ยน · วนอัปเดตนาฬิกาทุก REFRESH_INTERVAL วินาที
 function CombatUI.Start()
 	bossState = ReplicatedStorage:WaitForChild("BossState")

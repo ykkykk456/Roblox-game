@@ -75,19 +75,25 @@ function HudUI.Init()
 	menu.Size = UDim2.fromOffset(170, Theme.ButtonHeight * 4 + 24)
 	menu.Parent = gui
 	Components.list(menu, 8)
-	Components.button(menu, "⚙  ตั้งค่า", { order = 1 }, function()
+	local settingsButton = Components.button(menu, "⚙  ตั้งค่า", { order = 1 }, function()
 		Panels.toggle("Settings")
 	end)
-	Components.button(menu, "🛒  ร้านค้า", { order = 2 }, function()
+	local shopButton = Components.button(menu, "🛒  ร้านค้า", { order = 2 }, function()
 		Panels.toggle("Shop")
 	end)
-	Components.button(menu, "🎒  กระเป๋า", { order = 3 }, function()
+	local bagButton = Components.button(menu, "🎒  กระเป๋า", { order = 3 }, function()
 		Panels.toggle("Bag")
 	end)
 	-- ✏️ ปุ่มอุปกรณ์ป้อม (แทนปุ่มกาชาที่ถอดแล้ว) · แผง "Gear" สร้าง/ลงทะเบียนใน UI/GearUI (ปุ่มลัด G / RB อยู่ในไฟล์นั้น)
-	Components.button(menu, "🛠  อุปกรณ์", { order = 4 }, function()
+	local gearButton = Components.button(menu, "🛠  อุปกรณ์", { order = 4 }, function()
 		Panels.toggle("Gear")
 	end)
+
+	-- ตั้งชื่อปุ่ม (UI/TutorialUI หาปุ่มด้วยชื่อนี้เพื่อหรี่ปุ่มที่ไม่เกี่ยวระหว่างฝึก)
+	settingsButton.Name = "Settings"
+	shopButton.Name = "Shop"
+	bagButton.Name = "Bag"
+	gearButton.Name = "Gear"
 
 	-- แผงชั่วคราวของปุ่มที่ยังไม่มีระบบ
 	placeholderPanel(gui, "Shop", "ร้านค้า", "ร้านค้ากำลังพัฒนา\nจะเปิดเมื่อมีระบบเงินและไอเทม")

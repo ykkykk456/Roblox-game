@@ -30,6 +30,8 @@
 --   • TurretElementService — ธาตุของผู้เล่น, ดาเมจบอส/มอน, ผลติดเป้า · ElementSkillService — สกิลกด
 --   • FriendBoostService — โบนัสเพื่อน · GearService — โบนัสอุปกรณ์ + ชิ้นที่ใส่ (ฟัง GearService.Changed) · PlayerData — เลเวลป้อม + เงิน · Remote "TurretFx" — ส่งภาพให้ Client วาด
 --   • Player Attribute "SkillReadyAt" / "SkillActiveUntil" — ให้ปุ่มสกิลใน UI/CombatUI นับถอยหลัง (ค่าจริงอยู่ที่ Server)
+--   • TutorialService — ระหว่างฝึก: อัปได้เฉพาะขั้น Upgrade · สกิลได้เฉพาะขั้น UseSkill (allows) · สำเร็จแล้วแจ้ง notify
+--     · เข้าขั้น UseSkill → รีเซ็ตคูลดาวน์ให้กดได้ทันที (ฟัง StepChanged) · design/tutorial.md
 --
 -- ⚠️ ระวัง: upgrade หักเงิน (ต้องทำใน PlayerData.update เท่านั้น) · อย่าให้ Client ส่งดาเมจ/เป้ามาเอง (กฎ Server Authority)
 --
@@ -56,6 +58,7 @@ local GearMath = require(ReplicatedStorage.Shared.Util.GearMath)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Tutorial = require(ReplicatedStorage.Shared.Config.Tutorial)
 local TurretMath = require(ReplicatedStorage.Shared.Util.TurretMath)
 local BaseService = require(script.Parent.BaseService)
 local BossService = require(script.Parent.BossService)
@@ -66,6 +69,7 @@ local LayoutService = require(script.Parent.LayoutService)
 local MonsterService = require(script.Parent.MonsterService)
 local TurretElementService = require(script.Parent.TurretElementService)
 local TurretLook = require(script.Parent.TurretLook)
+local TutorialService = require(script.Parent.TutorialService)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- ===== ค่าคงที่ =====
@@ -634,7 +638,11 @@ end
 local TurretService = {}
 
 -- เรียกจาก TurretHandler หลังผ่าน Guard แล้ว · คืน true ถ้าอัปสำเร็จ
+-- ฝึกสอนยังไม่จบ → อัปได้เฉพาะขั้น Upgrade (TutorialService.allows) · สำเร็จ = แจ้ง TutorialService เลื่อนขั้น
 function TurretService.upgrade(player: Player): boolean
+	if not TutorialService.allows(player, "Upgrade") then
+		return false
+	end
 	local upgraded = false
 	-- ⚠️ ระวัง: ส่วนนี้แตะเงินจริง · ต้องเช็ก "เงินพอ" ก่อนหักเสมอ และแก้ data ใน update เท่านั้น
 	PlayerData.update(player, function(data)
@@ -652,6 +660,7 @@ function TurretService.upgrade(player: Player): boolean
 	end)
 	if upgraded then
 		rebuildIfNeeded(player) -- ข้ามขั้นหน้าตา (Lv.10/20/30/40/50) / ขั้นสีไฟ → ปั้นใหม่
+		TutorialService.notify(player, "Upgrade")
 	end
 	return upgraded
 end
@@ -659,7 +668,11 @@ end
 -- เรียกจาก TurretHandler หลังผ่าน Guard แล้ว · ใช้สกิลธาตุ · คืน true ถ้าสำเร็จ
 -- ด่านตรวจ: มีป้อม · มีธาตุ (มีสกิล) · ไม่ช็อต · คูลดาวน์หมด · มีเป้าในระยะ — ไม่ผ่าน = ไม่ทำอะไร ไม่เสียคูลดาวน์
 -- ⚠️ ระวัง: ห้ามลบด่านพวกนี้ ไม่งั้น Client กดรัวใช้สกิลได้ไม่จำกัด
+-- ฝึกสอนยังไม่จบ → ใช้ได้เฉพาะขั้น UseSkill (TutorialService.allows) · สำเร็จ = แจ้ง TutorialService เลื่อนขั้น
 function TurretService.useSkill(player: Player): boolean
+	if not TutorialService.allows(player, "UseSkill") then
+		return false
+	end
 	local turret = turrets[player]
 	if not turret or turret.stunnedUntil > 0 then
 		return false
@@ -757,6 +770,7 @@ function TurretService.useSkill(player: Player): boolean
 		return false -- รูปแบบไม่รู้จัก (Config ผิด) → ไม่เสียคูลดาวน์
 	end
 	setCooldown(player, serverNow + skillCooldownOf(player, skill), serverNow + activeSeconds)
+	TutorialService.notify(player, "UseSkill")
 	return true
 end
 
@@ -772,6 +786,13 @@ function TurretService.Init()
 	BossService.Slammed:Connect(onSlammed)
 	TurretElementService.Changed:Connect(onElementChanged)
 	GearService.Changed:Connect(onGearChanged)
+	-- ฝึกสอนเข้าขั้น UseSkill → รีเซ็ตคูลดาวน์ให้กดสกิลได้ทันที (สเปก design/tutorial.md ขั้น 3)
+	TutorialService.StepChanged:Connect(function(player: Player, step: number)
+		local info = Tutorial.Steps[step]
+		if info and info.Id == "UseSkill" then
+			setCooldown(player, 0, 0)
+		end
+	end)
 	local owners = BaseService.owners()
 	for _, slot in BaseService.slots() do
 		if not owners[slot] then

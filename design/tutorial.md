@@ -39,3 +39,42 @@ Mirror Attribute: `TutorialStep`, `TutorialDone`
 - [ ] ระหว่างฝึก ดาเมจบอสของคนนี้ = 0 · คนอื่นปกติ
 - [ ] บอสไม่เกิดตอนมีคนอยู่ขั้นมอนฝึก (เลื่อนไม่เกิน MaxBossHold)
 - [ ] ออกกลางคันแล้วเข้าใหม่ → ทำต่อจากขั้นเดิม · จบแล้วไม่ต้องฝึกซ้ำ
+
+## การทำจริงฝั่ง Server (2026-10-01) [Proposed · ยังไม่ทดสอบใน Studio]
+ไฟล์หลัก: `src/server/Services/TutorialService.luau` · ตัวรับปุ่ม: `src/server/Network/TutorialHandler.luau`
+
+### สัญญากับ Client
+| อะไร | ชนิด | ความหมาย |
+|---|---|---|
+| Player Attribute `TutorialStep` | number | ขั้นที่ทำอยู่ 1..5 · `6` = จบ (ตั้งโดย StatsService) |
+| Player Attribute `TutorialDone` | boolean | true = ฝึกจบแล้ว / ปิดระบบฝึก (`Tutorial.Enabled = false` → true ทุกคน ไม่เขียนเซฟ) |
+| Remote `TutorialAck` (C→S) | ไม่มี argument | กด "เข้าใจแล้ว!" ขั้น 5 · Server รับเฉพาะขั้น 5 ที่อยู่มาแล้ว ≥ `MinReadSeconds` · rate 2 ครั้ง/วิ |
+| Player Attribute `SkillReadyAt` | (เดิม) | ตอนเข้าขั้น 3 ถูกรีเซ็ตเป็น 0 = กดสกิลได้ทันที |
+ข้อความ/ลำดับขั้นอ่านจาก `Config/Tutorial.Steps[TutorialStep]` · ไม่มี Remote ให้ Client สั่งจบขั้นอื่น
+
+### ขั้นจบเมื่อไร (Server ตัดสิน)
+1. **ChooseElement** — `TurretElementService.choose` สำเร็จ → `TutorialService.notify` · ผู้เล่นเก่าที่มีธาตุอยู่แล้ว = ผ่านเองทันทีตอนเข้าเกม (ไม่ต้องเสียเงินเลือกใหม่)
+2. **WatchTurret** — `MonsterService.spawnTraining` ปล่อยมอนฝึก `WatchMonsters` ตัวเฉพาะเลนตัวเอง (ตัวเล็ก เลือด `TrainingMonsterHp` ห่าง `TrainingSpawnGap` วิ · ตายแล้วได้เงินเท่ามอนตัวเล็กปกติ = มีเงินไว้ขั้น 4) → ตาย/ถึงปลายเลนครบ หรือครบ `WatchTimeout` = จบ
+3. **UseSkill** — รีเซ็ตคูลดาวน์ + มอนฝึก `SkillMonsters` ตัว (หมดแล้วรอ 2 วิ ปล่อยชุดใหม่) → `TurretService.useSkill` สำเร็จ = จบ
+4. **Upgrade** — เงินไม่พอค่าอัป 1 ครั้ง → เติมให้ "พอดี" ค่าอัป (ใน `PlayerData.update` · ไม่เกิน `MaxCoins`) · เลเวลเต็มแล้ว = ผ่านเอง → `TurretService.upgrade` สำเร็จ = จบ
+5. **MeetBoss** — ครบ `ReadSeconds` หรือ `TutorialAck` = จบ → `TutorialDone = true` + `RewardCoins` ผ่าน `Wallet.earn` (เพดาน/โบนัสเพื่อนเหมือนเงินอื่น)
+- ไม่มีบ้าน (บ้านเต็ม) = ไม่มีเลน/ป้อม → ขั้น 2–3 ผ่านเอง
+- ออกกลางคัน: ขั้นอยู่ในเซฟแล้ว · เข้าใหม่ = เข้าขั้นเดิมอีกครั้ง (ขั้น 2–3 ปล่อยมอนฝึกใหม่ · ขั้น 5 นับเวลาอ่านใหม่)
+
+### บอสกับการฝึก (ตัดสินใจ: แบบง่ายและไม่ค้าง)
+- มีคนอยู่ขั้น 2–3 → `BossService` ถาม `TutorialService.holdBoss()` ก่อนเกิด → เลื่อน `NextAt` ทีละ 1 วิ รวมไม่เกิน `MaxBossHold` วิต่อการเกิด 1 ครั้ง (แก้ BossService แค่จังหวะเกิด ไม่แตะโมเดล/ข้อต่อ/ท่า)
+- ถ้าบอสอยู่แล้วตอนผู้เล่นเข้า **ขั้น 2** → ขั้น 2 ผ่านเองทันที (ป้อมยิงบอสให้ดูอยู่แล้ว · มอนเกิดไม่ได้ตอนบอสอยู่)
+- **ขั้น 3** ระหว่างบอส → ค้างขั้น 3 ไว้: กดสกิลใส่บอสได้ถ้าบอสอยู่ในระยะ (ดาเมจไม่นับ) · ไม่งั้นรอบอสจบ → มอนฝึกเกิด → กดได้
+- เลือกแบบนี้แทน "ข้ามไป 4–5 แล้วย้อนกลับ" เพราะลำดับขั้นเดินหน้าอย่างเดียว (ไม่มีขั้นย้อน · บันทึกง่าย · ไม่มีกรณีค้างครึ่งทาง)
+
+### สิทธิ์ระหว่างฝึก (ตรวจในฟังก์ชันจริงฝั่ง Server)
+- `TurretElementService.damageBoss`: ยังไม่จบ = ไม่นับ (รวมเครดิตซัพพอร์ต) · `choose`: เปลี่ยนธาตุไม่ได้ (เลือกครั้งแรกได้)
+- `TurretService.upgrade` ได้เฉพาะขั้น 4 · `useSkill` ได้เฉพาะขั้น 3
+- `GearService` equip / unequip / unlockSlot / salvage / salvageRarity / merge = ไม่ได้ทั้งหมด
+- `MonsterService`: wave ปกติของเลนที่มีเจ้าของ เริ่มเมื่อเจ้าของเลือกธาตุแล้ว (เลนไม่มีเจ้าของตาม `AllLanesForTest` เดิม · ปิดระบบฝึก = แบบเดิม)
+- ข้อมูลยังไม่โหลด = ถือว่ายังไม่จบ (ทำอะไรไม่ได้อยู่ดี)
+
+### ความเสี่ยง [Unverified]
+- ยังไม่ได้เทสใน Studio · ทดสอบแค่ตรรกะขั้น + migration ด้วย luau CLI (mock)
+- `BindableEvent` ใน Studio อาจเป็นโหมด Deferred → ลำดับ handler ช้าไป 1 จังหวะ (โค้ดตรวจขั้นซ้ำใน update ทุกครั้ง จึงไม่ข้ามขั้น)
+- บอสไกลเกินระยะป้อม + บอสอยู่นาน → ขั้น 3 รอจนบอสจบ (~Duration วิ)

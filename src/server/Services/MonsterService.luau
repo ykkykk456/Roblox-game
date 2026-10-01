@@ -2,6 +2,8 @@
 -- เลนละช่อง: เกิดที่จุดบอส → เดินตรงไปหาป้อมของช่องนั้น · ผังจากแมพ (Tag BossSpawn/TurretN) หรือผังวงกลมเดิม (Config/Map.Lane)
 -- ปล่อยเป็น wave: เลนละ Combat.Monster.WaveSize ตัว ทยอยออกทีละตัว · ทั้ง wave ตาย/ถึงปลายทางหมด → พัก WaveDelay → wave ถัดไป
 -- ถึงปลายเลนแล้วหายไป ไม่มีรางวัล · ปล่อยเฉพาะเลนที่มีเจ้าของ (Combat.Monster.AllLanesForTest = true → ทุกเลน)
+-- ฝึกสอน (design/tutorial.md · Config/Tutorial.Enabled): เลนที่มีเจ้าของ → wave ปกติยังไม่ออกจนกว่าเจ้าของเลือกธาตุ
+--   มอนฝึก = spawnTraining (เลนเดียว · เลือดน้อย · เงินปกติของมอนตัวเล็ก) · TutorialService เป็นคนเรียก
 -- ระหว่างตีบอส: หยุดปล่อยมอนทุกเลน (ตัวที่เดินอยู่แล้วเดินต่อ) · บอสจบ → wave เดิมปล่อยต่อจากที่ค้างไว้ (ยืนยัน 2026-09-26)
 -- ตำแหน่ง/HP/ผลการตาย คำนวณที่ Server ทั้งหมด · ตายแล้วแบ่งเงินตามสัดส่วนดาเมจ
 -- ความสูง (ผังจากแมพ): วัดพื้นทีละช่วงตามเลนตอนเกิด (laneHeights) · มอนเดินติดพื้น ไม่ปีนหลังคา/แท่นป้อม (แก้ 2026-09-30)
@@ -18,6 +20,7 @@
 --
 -- คุยกับไฟล์ไหนบ้าง:
 --   • BaseService — ช่องไหนมีเจ้าของ (ปล่อยมอนเลนนั้น) · BossService — มีบอสอยู่ไหม (พักปล่อยมอน)
+--   • PlayerData — เจ้าของเลนเลือกธาตุหรือยัง (ยังไม่เลือก = ไม่ปล่อย wave) · TutorialService — เรียก spawnTraining / trainingLeft
 --   • LayoutService — จุดบอส/แท่นป้อม/พื้นจากแมพ · Wallet — แจกเงินตอนมอนตาย
 --   • TurretService / TurretElementService / ElementSkillService — เรียก getAlive, positionOf, damage เพื่อเล็งและทำดาเมจ
 --     (monster.slot = เลขเลน/ช่อง · TurretService ให้ป้อมยิงเฉพาะมอนที่ slot ตรงกับป้อม)
@@ -29,12 +32,15 @@ local RunService = game:GetService("RunService")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
 local Economy = require(ReplicatedStorage.Shared.Config.Economy)
+local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
 local Map = require(ReplicatedStorage.Shared.Config.Map)
 local MapMath = require(ReplicatedStorage.Shared.Util.MapMath)
+local Tutorial = require(ReplicatedStorage.Shared.Config.Tutorial)
 local BaseService = require(script.Parent.BaseService)
 local BossService = require(script.Parent.BossService)
 local LayoutService = require(script.Parent.LayoutService)
 local Wallet = require(script.Parent.Wallet)
+local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- ===== ชนิดข้อมูล =====
 -- Monster = มอน 1 ตัว (hp เลือดตอนนี้ · damageBy = ใครตีไปเท่าไร ใช้แบ่งเงิน)
@@ -60,6 +66,15 @@ export type Monster = {
 	-- ช้าลง: slowAmount (0.2 = ช้าลง 20% · 1 = หยุดเดิน/แช่แข็ง) จนถึงเวลา slowUntil (os.clock) · 0 = ไม่ช้า
 	slowAmount: number,
 	slowUntil: number,
+	training: boolean, -- มอนฝึก (spawnTraining) · ระบบอื่นยิง/ทำดาเมจได้เหมือนมอนปกติ
+}
+
+-- TrainingBatch = มอนฝึก 1 ชุดของเลนเดียว (spawnTraining คืนค่านี้ · TutorialService ถือไว้ถามว่าจบหรือยัง)
+export type TrainingBatch = {
+	slot: number,
+	toSpawn: number, -- ยังเหลือปล่อยอีกกี่ตัว
+	spawned: { Monster }, -- ตัวที่ปล่อยแล้ว (ตาย/ถึงปลายเลน = alive false)
+	cancelled: boolean, -- true = หยุดปล่อยตัวที่เหลือ (ผู้เล่นออก / ขั้นจบ)
 }
 
 -- Wave = สถานะการปล่อยมอนของ 1 เลน
@@ -213,9 +228,10 @@ local function laneHeights(from: Vector3, to: Vector3, startY: number): { number
 	return heights
 end
 
--- ปล่อยมอน 1 ตัวที่ต้นเลนของช่อง slot แล้วเพิ่มเข้า monsters · เรียกจาก stepWave
-local function spawnMonster(slot: number)
-	local kind = pickKind()
+-- ปล่อยมอน 1 ตัวที่ต้นเลนของช่อง slot แล้วเพิ่มเข้า monsters · เรียกจาก stepWave และ spawnTraining
+-- trainingHp = มอนฝึก: ชนิดแรกใน TypeOrder (ตัวเล็ก) + เลือดเท่านี้ · nil = มอนปกติ (สุ่มชนิด)
+local function spawnMonster(slot: number, trainingHp: number?): Monster
+	local kind = if trainingHp then Combat.Monster.TypeOrder[1] else pickKind()
 	local def = Combat.Monster.Types[kind]
 	local lane = Map.Lane
 	-- แต่ละตัวเดินเยื้องซ้าย/ขวาในเลนแบบสุ่ม ไม่ให้ซ้อนเป็นเส้นเดียว
@@ -253,8 +269,8 @@ local function spawnMonster(slot: number)
 		bar = bar,
 		kind = kind,
 		slot = slot,
-		hp = def.Hp,
-		maxHp = def.Hp,
+		hp = trainingHp or def.Hp,
+		maxHp = trainingHp or def.Hp,
 		speed = def.Speed,
 		from = from,
 		to = to,
@@ -266,8 +282,10 @@ local function spawnMonster(slot: number)
 		damageBy = {},
 		slowAmount = 0,
 		slowUntil = 0,
+		training = trainingHp ~= nil,
 	}
 	table.insert(monsters, monster)
+	return monster
 end
 
 -- ===== รางวัล / นับมอน =====
@@ -338,6 +356,66 @@ function MonsterService.damage(monster: Monster, player: Player, amount: number)
 		monster.model:Destroy()
 		reward(monster)
 	end
+end
+
+-- ===== มอนฝึก (design/tutorial.md · เรียกจาก TutorialService) =====
+-- ปล่อยมอนฝึก count ตัว เฉพาะเลน slot · เลือด hp · ห่างกัน gap วิ · คืน TrainingBatch ไว้ถาม trainingLeft
+-- ใช้โค้ดสร้าง/เดิน/ตาย/เงิน ชุดเดียวกับมอนปกติ (ตัวเล็ก · ตายแล้วได้เงินเท่ามอนตัวเล็ก → ขั้นอัปป้อมมีเงินบ้าง)
+-- กฎเดิม "บอสอยู่ = ไม่ปล่อยมอน" ใช้กับมอนฝึกด้วย: บอสอยู่ → รอจนบอสจบแล้วค่อยปล่อยตัวที่เหลือ
+-- ตัวอย่าง: spawnTraining(2, 3, 20, 1.2) → เลน 2 ได้มอนเลือด 20 สามตัว ทุก 1.2 วิ
+function MonsterService.spawnTraining(slot: number, count: number, hp: number, gap: number): TrainingBatch
+	local batch: TrainingBatch = { slot = slot, toSpawn = math.max(0, math.floor(count)), spawned = {}, cancelled = false }
+	task.spawn(function()
+		while batch.toSpawn > 0 and not batch.cancelled do
+			if BossService.isActive() then
+				task.wait(0.5)
+			else
+				-- pcall: สร้างมอนพัง (ผังแมพเสีย) → ยกเลิกชุดนี้ (trainingLeft ไม่ค้าง > 0 ตลอดไป = ขั้นฝึกไม่ค้าง)
+				local ok, result = pcall(spawnMonster, slot, math.max(1, hp))
+				if not ok then
+					warn(`[MonsterService] ปล่อยมอนฝึกไม่ได้ (เลน {slot}): {result}`)
+					batch.cancelled = true
+					break
+				end
+				table.insert(batch.spawned, result)
+				batch.toSpawn -= 1
+				if batch.toSpawn > 0 then
+					task.wait(gap)
+				end
+			end
+		end
+	end)
+	return batch
+end
+
+-- มอนฝึกของชุดนี้ที่ "ยังไม่จบ" = ยังไม่ได้ปล่อย + ยังเดินอยู่ · 0 = ตาย/ถึงปลายเลนครบแล้ว (ยกเลิกแล้ว = ไม่นับตัวที่ยังไม่ปล่อย)
+function MonsterService.trainingLeft(batch: TrainingBatch): number
+	local left = if batch.cancelled then 0 else batch.toSpawn
+	for _, monster in batch.spawned do
+		if monster.alive then
+			left += 1
+		end
+	end
+	return left
+end
+
+-- หยุดปล่อยมอนฝึกที่เหลือของชุดนี้ (ตัวที่เดินอยู่แล้วเดินต่อจนตาย/ถึงปลายเลน เหมือนมอนปกติ)
+function MonsterService.cancelTraining(batch: TrainingBatch)
+	batch.cancelled = true
+end
+
+-- เลนนี้ปล่อย wave ปกติได้ไหม (ฝึกสอน): ไม่มีเจ้าของจริง (โหมดเทสทุกเลน) = ได้ · มีเจ้าของ = ต้องเลือกธาตุแล้ว
+-- ปิดระบบฝึก (Tutorial.Enabled = false) = ได้เสมอ (พฤติกรรมเดิม)
+local function laneReady(slot: number): boolean
+	if not Tutorial.Enabled then
+		return true
+	end
+	local owner = BaseService.owners()[slot]
+	if not owner then
+		return true
+	end
+	local data = PlayerData.get(owner)
+	return data ~= nil and ElementMath.isElement(data.Element)
 end
 
 -- ===== ผลจากป้อมธาตุ: ช้าลง / ถอย / ดูด (design/element-skills.md) =====
@@ -484,7 +562,10 @@ function MonsterService.Start()
 			continue
 		end
 		for slot in owners do
-			stepWave(slot, now)
+			-- ✏️ ฝึกสอน: เจ้าของเลนยังไม่เลือกธาตุ → ยังไม่เริ่ม wave (ดู laneReady)
+			if laneReady(slot) then
+				stepWave(slot, now)
+			end
 		end
 	end
 end

@@ -16,6 +16,7 @@
 -- คุยกับไฟล์ไหนบ้าง:
 --   • Network/ElementHandler — เรียก choose · TurretService + ElementSkillService — เรียก damage*/apply*/spawnZone/update
 --   • BossService — นับดาเมจบอส · GearService — โบนัสดาเมจบอสจากอุปกรณ์ · MonsterService — ทำดาเมจ/ช้าลง/ถอย/ดูดมอน · PlayerData — เก็บธาตุ (+ หักเงินเปลี่ยนธาตุ)
+--   • TutorialService (design/tutorial.md) — ฝึกยังไม่จบ: ดาเมจบอส = ไม่นับ · เปลี่ยนธาตุ (หลังเลือกแล้ว) ไม่ได้ · เลือกครั้งแรกสำเร็จ = แจ้ง notify
 --
 -- ⚠️ ห้ามแก้: การเปลี่ยนธาตุ/หักเงิน ต้องอยู่ใน PlayerData.update และตรวจกฎซ้ำเสมอ (ห้ามเชื่อค่าที่ Client ส่งมา)
 --
@@ -38,6 +39,7 @@ local ElementMath = require(ReplicatedStorage.Shared.Util.ElementMath)
 local BossService = require(script.Parent.BossService)
 local GearService = require(script.Parent.GearService)
 local MonsterService = require(script.Parent.MonsterService)
+local TutorialService = require(script.Parent.TutorialService)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- ===== ค่าคงที่ =====
@@ -110,6 +112,10 @@ function TurretElementService.choose(player: Player, id: string): boolean
 	-- ⚠️ ระวัง: ส่วนนี้แตะเงินจริง · ห้ามย้ายการแก้ data ออกนอก update และห้ามตัดการตรวจ if ข้างล่าง
 	PlayerData.update(player, function(data)
 		local current = if ElementMath.isElement(data.Element) then data.Element else ""
+		-- ฝึกสอนยังไม่จบ: เลือกครั้งแรกได้ (ขั้น 1) · เปลี่ยนธาตุไม่ได้
+		if current ~= "" and not TutorialService.isDone(player) then
+			return
+		end
 		-- กฎ: มีธาตุนี้จริง · ไม่ใช่ธาตุเดิม · เปลี่ยน = บอสต้องไม่อยู่ → Util/ElementMath.luau:canChooseElement
 		local allowed, cost = ElementMath.canChooseElement(current, id, bossActive)
 		if not allowed then
@@ -126,6 +132,7 @@ function TurretElementService.choose(player: Player, id: string): boolean
 	end)
 	if changed then
 		changedEvent:Fire(player)
+		TutorialService.notify(player, "ChooseElement") -- ฝึกขั้น 1 จบ (ขั้นอื่น/จบแล้ว = ไม่มีผล)
 	end
 	return changed
 end
@@ -149,12 +156,23 @@ function TurretElementService.damageBoss(owner: Player, amount: number, now: num
 	if amount ~= amount or amount <= 0 then
 		return
 	end
+	-- ฝึกสอนยังไม่จบ → ดาเมจบอสของคนนี้ไม่นับ (design/tutorial.md · ไม่แตะ BossService)
+	if not TutorialService.isDone(owner) then
+		return
+	end
 	-- ✏️ โบนัสดาเมจบอสจากอุปกรณ์ (มีเพดานใน Config/Equipment.Caps.BossDamage แล้ว)
 	amount *= 1 + GearService.bonus(owner).BossDamage
 	local multiplier = TurretElementService.bossDamageMultiplier(now)
 	BossService.damage(owner, amount * multiplier)
 	local creditOwner = armor.creditOwner
-	if multiplier > 1 and creditOwner and creditOwner ~= owner and creditOwner.Parent and armor.credit > 0 then
+	if
+		multiplier > 1
+		and creditOwner
+		and creditOwner ~= owner
+		and creditOwner.Parent
+		and armor.credit > 0
+		and TutorialService.isDone(creditOwner)
+	then
 		BossService.damage(creditOwner, amount * (multiplier - 1) * armor.credit)
 	end
 end

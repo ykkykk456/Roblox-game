@@ -1127,7 +1127,14 @@ function BossService.Start()
 				publish(current)
 			end
 		elseif now() >= state:GetAttribute("NextAt") then
-			if #Players:GetPlayers() > 0 then
+			-- ✏️ ฝึกสอน (design/tutorial.md): แก้แค่ "จังหวะเกิด" — มีคนอยู่ขั้นมอนฝึก → เลื่อน NextAt ไป 1 วิ แล้วถามใหม่
+			--   TutorialService.holdBoss คุมเพดานรวม MaxBossHold วิ · lazy require กันวน · ส่วนโมเดล/ข้อต่อ/ท่าที่ล็อกไม่ได้แตะ
+			local tutorialOk, holdBoss = pcall(function()
+				return require(script.Parent.TutorialService).holdBoss()
+			end)
+			if #Players:GetPlayers() > 0 and tutorialOk and holdBoss then
+				state:SetAttribute("NextAt", now() + 1)
+			elseif #Players:GetPlayers() > 0 then
 				spawnBoss()
 			else
 				state:SetAttribute("NextAt", now() + 5)

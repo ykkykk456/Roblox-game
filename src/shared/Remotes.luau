@@ -38,6 +38,9 @@ local NAMES: { [string]: "RemoteEvent" | "RemoteFunction" } = {
 	-- payload: { { Key: string, New: boolean, Salvaged: number?, Top: boolean? } }
 	--   New = ไม่เคยมี id นี้ก่อนรอบนี้ · Salvaged = กระเป๋าเต็ม → ได้เหรียญเท่านี้แทน · Top = มาจาก roll โบนัสอันดับ 1
 	GearDrops = "RemoteEvent",
+	-- ===== ฝึกสอน (design/tutorial.md · ตัวรับ: server/Network/TutorialHandler.luau) =====
+	-- ขั้นปัจจุบันดูจาก Player Attribute "TutorialStep" (1..5 · 6 = จบ) / "TutorialDone" · Server เลื่อนขั้นเองทั้งหมด
+	TutorialAck = "RemoteEvent", -- Client → Server: ไม่มี argument · กด "เข้าใจแล้ว!" ขั้น 5 (รับเฉพาะขั้น 5 หลัง MinReadSeconds วิ)
 }
 
 -- ===== สร้าง/หาโฟลเดอร์ Remotes =====

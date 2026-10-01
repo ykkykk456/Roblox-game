@@ -2,6 +2,7 @@
 -- Attribute ที่ Server ตั้ง replicate ไป Client อัตโนมัติ และ Client แก้แล้วไม่ส่งกลับ Server [Inferred]
 -- → Client ใช้แสดงผลได้ แต่ความจริงยังอยู่ที่ PlayerData ฝั่ง Server เสมอ
 --
+-- ฝึกสอน: "TutorialStep" / "TutorialDone" ตั้งที่ mirrorTutorial (ไม่ใส่ใน PUBLIC_FIELDS เพราะต้องแปลงค่าตอนปิดระบบฝึก)
 -- อยากให้ UI เห็นค่าใหม่ (เช่น Rebirths) → เพิ่มชื่อ field ใน PUBLIC_FIELDS (ถ้าเป็นตาราง ใส่ JSON_FIELDS)
 --   แล้วฝั่ง Client อ่านด้วย player:GetAttribute("ชื่อ field")
 -- คุยกับ: Data/PlayerData (ฟัง PlayerData.Changed) · UI ฝั่ง Client อ่าน Attribute ที่ตั้งไว้
@@ -9,7 +10,9 @@
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Tutorial = require(ReplicatedStorage.Shared.Config.Tutorial)
 local PlayerData = require(script.Parent.Parent.Data.PlayerData)
 
 -- field ใน PlayerData ที่เปิดให้ Client เห็น (เพิ่มได้ เช่น "Level") · ห้ามใส่ข้อมูลลับ
@@ -20,11 +23,27 @@ local PUBLIC_FIELDS = { "Coins", "TurretLevel", "Element" }
 --   (ไม่ต้อง encode ทุกครั้งที่เงินเปลี่ยน) · สัญญากับ Client ดู design/equipment.md หัวข้อ "สัญญากับ Client"
 local JSON_FIELDS: { string } = {}
 
+-- ระบบฝึกสอน (design/tutorial.md) → Attribute "TutorialStep" (1..5 · 6 = จบ) และ "TutorialDone" (boolean)
+-- ✏️ ปิดระบบฝึก (Config/Tutorial.Enabled = false) → ส่ง "จบแล้ว" ให้ทุกคน (ไม่เขียนลงเซฟ) · ตรงกับ TutorialService.isDone
+local function mirrorTutorial(player: Player, data: any)
+	local finished = #Tutorial.Steps + 1
+	local done = not Tutorial.Enabled or data.TutorialDone == true
+	local step = data.TutorialStep
+	if done then
+		step = finished
+	elseif type(step) ~= "number" or step ~= step or step % 1 ~= 0 or step < 1 or step > #Tutorial.Steps then
+		step = 1 -- ข้อมูลเสีย → ขั้น 1 (TutorialService ใช้กฎเดียวกัน)
+	end
+	player:SetAttribute("TutorialStep", step)
+	player:SetAttribute("TutorialDone", done)
+end
+
 -- คัดลอกค่าจาก data ไปตั้งเป็น Attribute บนตัว player · เรียกทุกครั้งที่ PlayerData เปลี่ยน
 local function mirror(player: Player, data: any)
 	for _, field in PUBLIC_FIELDS do
 		player:SetAttribute(field, data[field])
 	end
+	mirrorTutorial(player, data)
 	for _, field in JSON_FIELDS do
 		-- pcall กันกรณีแปลงเป็น JSON ไม่ได้ → ข้ามไป ค่าเก่ายังอยู่
 		local ok, encoded = pcall(HttpService.JSONEncode, HttpService, data[field])

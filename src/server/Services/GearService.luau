@@ -18,6 +18,7 @@
 -- ⚠️ ห้ามแก้:
 --   • ทุกการแก้ Gear / Coins ต้องอยู่ใน PlayerData.update และตรวจกฎซ้ำข้างในเสมอ (ห้ามเชื่อค่าที่ Client ส่งมา)
 --   • ห้าม require BossService บนหัวไฟล์ (BossService require ไฟล์นี้ → วนกัน = require พัง) → ใช้ bossActive() ด้านล่าง
+--   • ห้าม require TutorialService บนหัวไฟล์ (เหตุผลเดียวกัน) → ใช้ tutorialDone() · ฝึกยังไม่จบ = ทุกคำสั่งไม่ทำงาน (ยกเว้นดรอปบอส)
 --   • ระบบอื่นห้ามแก้ data.Gear เอง (cache โบนัส / Attribute จะไม่อัปเดต) → เพิ่มฟังก์ชันในไฟล์นี้แทน
 --
 -- 📖 อ่านตามลำดับนี้
@@ -59,6 +60,16 @@ local function bossActive(): boolean
 		BossService = require(script.Parent.BossService)
 	end
 	return BossService.isActive()
+end
+
+-- ฝึกสอนจบหรือยัง (design/tutorial.md: ระหว่างฝึกใช้อุปกรณ์ไม่ได้ทุกคำสั่ง) · lazy require เหมือน BossService
+-- TutorialService → BossService → ไฟล์นี้ → require บนหัวไฟล์จะวนกัน
+local TutorialService: any = nil
+local function tutorialDone(player: Player): boolean
+	if not TutorialService then
+		TutorialService = require(script.Parent.TutorialService)
+	end
+	return TutorialService.isDone(player)
 end
 
 -- ธาตุป้อมจากข้อมูล ("" = ยังไม่เลือก / ข้อมูลเสีย)
@@ -164,6 +175,9 @@ end
 function GearService.equip(player: Player, key: string): boolean
 	local changed = false
 	PlayerData.update(player, function(data)
+		if not tutorialDone(player) then
+			return -- ฝึกสอนยังไม่จบ
+		end
 		-- ⚠️ ตรวจทุกข้อ "ข้างใน" update (ห้ามย้ายออก)
 		if bossActive() then
 			return -- ห้ามเปลี่ยนอุปกรณ์ระหว่างบอส (กันสลับหาค่าเฉพาะหน้า · เหมือนกฎเปลี่ยนธาตุ)
@@ -189,6 +203,9 @@ end
 function GearService.unequip(player: Player, slot: string): boolean
 	local changed = false
 	PlayerData.update(player, function(data)
+		if not tutorialDone(player) then
+			return -- ฝึกสอนยังไม่จบ
+		end
 		if bossActive() or not GearMath.slotIndex(slot) then
 			return
 		end
@@ -211,6 +228,9 @@ function GearService.unlockSlot(player: Player): boolean
 	local unlocked = false
 	-- ⚠️ ระวัง: แตะเงินจริง · เช็กเงินพอก่อนหักเสมอ
 	PlayerData.update(player, function(data)
+		if not tutorialDone(player) then
+			return -- ฝึกสอนยังไม่จบ
+		end
 		local gear = gearOf(data)
 		local price = GearMath.nextSlotPrice(gear.Slots)
 		if not price then
@@ -235,6 +255,9 @@ end
 function GearService.salvage(player: Player, key: string, count: number): number
 	local gained = 0
 	PlayerData.update(player, function(data)
+		if not tutorialDone(player) then
+			return -- ฝึกสอนยังไม่จบ
+		end
 		local _, _, rarity = GearMath.parseKey(key)
 		if not rarity or count % 1 ~= 0 or count < 1 then
 			return
@@ -258,6 +281,9 @@ end
 function GearService.salvageRarity(player: Player, rarity: string): number
 	local gained = 0
 	PlayerData.update(player, function(data)
+		if not tutorialDone(player) then
+			return -- ฝึกสอนยังไม่จบ
+		end
 		if not GearMath.rarityIndex(rarity) or rarity == "Legendary" then
 			return
 		end
@@ -294,6 +320,9 @@ function GearService.merge(player: Player, key: string): boolean
 	local merged = false
 	-- ⚠️ ระวัง: หักของ + หักเงิน + ให้ของ ต้องอยู่ใน update เดียว (ห้ามแยก)
 	PlayerData.update(player, function(data)
+		if not tutorialDone(player) then
+			return -- ฝึกสอนยังไม่จบ
+		end
 		local slot, variant, rarity = GearMath.parseKey(key)
 		if not slot or not variant or not rarity then
 			return
