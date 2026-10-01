@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local Components = require(script.Parent.Components)
 local Panels = require(script.Parent.Panels)
 local Theme = require(script.Parent.Theme)
+local TurretPanelUI = require(script.Parent.TurretPanelUI)
 local Settings = require(script.Parent.Parent.Controllers.SettingsController)
 
 local player = Players.LocalPlayer
@@ -84,10 +85,9 @@ function HudUI.Init()
 	local bagButton = Components.button(menu, "🎒  กระเป๋า", { order = 3 }, function()
 		Panels.toggle("Bag")
 	end)
-	-- ✏️ ปุ่มอุปกรณ์ป้อม (แทนปุ่มกาชาที่ถอดแล้ว) · แผง "Gear" สร้าง/ลงทะเบียนใน UI/GearUI (ปุ่มลัด G / RB อยู่ในไฟล์นั้น)
-	local gearButton = Components.button(menu, "🛠  อุปกรณ์", { order = 4 }, function()
-		Panels.toggle("Gear")
-	end)
+	-- ✏️ ปุ่มแผงป้อม (อุปกรณ์ + อัปเกรด) = ทางสำรอง · ทางหลักคือคลิก/แตะป้อมในโลก (UI/TurretTapUI)
+	--   แผงสร้างใน UI/TurretPanelUI (ปุ่มลัด G / RB อยู่ในไฟล์นั้น)
+	local gearButton = Components.button(menu, "🛠  ป้อม", { order = 4 }, TurretPanelUI.toggle)
 
 	-- ตั้งชื่อปุ่ม (UI/TutorialUI หาปุ่มด้วยชื่อนี้เพื่อหรี่ปุ่มที่ไม่เกี่ยวระหว่างฝึก)
 	settingsButton.Name = "Settings"

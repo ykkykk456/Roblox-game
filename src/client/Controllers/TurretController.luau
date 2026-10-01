@@ -1,6 +1,7 @@
 -- ป้อมฝั่ง Client: ส่งคำขอ อัปเกรด/ใช้สกิล · วาดเอฟเฟกต์กระสุน/สกิลตามธาตุจากข้อมูลที่ Server ส่งมา (เจ้าของ: Client_UI_Scripter)
 -- Client ไม่ได้คำนวณดาเมจหรือเงิน — TurretFx เป็นเอฟเฟกต์ล้วน (สเปก: design/element-skills.md หัวข้อ 2.3 · VFX)
--- ปุ่มลัด: สกิล = Q / ปุ่ม X (Gamepad) · อัปเกรด = U / ปุ่ม Y (Gamepad) · มือถือใช้ปุ่มบนจอ (CombatUI)
+-- ปุ่มลัด: สกิล = Q / ปุ่ม X (Gamepad) · มือถือใช้ปุ่มสกิลบนจอ (CombatUI)
+-- อัปเกรด: ไม่มีปุ่มลัด (เจ้าของสั่ง: เมาส์/แตะเท่านั้น) → ปุ่ม "อัปเกรด" ในแผงป้อม (UI/TurretPanelUI · เปิดด้วยการคลิกป้อม)
 --
 -- TurretFx (Server → Client): { { Kind, From, To, Color, Radius?, Duration?, Travel?, Spread?, Arc? } }
 --   Kind = ค่า Fx ใน Config/Elements · Kind ที่ไม่รู้จัก → Tracer (ถ้าอยู่ใน Projectile.Instant) หรือลูกกลมวิ่ง
@@ -13,10 +14,11 @@
 --   เพิ่มเอฟเฟกต์ชนิดใหม่ → เขียน drawXxx ใหม่ + เพิ่มใน DRAWERS + ตั้ง Fx ใน Config/Elements + ลงทะเบียนใน Projectile
 --   เครื่องกระตุก → ลด MAX_ACTIVE_PARTS / MAX_FX_PER_EVENT / CULL_DISTANCE
 --   เปลี่ยนปุ่มลัด → Enum.KeyCode ใน TurretController.Init (ข้อความบอกปุ่มบนจออยู่ที่ UI/CombatUI keyHint)
--- ใครใช้: UI/CombatUI (ปุ่มอัป/ปุ่มสกิล) · ตัวรับฝั่ง Server: src/server/Network/TurretHandler.luau
+-- ใครใช้: UI/CombatUI (ปุ่มสกิล) · UI/TurretPanelUI (ปุ่มอัปเกรด) · ตัวรับฝั่ง Server: src/server/Network/TurretHandler.luau
 --
 -- 📖 อ่านตามลำดับนี้:
---   1) TurretController.Init (ท้ายไฟล์) สร้างโฟลเดอร์ TurretEffects + ผูกปุ่มลัด Q/U → requestSkill / requestUpgrade → fire()
+--   1) TurretController.Init (ท้ายไฟล์) สร้างโฟลเดอร์ TurretEffects + ผูกปุ่มลัด Q → requestSkill → fire()
+--      (requestUpgrade ถูกเรียกจากปุ่มในแผงป้อมเท่านั้น)
 --   2) TurretController.Start ฟัง Remote TurretFx → onTurretFx
 --      (ฝั่งส่ง = server/Services/TurretService (ยิงปกติ) + ElementSkillService (สกิล))
 --   3) onTurretFx วนแต่ละรายการ → readFx ตรวจข้อมูล → isNearCamera ตัดของไกล → DRAWERS[Kind] (ไม่รู้จัก → Tracer/ลูกกลม)
@@ -488,7 +490,7 @@ local function fire(name: string)
 	remote:FireServer()
 end
 
--- ขออัปเลเวลป้อม (ปุ่มบนจอ / U / Y) · Server เช็กเงินและหักเงินเอง
+-- ขออัปเลเวลป้อม (ปุ่ม "อัปเกรด" ในแผงป้อม UI/TurretPanelUI · ไม่มีปุ่มลัด) · Server เช็กเงินและหักเงินเอง
 function TurretController.requestUpgrade()
 	fire("UpgradeTurret")
 end
@@ -512,13 +514,7 @@ function TurretController.Init()
 		return Enum.ContextActionResult.Sink
 	end, false, Enum.KeyCode.Q, Enum.KeyCode.ButtonX)
 
-	-- ✏️ แก้ตรงนี้ถ้าอยากเปลี่ยนปุ่มลัดอัปเกรด: Enum.KeyCode.U / ButtonY
-	ContextActionService:BindAction("TurretUpgrade", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			TurretController.requestUpgrade()
-		end
-		return Enum.ContextActionResult.Sink
-	end, false, Enum.KeyCode.U, Enum.KeyCode.ButtonY)
+	-- ⚠️ อัปเกรดไม่มีปุ่มลัดแล้ว (เดิม U / Y) · เจ้าของสั่งให้กดด้วยเมาส์/แตะในแผงป้อมเท่านั้น → อย่าผูกกลับ
 end
 
 -- เริ่มฟังเอฟเฟกต์การยิงจาก Server

@@ -3,17 +3,19 @@
 -- ปุ่มบนจอใช้ได้ทั้งสัมผัส/เมาส์/Gamepad · ปุ่มลัดอยู่ใน TurretController
 --
 -- อยากปรับ:
---   ย้าย/ขยายแถบบอส → หมวด "แถบบอส" ใน CombatUI.Init (bossFrame.Position / Size)
+--   ย้าย/ขยายแถบบอส → BOSS_BAR_TOP / BOSS_BAR_HEIGHT ด้านบนไฟล์ · สีรุ้ง/ความเร็ววิ้ง → RAINBOW_* / SHINE_*
 --   ย้ายตารางดาเมจ → หมวด "ตารางดาเมจ" (board.Position / Size) · จำนวนแถว = for index = 1, 5
---   ย้ายแผงป้อม/ปุ่มอัป/ปุ่มสกิล → หมวด "แผงป้อม" (panel.Position / Size)
+--   ย้ายแผงป้อม/ปุ่มสกิล → หมวด "แผงป้อม" (panel.Position / Size)
+--   ปุ่มอัปเกรดย้ายไปอยู่แผงป้อมที่เปิดด้วยการคลิกป้อม (UI/TurretPanelUI) · ไม่มีปุ่มลัดอัปแล้ว
 --   ข้อความที่แสดง → renderBoss / renderBoard / renderTurret · สี → UI/Theme.luau
---   ปุ่มลัด U/Y (อัป) และ Q/X (สกิล) ที่โชว์บนปุ่ม → keyHint(...) ใน renderTurret (ปุ่มจริงผูกใน TurretController)
+--   ปุ่มลัด Q/X (สกิล) ที่โชว์บนปุ่ม → keyHint(...) ใน renderTurret (ปุ่มจริงผูกใน TurretController)
 --   ชื่อสกิลบนปุ่ม = สกิลของธาตุ (Config/Elements · Skill.Name) · คูลดาวน์จาก Attribute SkillReadyAt/SkillActiveUntil (Server ตั้ง)
 -- ⚠️ ตัวเลขดาเมจ/ราคาบนจอเป็นแค่การแสดงผล · ดาเมจจริงและการหักเงินทำที่ Server เท่านั้น
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Combat = require(ReplicatedStorage.Shared.Config.Combat)
@@ -30,17 +32,27 @@ local player = Players.LocalPlayer
 local REFRESH_INTERVAL = 0.2
 local RESULT_SHOW_TIME = 8 -- วินาทีที่แสดงผลรอบล่าสุดหลังบอสจบ
 
+-- ✏️ แถบบอสสีรุ้งวิบวับ (แสดงผลล้วน)
+local BOSS_BAR_TOP = 10 -- ✏️ ระยะห่างจากขอบบน (พิกเซล · นับใต้ปุ่มระบบ Roblox ที่ ScreenInsets เว้นให้แล้ว)
+local BOSS_BAR_HEIGHT = 26 -- ✏️ ความสูงแถบ (ถ้าเปลี่ยน ให้แก้ BANNER_TOP ใน TutorialUI ด้วย)
+local RAINBOW_SPEED = 0.25 -- ✏️ ความเร็วสีรุ้งไหล (รอบต่อวินาที · มาก = ไหลเร็ว)
+local RAINBOW_SATURATION = 0.75 -- ✏️ ความสดของสีรุ้ง (0 = ขาว · 1 = สดสุด)
+local SHINE_PERIOD = 1.6 -- ✏️ วินาทีต่อการวิ้งแสงขาวพาดผ่านแถบ 1 ครั้ง
+local SHINE_WIDTH = 0.25 -- ✏️ ความกว้างแสงวิ้ง (สัดส่วนของแถบ)
+
 -- ชิ้น UI ที่ฟังก์ชัน render ต้องอัปเดต (สร้างใน Init) · bossState = ข้อมูลบอสจาก Server
 local bossState: Instance
 local bossTitle: TextLabel
 local bossFill: Frame
 local bossHpText: TextLabel
 local bossBarBack: Frame
+local bossGradient: UIGradient -- สีรุ้งบน bossFill (หมุนสีทุกเฟรม)
+local bossShine: Frame -- แถบแสงขาววิ้งพาดผ่าน
+local bossStroke: UIStroke -- ขอบแถบที่กะพริบเบาๆ
 local board: Frame
 local boardRows: { TextLabel } = {}
 local boardSelf: TextLabel
 local turretInfo: TextLabel
-local upgradeButton: TextButton
 local skillButton: TextButton
 local lastResultAt = 0
 
@@ -78,19 +90,20 @@ local function numberAttr(instance: Instance, name: string, fallback: number): n
 end
 
 -- ===== วาดข้อมูลบนจอ =====
--- แถบบอส: บอสอยู่ = เวลาที่เหลือ + ดาเมจรวม · ไม่อยู่ = เตือนก่อนมา / ผลรอบล่าสุด / นับถอยหลังบอสถัดไป
+-- แถบบอส: บอสอยู่ = แถบสีรุ้งหดตามเวลา + ดาเมจรวม (ไม่โชว์ตัวเลขเวลา) · ไม่อยู่ = เตือนก่อนมา / ผลรอบล่าสุด / นับถอยหลังบอสถัดไป
 local function renderBoss()
 	local serverNow = workspace:GetServerTimeNow()
 	if bossState:GetAttribute("Active") == true then
-		-- บอสไม่มีเลือด: แถบ = เวลาที่เหลือ · ตัวเลข = ดาเมจรวมทั้งเซิร์ฟ
+		-- บอสไม่มีเลือด: ความยาวแถบ = เวลาที่เหลือ · ตัวเลขบนแถบ = ดาเมจรวมทั้งเซิร์ฟ
 		local left = numberAttr(bossState, "EndsAt", 0) - serverNow
-		bossTitle.Text = `👹 บอสมาแล้ว! เหลือเวลา {clock(left)}`
+		bossTitle.Visible = false -- แถบอยู่ตำแหน่งเดียวกับข้อความ → ซ่อนข้อความตอนบอสอยู่
 		bossFill.Size = UDim2.fromScale(math.clamp(left / math.max(Combat.Boss.Duration, 1), 0, 1), 1)
-		bossHpText.Text = `ดาเมจรวม {shortNumber(numberAttr(bossState, "TotalDamage", 0))}`
+		bossHpText.Text = `👹 ดาเมจรวม {shortNumber(numberAttr(bossState, "TotalDamage", 0))}`
 		bossBarBack.Visible = true
 		return
 	end
 	bossBarBack.Visible = false
+	bossTitle.Visible = true
 	local result = bossState:GetAttribute("Result")
 	local incoming = numberAttr(bossState, "NextAt", math.huge) - serverNow
 	if incoming > 0 and incoming <= Map.Pit.WarnSeconds then
@@ -101,6 +114,28 @@ local function renderBoss()
 		bossTitle.Text =
 			`⏳ บอสมาในอีก {clock(numberAttr(bossState, "NextAt", serverNow) - serverNow)}`
 	end
+end
+
+-- แถบบอสสีรุ้งวิบวับ (เรียกทุกเฟรมจาก RenderStepped · ทำงานเฉพาะตอนแถบโชว์ จึงเบา)
+-- สีรุ้ง = เลื่อน Hue ของ 7 จุดสีวนไปเรื่อยๆ (ต่อกันเนียนไม่มีรอยตัด) · แสงวิ้ง = เลื่อน bossShine ซ้าย→ขวา
+local function animateBossBar()
+	if not bossBarBack.Visible then
+		return
+	end
+	local now = os.clock()
+	local shift = (now * RAINBOW_SPEED) % 1
+	local keypoints = table.create(7)
+	for index = 0, 6 do
+		local alpha = index / 6
+		local hue = (alpha - shift) % 1
+		keypoints[index + 1] = ColorSequenceKeypoint.new(alpha, Color3.fromHSV(hue, RAINBOW_SATURATION, 1))
+	end
+	bossGradient.Color = ColorSequence.new(keypoints)
+	-- แสงวิ้งเริ่มนอกแถบซ้าย → ออกนอกแถบขวา
+	local progress = (now % SHINE_PERIOD) / SHINE_PERIOD
+	bossShine.Position = UDim2.fromScale(-SHINE_WIDTH + progress * (1 + SHINE_WIDTH * 2), 0)
+	-- ขอบขาวกะพริบ (โปร่ง 0.3 ↔ 0.8)
+	bossStroke.Transparency = 0.55 + 0.25 * math.sin(now * 6)
 end
 
 -- ตารางดาเมจ: อันดับ 1–5 จาก Attribute "Top" (JSON) + ดาเมจของเราเอง · ไม่มีข้อมูล = ซ่อนตาราง
@@ -122,7 +157,7 @@ local function renderBoard()
 	boardSelf.Text = `คุณ: {shortNumber(numberAttr(player, "BossDamage", 0))}`
 end
 
--- แผงป้อม: เลเวล/ดาเมจ/อัตรายิง · ปุ่มอัป (ราคา · จาง = เงินไม่พอ) · ปุ่มสกิล (ทำงาน/รอคูลดาวน์/พร้อม)
+-- แผงป้อม: เลเวล/ดาเมจ/อัตรายิง · ปุ่มสกิล (ทำงาน/รอคูลดาวน์/พร้อม) · ปุ่มอัปอยู่ UI/TurretPanelUI
 local function renderTurret()
 	local level = TurretMath.clampLevel(player:GetAttribute("TurretLevel"))
 	local boost = numberAttr(player, "FriendBoost", 0)
@@ -133,17 +168,6 @@ local function renderTurret()
 	local damageText = shortNumber(TurretMath.damage(level) * stats.Damage)
 	turretInfo.Text =
 		`🔫 ป้อม Lv.{level} · ดาเมจ {damageText} · ยิง {rateText}/วิ{boostText}`
-
-	if level >= Combat.Turret.MaxLevel then
-		upgradeButton.Text = "⬆ เลเวลสูงสุด"
-		upgradeButton.TextTransparency = 0.5
-	else
-		local cost = TurretMath.upgradeCost(level)
-		local coins = numberAttr(player, "Coins", 0)
-		upgradeButton.Text = `⬆ อัป 💰{shortNumber(cost)}{keyHint("U", "Y")}`
-		-- แค่บอกใบ้ว่าเงินไม่พอ · Server เป็นคนตัดสินจริง
-		upgradeButton.TextTransparency = if coins >= cost then 0 else 0.5
-	end
 
 	-- ปุ่มสกิล = สกิลของธาตุ (Config/Elements) · เวลาคูลดาวน์มาจาก Attribute ที่ Server ตั้ง (SkillReadyAt / SkillActiveUntil)
 	local skill = stats.Skill
@@ -173,47 +197,75 @@ function CombatUI.Init()
 	local gui = Components.screen("CombatGui", 4)
 
 	-- ===== แถบบอส (บนกลาง) =====
-	-- ตำแหน่ง = bossFrame.Position (ห่างขอบบน 12) · กว้าง 50% ของจอ สูง 64 · กว้างสุด 460 (UISizeConstraint)
-	-- ข้างในมี: bossTitle (ข้อความบน) · bossBarBack (พื้นแถบ) · bossFill (แถบสีแดงหดตามเวลา) · bossHpText (ตัวเลขบนแถบ)
+	-- ✏️ ตำแหน่ง = BOSS_BAR_TOP (ห่างขอบบน · ScreenInsets เว้นแถบปุ่มระบบ Roblox ให้แล้ว) · สูง = BOSS_BAR_HEIGHT
+	--    กว้าง 50% ของจอ · กว้างสุด 460 (UISizeConstraint)
+	-- ข้างในมี (ซ้อนตำแหน่งเดียวกัน โชว์ทีละอย่าง):
+	--   bossTitle = ข้อความตอนไม่มีบอส (บอสมาในอีก… / เตือน / ผลรอบ)
+	--   bossBarBack (พื้นแถบ) · bossFill (แถบสีรุ้งหดตามเวลา) · bossShine (แสงวิ้ง) · bossHpText (ดาเมจรวม) = ตอนบอสอยู่
 	local bossFrame = Instance.new("Frame")
 	bossFrame.Name = "Boss"
 	bossFrame.AnchorPoint = Vector2.new(0.5, 0)
-	bossFrame.Position = UDim2.new(0.5, 0, 0, 12)
-	bossFrame.Size = UDim2.new(0.5, 0, 0, 64)
+	bossFrame.Position = UDim2.new(0.5, 0, 0, BOSS_BAR_TOP)
+	bossFrame.Size = UDim2.new(0.5, 0, 0, BOSS_BAR_HEIGHT)
 	bossFrame.BackgroundTransparency = 1
 	bossFrame.Parent = gui
 	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(460, 64)
+	limit.MaxSize = Vector2.new(460, BOSS_BAR_HEIGHT)
 	limit.Parent = bossFrame
 
 	bossTitle = Components.label(bossFrame, "", {
-		size = UDim2.new(1, 0, 0, 28),
+		size = UDim2.fromScale(1, 1),
 		bold = true,
 		alignX = Enum.TextXAlignment.Center,
 	})
 	bossTitle.TextStrokeTransparency = 0.5
 
 	bossBarBack = Instance.new("Frame")
-	bossBarBack.Position = UDim2.fromOffset(0, 32)
-	bossBarBack.Size = UDim2.new(1, 0, 0, 24)
+	bossBarBack.Size = UDim2.fromScale(1, 1)
 	bossBarBack.BackgroundColor3 = Theme.Colors.Background
 	bossBarBack.BackgroundTransparency = 0.2
 	bossBarBack.Visible = false
 	bossBarBack.Parent = bossFrame
 	Components.corner(bossBarBack, UDim.new(0, 8))
+	-- ขอบขาวกะพริบเบาๆ (ความโปร่งใสเปลี่ยนใน animateBossBar)
+	bossStroke = Instance.new("UIStroke")
+	bossStroke.Color = Color3.new(1, 1, 1)
+	bossStroke.Thickness = 2
+	bossStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	bossStroke.Parent = bossBarBack
 
 	bossFill = Instance.new("Frame")
 	bossFill.Size = UDim2.fromScale(1, 1)
-	bossFill.BackgroundColor3 = Theme.Colors.Danger
+	bossFill.BackgroundColor3 = Color3.new(1, 1, 1) -- ขาว เพื่อให้ UIGradient ด้านล่างแสดงสีรุ้งตรงสี
+	bossFill.ClipsDescendants = true -- แสงวิ้งไม่ล้นออกนอกแถบ
 	bossFill.Parent = bossBarBack
 	Components.corner(bossFill, UDim.new(0, 8))
+	bossGradient = Instance.new("UIGradient")
+	bossGradient.Parent = bossFill
+
+	-- แสงขาววิ้ง: แถบขาวโปร่งตรงกลาง จางที่ขอบ เลื่อนจากซ้ายไปขวาวนไป
+	bossShine = Instance.new("Frame")
+	bossShine.AnchorPoint = Vector2.new(0.5, 0)
+	bossShine.Size = UDim2.fromScale(SHINE_WIDTH, 1)
+	bossShine.BackgroundColor3 = Color3.new(1, 1, 1)
+	bossShine.BorderSizePixel = 0
+	bossShine.Parent = bossFill
+	local shineFade = Instance.new("UIGradient")
+	shineFade.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 0.35), -- ✏️ ความสว่างแสงวิ้ง (0 = ขาวทึบ · 1 = มองไม่เห็น)
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	shineFade.Parent = bossShine
 
 	bossHpText = Components.label(bossBarBack, "", {
 		size = UDim2.fromScale(1, 1),
 		bold = true,
-		textSize = 14,
+		textSize = 15,
 		alignX = Enum.TextXAlignment.Center,
 	})
+	bossHpText.ZIndex = 3 -- อยู่เหนือสีรุ้ง/แสงวิ้งเสมอ
+	bossHpText.TextStrokeTransparency = 0.2 -- ขอบดำให้อ่านออกบนพื้นสีรุ้ง
 
 	-- ===== ตารางดาเมจ (ซ้าย ใต้เหรียญ — ขวากลางเป็นเมนู และขวาล่างเป็นปุ่มกระโดดบนมือถือ) =====
 	-- ตำแหน่ง = board.Position (ใต้ป้ายเหรียญของ HudUI) · กว้าง 210 · สูงขยายตามจำนวนแถว
@@ -247,7 +299,8 @@ function CombatUI.Init()
 
 	-- ===== แผงป้อม (ล่างกลาง เหนือแถวคำแนะนำปุ่มลัดของ HudUI) =====
 	-- ตำแหน่ง = panel.Position (ห่างขอบล่าง 48) · กว้าง 90% ของจอ แต่ไม่เกิน 420 (panelLimit)
-	-- แถวบน = turretInfo (ข้อมูลป้อม) · แถวล่าง = ปุ่มอัป (ซ้าย สีเขียว) + ปุ่มสกิล (ขวา) กว้างครึ่งละปุ่ม
+	-- แถวบน = turretInfo (ข้อมูลป้อม) · แถวล่าง = ปุ่มสกิล (กลาง กว้าง 70%)
+	-- ปุ่มอัปเกรดย้ายไปแผงป้อม (คลิกป้อมในโลก → UI/TurretPanelUI) ตามที่เจ้าของสั่ง
 	local panel = Instance.new("Frame")
 	panel.Name = "Turret"
 	panel.AnchorPoint = Vector2.new(0.5, 1)
@@ -276,24 +329,18 @@ function CombatUI.Init()
 	local layout = Components.list(buttons, 8, Enum.FillDirection.Horizontal)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-	upgradeButton = Components.button(buttons, "", {
-		size = UDim2.new(0.5, -4, 1, 0),
-		color = Theme.Colors.Accent,
-		hoverColor = Theme.Colors.AccentHover,
-		textSize = 16,
-		order = 1,
-	}, TurretController.requestUpgrade)
 	skillButton = Components.button(
 		buttons,
 		"",
-		{ size = UDim2.new(0.5, -4, 1, 0), textSize = 16, order = 2 },
+		{ size = UDim2.new(0.7, 0, 1, 0), textSize = 16, order = 2 },
 		TurretController.requestSkill
 	)
 end
 
--- ปุ่มอัป/ปุ่มสกิลของแผงป้อม (สร้างใน Init) · ใช้โดย UI/TutorialUI เพื่อทำไฮไลต์/หรี่ปุ่มระหว่างฝึก (ไม่แตะการทำงานของปุ่ม)
-function CombatUI.getButtons(): (TextButton?, TextButton?)
-	return upgradeButton, skillButton
+-- ปุ่มสกิลของแผงป้อม (สร้างใน Init) · ใช้โดย UI/TutorialUI เพื่อทำไฮไลต์/หรี่ปุ่มระหว่างฝึก (ไม่แตะการทำงานของปุ่ม)
+-- (ปุ่มอัปอยู่ UI/TurretPanelUI.getUpgradeButton)
+function CombatUI.getSkillButton(): TextButton?
+	return skillButton
 end
 
 -- เริ่มทำงาน: รอข้อมูลบอสจาก Server · ฟัง Attribute ที่เปลี่ยน · วนอัปเดตนาฬิกาทุก REFRESH_INTERVAL วินาที
@@ -309,6 +356,7 @@ function CombatUI.Start()
 		player:GetAttributeChangedSignal(name):Connect(renderTurret)
 	end
 	renderBoard()
+	RunService.RenderStepped:Connect(animateBossBar) -- แถบบอสสีรุ้งวิบวับ
 
 	-- นาฬิกานับถอยหลัง (บอส/สกิล) อัปเดตเป็นรอบ
 	while true do

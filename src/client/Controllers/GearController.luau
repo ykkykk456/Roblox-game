@@ -1,15 +1,15 @@
 -- ส่งคำขออุปกรณ์ป้อมไป Server (เจ้าของ: Client_UI_Scripter) · สเปก: design/equipment.md หัวข้อ 14 "สัญญากับ Client"
 -- Client ส่งแค่ "เจตนา" (id ชิ้น / ชื่อช่อง / ระดับ / จำนวน) · Server ตรวจกฎทั้งหมดเอง (ของมีจริงไหม เงินพอไหม บอสอยู่ไหม)
 -- แล้วตั้ง Attribute Gear / GearSlots / GearBonus / Coins กลับมา — UI อ่านผลจาก Attribute เท่านั้น ไม่ถือว่าสำเร็จเอง
--- คำขอผิดกฎ Server จะ "เงียบ" (ไม่ตอบ error) → UI ต้องทำปุ่มเทาเองก่อนส่ง (ดู UI/GearUI)
--- ใครใช้: UI/GearUI · ตัวรับฝั่ง Server: src/server/Network/GearHandler.luau (ผ่าน Guard + rate limit)
+-- คำขอผิดกฎ Server จะ "เงียบ" (ไม่ตอบ error) → UI ต้องทำปุ่มเทาเองก่อนส่ง (ดู UI/TurretPanelUI)
+-- ใครใช้: UI/TurretPanelUI · ตัวรับฝั่ง Server: src/server/Network/GearHandler.luau (ผ่าน Guard + rate limit)
 --
 -- 📖 อ่านตามลำดับนี้ (เส้นทางของคำขอ 1 ครั้ง):
---   1) ผู้เล่นกดปุ่มใน UI/GearUI (ใส่ / ถอด / ปลดช่อง / ย่อย / รวม)
---   2) GearUI เรียกฟังก์ชันในไฟล์นี้ เช่น GearController.equip("Barrel_Fire_Rare")
+--   1) ผู้เล่นกดปุ่มใน UI/TurretPanelUI (ใส่ / ถอด / ปลดช่อง / ย่อย / รวม)
+--   2) TurretPanelUI เรียกฟังก์ชันในไฟล์นี้ เช่น GearController.equip("Barrel_Fire_Rare")
 --   3) ตรวจรูปแบบค่าเบื้องต้น (กันส่งค่าเสียเปล่าๆ) + กันกดรัว (MIN_INTERVAL) → fire() ส่งผ่าน RemoteEvent
---   4) Server: Network/GearHandler → Services/GearService · ผ่าน → ตั้ง Attribute ใหม่ → GearUI วาดใหม่
---   5) บอสจากไป Server ยิง GearDrops กลับมา → onDrops(callback) ส่งต่อให้ GearUI โชว์ป๊อปอัป
+--   4) Server: Network/GearHandler → Services/GearService · ผ่าน → ตั้ง Attribute ใหม่ → TurretPanelUI วาดใหม่
+--   5) บอสจากไป Server ยิง GearDrops กลับมา → onDrops(callback) ส่งต่อให้ TurretPanelUI โชว์ป๊อปอัป
 -- ⚠️ ระวัง: ไฟล์นี้ห้ามตั้ง Attribute เอง/ห้ามเดาผล — การตรวจที่นี่เป็นแค่ "กันส่งค่าขยะ" ไม่ใช่ความปลอดภัย (Server ตรวจซ้ำเสมอ)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

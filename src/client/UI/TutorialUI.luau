@@ -8,7 +8,8 @@
 --   1 ChooseElement = บังคับเปิดหน้าเลือกธาตุ (UI/ElementUI) ค้างไว้ · ปิดเอง = เปิดกลับให้ จนกว่า Element ≠ ""
 --   2 WatchTurret   = ลูกศร 3D เด้งเหนือป้อมตัวเอง (workspace.Turrets · Attribute OwnerUserId) + ลำแสงจากตัวละคร
 --   3 UseSkill      = ปุ่มสกิล (UI/CombatUI) กระพริบ/ขยาย + ป้าย "Q / ปุ่มสกิล"
---   4 Upgrade       = ปุ่มอัป กระพริบ/ขยาย + ป้าย "U"
+--   4 Upgrade       = ลูกศร 3D "คลิกป้อม" เหนือป้อมตัวเอง (ไม่มีปุ่มลัดอัปแล้ว) · เปิดแผงป้อม (UI/TurretPanelUI) แล้ว
+--                     ปุ่ม "อัปเกรด" ในแผงกระพริบ/ขยาย + แผงเลื่อนให้เห็นปุ่มเอง (focusUpgrade)
 --   5 MeetBoss      = ลูกศร 3D + ลำแสงชี้จุดเกิดบอส (Tag BossSpawn · ไม่เจอ = จุดกลางโลก) + ปุ่ม "เข้าใจแล้ว!" (กดได้หลัง MinReadSeconds)
 --   จบ (TutorialDone เปลี่ยนเป็น true ระหว่างเล่น) = ป้ายฉลอง "พร้อมลุย! 🎉" + เหรียญโบนัส (แค่แสดง · Server แจกจริง)
 --   ปุ่มที่ไม่เกี่ยวกับขั้นปัจจุบัน = หรี่ด้วยแผ่นทึบ (แค่หน้าตา · Server ปฏิเสธคำขอเองอยู่แล้ว)
@@ -39,6 +40,7 @@ local Components = require(script.Parent.Components)
 local ElementUI = require(script.Parent.ElementUI)
 local Panels = require(script.Parent.Panels)
 local Theme = require(script.Parent.Theme)
+local TurretPanelUI = require(script.Parent.TurretPanelUI)
 local TutorialController = require(script.Parent.Parent.Controllers.TutorialController)
 
 local player = Players.LocalPlayer
@@ -51,7 +53,7 @@ local TARGET_RETRY = 1 -- วินาที: ยังหาป้อม/จุ
 local ACK_RETRY = 3 -- วินาที: กด "เข้าใจแล้ว!" แล้ว Server ยังไม่เลื่อนขั้น → ปุ่มกดได้อีกครั้ง
 local CELEBRATE_SECONDS = 3.5 -- วินาทีที่ป้ายฉลองค้างก่อนจางหาย
 local BANNER_MAX_WIDTH = 560 -- ป้ายกว้างสุด (พิกเซล) บนจอใหญ่
-local BANNER_TOP = 12 + 64 + 6 -- ป้ายอยู่ใต้แถบบอสของ CombatUI (ห่างบน 12 + สูง 64)
+local BANNER_TOP = 10 + 26 + 8 -- ป้ายอยู่ใต้แถบบอสของ CombatUI (BOSS_BAR_TOP 10 + BOSS_BAR_HEIGHT 26 + ช่องว่าง 8)
 local STEP_TEXT_SIZE = 22
 local HIGHLIGHT_COLOR = Color3.fromRGB(255, 214, 64) -- สีลูกศร/ขอบปุ่มที่ต้องกด
 local BEAM_COLOR = Color3.fromRGB(255, 230, 120)
@@ -130,7 +132,7 @@ local function byDevice(keyboard: string, gamepad: string, touch: string): strin
 	return touch
 end
 
--- ✏️ คำใบ้บรรทัดล่างของป้าย + ป้ายเล็กบนปุ่ม (ปุ่มลัดจริงผูกใน TurretController / GearUI)
+-- ✏️ คำใบ้บรรทัดล่างของป้าย + ป้ายเล็กบนปุ่ม (ปุ่มลัดจริงผูกใน TurretController / TurretPanelUI)
 local function hintFor(step: number): string
 	if step == 1 then
 		return "👇 เลือก 1 ธาตุจากการ์ดด้านล่าง"
@@ -139,9 +141,9 @@ local function hintFor(step: number): string
 	elseif step == 3 then
 		return byDevice("Q / ปุ่มสกิล", "X / ปุ่มสกิล", "แตะปุ่มสกิล ⚡")
 	elseif step == 4 then
-		return byDevice("U / ปุ่มอัป", "Y / ปุ่มอัป", "แตะปุ่มอัป ⬆")
+		return byDevice("🖱 คลิกป้อม (ลูกศรเหลือง) → ⬆ อัปเกรด", "RB เปิดแผงป้อม → ⬆ อัปเกรด", "👆 แตะป้อม (ลูกศรเหลือง) → ⬆ อัปเกรด")
 	elseif step == 5 then
-		return byDevice("🛠 กด G ดูอุปกรณ์", "🛠 กด RB ดูอุปกรณ์", "🛠 ปุ่มอุปกรณ์ ด้านขวา")
+		return byDevice("🛠 คลิกที่ป้อมเพื่อใส่อุปกรณ์", "🛠 กด RB ดูอุปกรณ์", "🛠 แตะที่ป้อมเพื่อใส่อุปกรณ์")
 	end
 	return ""
 end
@@ -378,30 +380,21 @@ local function bossSpawnPart(): Instance?
 	return nil
 end
 
--- ===== ขั้นต่าง ๆ =====
--- ขั้น 1: บังคับเปิดหน้าเลือกธาตุค้างไว้ จนกว่า Server ตั้ง Element ≠ "" (ปิดเอง → เปิดกลับ)
-local function step1()
-	local token = stepToken
-	task.spawn(function()
-		while token == stepToken do
-			-- Element = nil (ยังโหลดไม่เสร็จ) → รอ · ≠ "" (เลือกแล้ว รอ Server เลื่อนขั้น) → ไม่บังคับ
-			if player:GetAttribute("Element") == "" and Panels.current() ~= PICKER_PANEL then
-				ElementUI.openPicker()
-			end
-			task.wait(PICKER_CHECK)
-		end
-	end)
-	local upgrade, skill = CombatUI.getButtons()
-	dim(upgrade)
-	dim(skill)
+-- ปุ่มที่ต้องหรี่นอกขั้นของมัน: สกิล (UI/CombatUI) · อัปเกรด (ในแผงป้อม UI/TurretPanelUI)
+local function skillButton(): GuiObject?
+	return CombatUI.getSkillButton()
 end
 
--- ขั้น 2: ลูกศร + ลำแสงชี้ป้อมตัวเอง · ป้อมสร้างใหม่ (เปลี่ยนธาตุ/ขั้นหน้าตา) → ย้ายลูกศรตาม
-local function step2()
+local function upgradeButton(): GuiObject?
+	return TurretPanelUI.getUpgradeButton()
+end
+
+-- ลูกศร + ลำแสงชี้ป้อมตัวเอง · ป้อมสร้างใหม่ (เปลี่ยนธาตุ/ขั้นหน้าตา) → ย้ายลูกศรตาม (ใช้ขั้น 2 และ 4)
+local function arrowOnOwnTurret(caption: string)
 	local refresh = worldArrow(function()
 		local turret = ownTurret()
 		return if turret then topOf(turret) else nil
-	end, "ป้อมของคุณ", 0, true)
+	end, caption, 0, true)
 
 	task.spawn(function()
 		local token = stepToken
@@ -418,24 +411,56 @@ local function step2()
 			return ownTurret() ~= nil
 		end)
 	end)
+end
 
-	local upgrade, skill = CombatUI.getButtons()
-	dim(upgrade)
-	dim(skill)
+-- ===== ขั้นต่าง ๆ =====
+-- ขั้น 1: บังคับเปิดหน้าเลือกธาตุค้างไว้ จนกว่า Server ตั้ง Element ≠ "" (ปิดเอง → เปิดกลับ)
+local function step1()
+	local token = stepToken
+	task.spawn(function()
+		while token == stepToken do
+			-- Element = nil (ยังโหลดไม่เสร็จ) → รอ · ≠ "" (เลือกแล้ว รอ Server เลื่อนขั้น) → ไม่บังคับ
+			if player:GetAttribute("Element") == "" and Panels.current() ~= PICKER_PANEL then
+				ElementUI.openPicker()
+			end
+			task.wait(PICKER_CHECK)
+		end
+	end)
+	dim(upgradeButton())
+	dim(skillButton())
+end
+
+-- ขั้น 2: ลูกศร + ลำแสงชี้ป้อมตัวเอง
+local function step2()
+	arrowOnOwnTurret("ป้อมของคุณ")
+	dim(upgradeButton())
+	dim(skillButton())
 end
 
 -- ขั้น 3: ปุ่มสกิลกระพริบ · ปุ่มอัปหรี่
 local function step3()
-	local upgrade, skill = CombatUI.getButtons()
-	pulse(skill, byDevice("Q / ปุ่มสกิล", "X / ปุ่มสกิล", "แตะปุ่มสกิล"))
-	dim(upgrade)
+	pulse(skillButton(), byDevice("Q / ปุ่มสกิล", "X / ปุ่มสกิล", "แตะปุ่มสกิล"))
+	dim(upgradeButton())
 end
 
--- ขั้น 4: ปุ่มอัปกระพริบ · ปุ่มสกิลหรี่
+-- ขั้น 4: ลูกศรชี้ป้อม "คลิกป้อม" → ผู้เล่นเปิดแผงป้อม → ปุ่มอัปเกรดในแผงกระพริบ (ติดไว้ตั้งแต่ต้นขั้น · แผงปิดอยู่ก็มองไม่เห็นเอง)
+-- แผงเปิด (ตอนไหนก็ได้ในขั้นนี้) → เลื่อนแผงให้เห็นปุ่มอัป (จอเล็กปุ่มอาจอยู่ใต้ขอบ) · ปุ่มสกิลหรี่
 local function step4()
-	local upgrade, skill = CombatUI.getButtons()
-	pulse(upgrade, byDevice("U", "Y", "แตะปุ่มอัป"))
-	dim(skill)
+	arrowOnOwnTurret(byDevice("🖱 คลิกป้อม!", "RB เปิดแผงป้อม", "👆 แตะป้อม!"))
+	pulse(upgradeButton(), "อัปเกรด")
+	dim(skillButton())
+
+	local panel = TurretPanelUI.getFrame()
+	if panel then
+		track(panel:GetPropertyChangedSignal("Visible"):Connect(function()
+			if panel.Visible then
+				TurretPanelUI.focusUpgrade()
+			end
+		end))
+		if panel.Visible then
+			TurretPanelUI.focusUpgrade()
+		end
+	end
 end
 
 -- ขั้น 5: ลูกศร + ลำแสงชี้จุดเกิดบอส + ปุ่ม "เข้าใจแล้ว!" (กดได้หลัง MinReadSeconds)
@@ -450,9 +475,8 @@ local function step5()
 		task.defer(refresh)
 	end))
 
-	local upgrade, skill = CombatUI.getButtons()
-	dim(upgrade)
-	dim(skill)
+	dim(upgradeButton())
+	dim(skillButton())
 
 	-- ปุ่มเข้าใจแล้ว: นับถอยหลังจากเวลาที่เครื่องนี้เห็นขั้น 5 (ช้ากว่าเวลาเริ่มขั้นที่ Server เสมอ → Server ไม่ปฏิเสธเพราะเร็วไป)
 	local token = stepToken
@@ -520,10 +544,10 @@ local function showStep(step: number)
 	banner.Visible = true
 	bounceBanner()
 
-	-- ปุ่มเมนูที่ไม่เกี่ยว = หรี่ (ตั้งค่า ไม่หรี่ · อุปกรณ์ ไม่หรี่ในขั้น 5 เพราะบอกให้ลองกด G ดู)
+	-- ปุ่มเมนูที่ไม่เกี่ยว = หรี่ (ตั้งค่า ไม่หรี่ · ปุ่ม "🛠 ป้อม" ไม่หรี่ในขั้น 4 (ทางสำรองไปปุ่มอัป) และ 5 (ลองดูอุปกรณ์))
 	dim(menuButton("Shop"))
 	dim(menuButton("Bag"))
-	if step ~= 5 then
+	if step ~= 4 and step ~= 5 then
 		dim(menuButton("Gear"))
 	end
 	if step ~= 1 then

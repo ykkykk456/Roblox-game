@@ -34,8 +34,10 @@
 | บอส (เวลาอยู่, ช่วงเวลามา, ลำดับสลับ, ท่า Animation ID, ทุบ) | `Config/Combat.luau` | `Boss.*` (`Rotation`, `Animations`, `Duration`, `SlamDamage`) |
 | ตำแหน่งบอส / ป้อม / บ้าน | **ใน Studio** ติด Tag `BossSpawn` `Turret1..6` `House1..6` | ชื่อ Tag อยู่ `Config/Tags.luau` |
 | เลนมอน / ระยะเกิด · การวัดพื้นตามเลน (มอนเดินติดพื้น) | `src/shared/Config/Map.luau` | `Layout.*` (`FloorSampleStep` `FloorMaxClimb` `FloorProbeDepth`) `Lane.*` |
-| หน้าจอ HUD เงิน / แถบบอส / ปุ่มอัป-สกิล / ปุ่มอุปกรณ์ | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
-| หน้าอุปกรณ์ (ช่อง 4 ช่อง · กระเป๋า · ใส่/รวม/แยก · ป๊อปอัปของดรอป) · ปุ่มลัด G / RB · ข้อมูลที่ใช้ ดู `design/equipment.md` หัวข้อ "สัญญากับ Client" | `src/client/UI/GearUI.luau` · `src/client/Controllers/GearController.luau` | |
+| หน้าจอ HUD เงิน / แถบบอส / ปุ่มสกิล / ปุ่ม "🛠 ป้อม" | `src/client/UI/HudUI.luau` · `CombatUI.luau` | |
+| **อัปเกรดป้อม** (ปุ่ม · ราคา · ดาเมจก่อน→หลัง) — อยู่ในแผงป้อม ใต้ช่องอุปกรณ์ · **ไม่มีปุ่มลัดคีย์บอร์ด** (เดิม U/Y ถูกถอด · เมาส์/แตะเท่านั้น) | `src/client/UI/TurretPanelUI.luau` | `buildUpgradeBox` `renderUpgrade` · ราคา → `Config/Economy.luau` |
+| **คลิก/แตะป้อมตัวเองในโลก → เปิดแผงป้อม** · ปุ่ม "🛠 ป้อม" ลอยเหนือป้อม | `src/client/UI/TurretTapUI.luau` | `TAP_MAX_MOVE` `TAP_MAX_SECONDS` `HIT_PADDING` `BUTTON_*` |
+| แผงป้อม (คลิกป้อม → ช่องอุปกรณ์ 4 ช่อง + กล่องอัป · กดช่อง → กระเป๋าเฉพาะช่องนั้น + ปุ่ม "ใส่" บนการ์ด + ◀ ย้อนกลับ · แตะการ์ด → รายละเอียด/รวม/แยก · ป๊อปอัปของดรอป) · ปุ่มลัดสำรอง G / RB · ข้อมูลที่ใช้ ดู `design/equipment.md` หัวข้อ "สัญญากับ Client" | `src/client/UI/TurretPanelUI.luau` · `src/client/Controllers/GearController.luau` | `renderMain` `renderSlotPage` `itemCard` `renderSheet` |
 | สี/ฟอนต์ UI ทั้งเกม | `src/client/UI/Theme.luau` | |
 | **ฝึกสอนตอนเข้าเกม** (ข้อความแต่ละขั้น · จำนวน/เลือดมอนฝึก · เวลา · เลื่อนบอสได้นานสุด · โบนัสจบ · ปิดระบบฝึก) · สเปก `design/tutorial.md` | `src/shared/Config/Tutorial.luau` | `Steps[n].Text` `WatchMonsters` `SkillMonsters` `TrainingMonsterHp` `WatchTimeout` `ReadSeconds` `MinReadSeconds` `MaxBossHold` `RewardCoins` `Enabled` |
 | ลำดับ/เงื่อนไขจบของขั้นฝึก · สิ่งที่ล็อกระหว่างฝึก | `src/server/Services/TutorialService.luau` | `enterStep` `Start` (ลูปเช็กขั้น) `allows` `holdBoss` |

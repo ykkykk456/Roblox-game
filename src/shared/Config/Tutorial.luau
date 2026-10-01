@@ -13,8 +13,8 @@ return table.freeze({
 		table.freeze({ Id = "ChooseElement", Text = "เลือกธาตุให้ป้อมของคุณ!" }),
 		table.freeze({ Id = "WatchTurret", Text = "ป้อมของคุณยิงเองอัตโนมัติ — ดูมันจัดการมอน!" }),
 		table.freeze({ Id = "UseSkill", Text = "กด Q (หรือปุ่มสกิล) ใช้สกิลธาตุ!" }),
-		table.freeze({ Id = "Upgrade", Text = "ได้เงินจากมอนแล้ว — กด U อัปป้อมให้แรงขึ้น!" }),
-		table.freeze({ Id = "MeetBoss", Text = "บอสยักษ์จะมาตรงนี้! ตีให้แรงที่สุด = ได้เงิน + อุปกรณ์ (กด G ดูอุปกรณ์)" }),
+		table.freeze({ Id = "Upgrade", Text = "ได้เงินจากมอนแล้ว — คลิกที่ป้อมของคุณ แล้วกด อัปเกรด!" }),
+		table.freeze({ Id = "MeetBoss", Text = "บอสยักษ์จะมาตรงนี้! ตีให้แรงที่สุด = ได้เงิน + อุปกรณ์ (คลิกที่ป้อมเพื่อใส่อุปกรณ์)" }),
 	}),
 
 	WatchMonsters = 3, -- มอนฝึกขั้น 2 (เดินมาตามเลนผู้เล่นคนนั้นเท่านั้น)
