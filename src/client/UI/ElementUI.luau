@@ -566,13 +566,13 @@ end
 
 -- สร้างปุ่ม HUD + แผง + ผูกปุ่มลัดตอนเริ่มเกม
 function ElementUI.Init()
-	-- ===== ปุ่ม HUD: กลางล่าง เหนือแผงป้อมของ CombatUI (แผงนั้นสูงจากขอบล่าง 48 + 94 px) =====
-	-- ✏️ ย้าย/ขยาย: position UDim2.new(0.5, 0, 1, -150) · กว้างสุด 300 px (limit)
+	-- ===== ปุ่ม HUD: ชิดซ้าย กลางจอแนวตั้ง (ใต้ตารางดาเมจบอส) ตามจุดที่เจ้าของเกมวาดไว้ 2026-10-01 =====
+	-- ✏️ ย้าย/ขยาย: position UDim2.new(0, 12, 0.5, 0) (ห่างขอบซ้าย 12 px · กลางจอแนวตั้ง) · กว้าง 160 px
 	local hudGui = Components.screen("ElementHudGui", 4)
 	hudButton = Components.button(hudGui, "", {
-		size = UDim2.new(0.9, 0, 0, Theme.ButtonHeight),
-		position = UDim2.new(0.5, 0, 1, -150),
-		anchor = Vector2.new(0.5, 1),
+		size = UDim2.new(0, 160, 0, Theme.ButtonHeight),
+		position = UDim2.new(0, 12, 0.5, 0),
+		anchor = Vector2.new(0, 0.5),
 		color = Theme.Colors.Background,
 		textSize = 16,
 		noHover = true,
@@ -581,7 +581,7 @@ function ElementUI.Init()
 	hudButton.TextTruncate = Enum.TextTruncate.AtEnd
 	hudButton.Visible = false
 	local limit = Instance.new("UISizeConstraint")
-	limit.MaxSize = Vector2.new(300, Theme.ButtonHeight)
+	limit.MaxSize = Vector2.new(160, Theme.ButtonHeight)
 	limit.Parent = hudButton
 	hudStroke = Instance.new("UIStroke")
 	hudStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border

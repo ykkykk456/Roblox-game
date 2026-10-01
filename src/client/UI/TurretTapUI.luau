@@ -35,6 +35,8 @@ local TAP_MAX_SECONDS = 0.5 -- วินาที: กดค้างนาน�
 local RAY_LENGTH = 1000 -- studs: ป้อมไกลกว่านี้จากกล้อง = คลิกไม่ติด
 local HIT_PADDING = 1 -- studs: ขยายกล่องรอบป้อมทุกด้าน (กดง่ายขึ้นบนจอเล็ก)
 local REFRESH_SECONDS = 2 -- วินาที: หาป้อมของเราซ้ำ (ป้อมถูกสร้างใหม่ตอนเปลี่ยนธาตุ/ขั้นหน้าตา)
+-- ✏️ ปุ่มลอยเหนือป้อม: ปิดไว้ตามที่เจ้าของเกมสั่ง (2026-10-01: เอาออก ให้คลิกที่ป้อมอย่างเดียว) · true = แสดงกลับมา
+local SHOW_FLOAT_BUTTON = false
 local BUTTON_SIZE = Vector2.new(96, 44) -- สูง ≥ 44 กดบนมือถือสบาย
 local BUTTON_TEXT = "🛠 ป้อม"
 local BUTTON_HEIGHT = 2.5 -- studs เหนือยอดป้อม
@@ -128,7 +130,7 @@ end
 local function refreshButton()
 	local turret = ownTurret()
 	local part = if turret then anchorPart(turret) else nil
-	if not turret or not part then
+	if not SHOW_FLOAT_BUTTON or not turret or not part then
 		buttonGui.Enabled = false
 		buttonGui.Adornee = nil
 		return

@@ -8,7 +8,7 @@
 --   ย้ายแผงป้อม/ปุ่มสกิล → หมวด "แผงป้อม" (panel.Position / Size)
 --   ปุ่มอัปเกรดย้ายไปอยู่แผงป้อมที่เปิดด้วยการคลิกป้อม (UI/TurretPanelUI) · ไม่มีปุ่มลัดอัปแล้ว
 --   ข้อความที่แสดง → renderBoss / renderBoard / renderTurret · สี → UI/Theme.luau
---   ปุ่มลัด Q/X (สกิล) ที่โชว์บนปุ่ม → keyHint(...) ใน renderTurret (ปุ่มจริงผูกใน TurretController)
+--   ปุ่มสกิล = กล่องสี่เหลี่ยม "Q" สีตามธาตุ → SKILL_KEY_TEXT / renderTurret / Init (ปุ่มลัดจริงผูกใน TurretController)
 --   ชื่อสกิลบนปุ่ม = สกิลของธาตุ (Config/Elements · Skill.Name) · คูลดาวน์จาก Attribute SkillReadyAt/SkillActiveUntil (Server ตั้ง)
 -- ⚠️ ตัวเลขดาเมจ/ราคาบนจอเป็นแค่การแสดงผล · ดาเมจจริงและการหักเงินทำที่ Server เท่านั้น
 
@@ -52,7 +52,6 @@ local bossStroke: UIStroke -- ขอบแถบที่กะพริบเ�
 local board: Frame
 local boardRows: { TextLabel } = {}
 local boardSelf: TextLabel
-local turretInfo: TextLabel
 local skillButton: TextButton
 local lastResultAt = 0
 
@@ -71,16 +70,6 @@ end
 local function clock(seconds: number): string
 	local total = math.max(0, math.ceil(seconds))
 	return string.format("%d:%02d", total // 60, total % 60)
-end
-
--- ข้อความบอกปุ่มลัดตามอุปกรณ์ เช่น " [U]" (คีย์บอร์ด) / " [Y]" (Gamepad) / "" (มือถือ)
-local function keyHint(keyboard: string, gamepad: string): string
-	if UserInputService.GamepadEnabled then
-		return ` [{gamepad}]`
-	elseif UserInputService.KeyboardEnabled then
-		return ` [{keyboard}]`
-	end
-	return ""
 end
 
 -- อ่าน Attribute ที่เป็นตัวเลข · ไม่มี/ไม่ใช่ตัวเลข → fallback
@@ -157,36 +146,42 @@ local function renderBoard()
 	boardSelf.Text = `คุณ: {shortNumber(numberAttr(player, "BossDamage", 0))}`
 end
 
--- แผงป้อม: เลเวล/ดาเมจ/อัตรายิง · ปุ่มสกิล (ทำงาน/รอคูลดาวน์/พร้อม) · ปุ่มอัปอยู่ UI/TurretPanelUI
+-- ปุ่มสกิล (กล่องสี่เหลี่ยม "Q" สีตามธาตุ) · เวลาคูลดาวน์มาจาก Attribute ที่ Server ตั้ง (SkillReadyAt / SkillActiveUntil)
+-- พร้อม = สีธาตุเต็ม · กำลังทำงาน = ขอบขาวหนา · รอคูลดาวน์ = ม่านมืดค่อยๆ ลดลงจากบนลงล่าง · ยังไม่เลือกธาตุ = สีเทา
+-- ✏️ เปลี่ยนตัวอักษรบนปุ่ม → SKILL_KEY_TEXT · ความเข้มตอนรอ → skillShade.BackgroundTransparency ใน Init
+local SKILL_KEY_TEXT = "Q"
+local skillShade: Frame
+local skillKey: TextLabel
+local skillStroke: UIStroke
+local skillCooldownTotal = 0 -- ความยาวคูลดาวน์รอบล่าสุด (วินาที) ไว้คำนวณสัดส่วนม่าน
+
 local function renderTurret()
 	local level = TurretMath.clampLevel(player:GetAttribute("TurretLevel"))
-	local boost = numberAttr(player, "FriendBoost", 0)
-	local boostText = if boost > 0 then ` · 👥 +{math.floor(boost * 100 + 0.5)}%` else ""
-	-- รวมตัวคูณธาตุ (ElementMath) เพื่อแสดงผลเท่านั้น · ดาเมจจริงคำนวณที่ Server
-	local stats = ElementMath.stats(player:GetAttribute("Element"), level)
-	local rateText = string.format("%.1f", TurretMath.fireRate(level) * stats.FireRate)
-	local damageText = shortNumber(TurretMath.damage(level) * stats.Damage)
-	turretInfo.Text =
-		`🔫 ป้อม Lv.{level} · ดาเมจ {damageText} · ยิง {rateText}/วิ{boostText}`
-
-	-- ปุ่มสกิล = สกิลของธาตุ (Config/Elements) · เวลาคูลดาวน์มาจาก Attribute ที่ Server ตั้ง (SkillReadyAt / SkillActiveUntil)
-	local skill = stats.Skill
-	local skillName = if skill then skill.Name else "-"
+	local element = player:GetAttribute("Element")
+	local stats = ElementMath.stats(element, level)
+	local def = ElementMath.defOf(element)
 	local serverNow = workspace:GetServerTimeNow()
 	local activeLeft = numberAttr(player, "SkillActiveUntil", 0) - serverNow
 	local readyLeft = numberAttr(player, "SkillReadyAt", 0) - serverNow
-	if not skill then
-		skillButton.Text = `⚡ เลือกธาตุก่อน{keyHint("C", "LB")}`
-		skillButton.TextTransparency = 0.5
-	elseif activeLeft > 0 then
-		skillButton.Text = `⚡ {skillName} {math.ceil(activeLeft)} วิ`
-		skillButton.TextTransparency = 0
-	elseif readyLeft > 0 then
-		skillButton.Text = `⚡ รอ {math.ceil(readyLeft)} วิ`
-		skillButton.TextTransparency = 0.5
+
+	if not stats.Skill or not def then
+		skillButton.BackgroundColor3 = Color3.fromRGB(90, 90, 96)
+		skillKey.TextTransparency = 0.5
+		skillShade.Visible = false
+		skillStroke.Color = Color3.fromRGB(60, 60, 66)
+		return
+	end
+	skillButton.BackgroundColor3 = def.Color
+	skillKey.TextTransparency = 0
+	skillStroke.Color = if activeLeft > 0 then Color3.new(1, 1, 1) else def.Color:Lerp(Color3.new(0, 0, 0), 0.4)
+	skillStroke.Thickness = if activeLeft > 0 then 4 else 2
+	if readyLeft > 0 then
+		skillCooldownTotal = math.max(skillCooldownTotal, readyLeft)
+		skillShade.Visible = true
+		skillShade.Size = UDim2.fromScale(1, math.clamp(readyLeft / skillCooldownTotal, 0, 1))
 	else
-		skillButton.Text = `⚡ {skillName}{keyHint("Q", "X")}`
-		skillButton.TextTransparency = 0
+		skillCooldownTotal = 0
+		skillShade.Visible = false
 	end
 end
 
@@ -297,44 +292,47 @@ function CombatUI.Init()
 		order = 10,
 	})
 
-	-- ===== แผงป้อม (ล่างกลาง เหนือแถวคำแนะนำปุ่มลัดของ HudUI) =====
-	-- ตำแหน่ง = panel.Position (ห่างขอบล่าง 48) · กว้าง 90% ของจอ แต่ไม่เกิน 420 (panelLimit)
-	-- แถวบน = turretInfo (ข้อมูลป้อม) · แถวล่าง = ปุ่มสกิล (กลาง กว้าง 70%)
-	-- ปุ่มอัปเกรดย้ายไปแผงป้อม (คลิกป้อมในโลก → UI/TurretPanelUI) ตามที่เจ้าของสั่ง
-	local panel = Instance.new("Frame")
-	panel.Name = "Turret"
-	panel.AnchorPoint = Vector2.new(0.5, 1)
-	panel.Position = UDim2.new(0.5, 0, 1, -48)
-	panel.Size = UDim2.new(0.9, 0, 0, 28 + 6 + Theme.ButtonHeight + 16)
-	panel.BackgroundColor3 = Theme.Colors.Background
-	panel.BackgroundTransparency = 0.2
-	panel.Parent = gui
-	local panelLimit = Instance.new("UISizeConstraint")
-	panelLimit.MaxSize = Vector2.new(420, math.huge)
-	panelLimit.Parent = panel
-	Components.corner(panel)
-	Components.padding(panel, 8)
-
-	turretInfo = Components.label(panel, "", {
-		size = UDim2.new(1, 0, 0, 28),
-		textSize = 15,
-		alignX = Enum.TextXAlignment.Center,
-	})
-
-	local buttons = Instance.new("Frame")
-	buttons.BackgroundTransparency = 1
-	buttons.Position = UDim2.fromOffset(0, 34)
-	buttons.Size = UDim2.new(1, 0, 0, Theme.ButtonHeight)
-	buttons.Parent = panel
-	local layout = Components.list(buttons, 8, Enum.FillDirection.Horizontal)
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-	skillButton = Components.button(
-		buttons,
-		"",
-		{ size = UDim2.new(0.7, 0, 1, 0), textSize = 16, order = 2 },
-		TurretController.requestSkill
-	)
+	-- ===== ปุ่มสกิล: กล่องสี่เหลี่ยม "Q" ล่างกลาง (เจ้าของเกมสั่ง 2026-10-01: เหลือแค่ตัว Q + สีตามธาตุ) =====
+	-- ✏️ ตำแหน่ง = UDim2.new(0.5, 0, 1, -48) (กลางจอ ห่างขอบล่าง 48) · ขนาด = SKILL_SIZE
+	local SKILL_SIZE = 72
+	skillButton = Components.button(gui, SKILL_KEY_TEXT, {
+		size = UDim2.fromOffset(SKILL_SIZE, SKILL_SIZE),
+		position = UDim2.new(0.5, 0, 1, -48),
+		anchor = Vector2.new(0.5, 1),
+		textSize = 34,
+		noHover = true,
+	}, TurretController.requestSkill)
+	skillButton.Name = "SkillButton"
+	skillButton.ClipsDescendants = true
+	skillStroke = Instance.new("UIStroke")
+	skillStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	skillStroke.Thickness = 2
+	skillStroke.Parent = skillButton
+	-- ม่านคูลดาวน์ (สีดำโปร่ง) ทับบนปุ่ม แต่ใต้ตัวอักษร
+	skillShade = Instance.new("Frame")
+	skillShade.Name = "Cooldown"
+	skillShade.BackgroundColor3 = Color3.new(0, 0, 0)
+	skillShade.BackgroundTransparency = 0.45
+	skillShade.BorderSizePixel = 0
+	skillShade.AnchorPoint = Vector2.new(0, 1)
+	skillShade.Position = UDim2.fromScale(0, 1)
+	skillShade.Size = UDim2.fromScale(1, 0)
+	skillShade.ZIndex = skillButton.ZIndex
+	skillShade.Visible = false
+	skillShade.Parent = skillButton
+	-- ตัวอักษร Q เป็น Label แยก อยู่เหนือม่าน (ข้อความของปุ่มเองจะโดนม่านทับ)
+	skillButton.Text = ""
+	skillKey = Instance.new("TextLabel")
+	skillKey.Name = "Key"
+	skillKey.BackgroundTransparency = 1
+	skillKey.Size = UDim2.fromScale(1, 1)
+	skillKey.Font = Enum.Font.GothamBlack
+	skillKey.TextSize = 34
+	skillKey.TextColor3 = Color3.new(1, 1, 1)
+	skillKey.TextStrokeTransparency = 0.3
+	skillKey.Text = SKILL_KEY_TEXT
+	skillKey.ZIndex = skillShade.ZIndex + 1
+	skillKey.Parent = skillButton
 end
 
 -- ปุ่มสกิลของแผงป้อม (สร้างใน Init) · ใช้โดย UI/TutorialUI เพื่อทำไฮไลต์/หรี่ปุ่มระหว่างฝึก (ไม่แตะการทำงานของปุ่ม)
