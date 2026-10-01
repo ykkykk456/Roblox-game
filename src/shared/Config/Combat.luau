@@ -106,6 +106,10 @@ return table.freeze({
 				PlantFeet = true,
 			}),
 			table.freeze({ Model = "boss_slambot", Animate = true }), -- โรบอท Slambot (ท่าเต้น) · ส่วนนี้ล็อกไว้
+			-- ปลาหมึก (เพิ่ม 2026-10-01): ยังไม่มีท่า → ยืนเฉย · มีท่าแล้วเปลี่ยน Animate = true + ใส่ Animations = { Idle = <ID>, Walk = 0, Slam = 0 }
+			-- ✏️ ชื่อโมเดลใน Studio ต้องเทียบแล้วเป็น "squid" (ไม่สนตัวเล็ก/ใหญ่ ขีด _ และคำว่า boss) เช่น Boss_squid · BossSquid · squid
+			--   ชื่ออื่น (เช่น octopus) → แก้ค่า Model ตรงนี้ให้ตรงชื่อโมเดล · ต้องมีชิ้นชื่อ HumanoidRootPart อยู่ข้างใน ไม่งั้นเกมหาไม่เจอ
+			table.freeze({ Model = "Boss_squid", Animate = false }),
 		}),
 		-- ท่าของบอสที่ Animate = true (ตอนนี้ = โรบอท) · เลข Animation ID หลัง Publish (ตัวเลขล้วน) · 0 = ใช้ค่าจากโมเดลแทน
 		-- ใส่ได้ 2 ที่ (ที่นี่ชนะถ้าไม่ใช่ 0): ที่นี่ หรือ AnimationId ของ ServerStorage > Bosses > boss_slambot > Animations > <ท่า> ใน Studio
