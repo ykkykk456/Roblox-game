@@ -86,3 +86,7 @@
 
 ## ตรวจว่าแก้แค่คอมเมนต์
 `python3 tools/check_comments_only.py` — ใช้หลังแก้คอมเมนต์ ถ้าเผลอแก้โค้ดจะบอกบรรทัดที่เปลี่ยน
+
+## คำสั่งเทส (เฉพาะ Studio)
+กด Play แล้วพิมพ์ในแชท: `/money 100000` · `/setmoney 0` · `/level 50` · `/gear Legendary` · `/gear Barrel Fire Epic 5` · `/slots` · `/skiptut` · `/resettut` · `/help`
+โค้ด: `src/server/Services/DevCommandService.luau` (นอก Studio ปิดอยู่ · เปิดให้เจ้าของเกมในเซิร์ฟจริงได้ที่ `ALLOW_OWNER_IN_LIVE`)

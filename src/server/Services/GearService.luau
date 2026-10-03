@@ -172,6 +172,11 @@ function GearService.visuals(player: Player): { GearMath.Visual }
 end
 
 -- ใส่ชิ้น key ในช่องของมัน · กฎ: id มีจริง · มีในกระเป๋า ≥ 1 · ช่องเปิดแล้ว · บอสไม่อยู่ · คืน true ถ้าเปลี่ยน
+-- ⚠️ ใช้กับคำสั่งเทส (Services/DevCommandService) เท่านั้น: หลังแก้ data.Gear ตรงๆ ให้เรียกเพื่อส่ง Attribute/อัปเดตป้อมใหม่
+function GearService.devRefresh(player: Player)
+	afterChange(player, true)
+end
+
 function GearService.equip(player: Player, key: string): boolean
 	local changed = false
 	PlayerData.update(player, function(data)
