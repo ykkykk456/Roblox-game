@@ -199,7 +199,7 @@ local function makeBall(): (Instance, BasePart)
 	part.CanCollide = false
 	part.CanTouch = false
 	part.CanQuery = false
-	part.CFrame = CFrame.new(bossCenter() + Vector3.new(0, Combat.Boss.Height, 0))
+	part.CFrame = CFrame.new(bossCenter() + Vector3.new(0, 14, 0)) -- ลอยสูง 14 studs (ค่าเดิม Combat.Boss.Height ถูกลบตามที่เจ้าของเกมสั่ง 2026-10-03)
 	addLabel(part, 10)
 	part.Parent = workspace
 	return part, part
